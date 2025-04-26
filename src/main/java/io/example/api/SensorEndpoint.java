@@ -44,12 +44,19 @@ public class SensorEndpoint {
         .invokeAsync();
   }
 
-  @Get("/view/all")
-  public HttpResponse streamAllSensors() {
+  @Get("/view/stream")
+  public HttpResponse getViewStream() {
     return HttpResponses.serverSentEvents(
         componentClient.forView()
-            .stream(SensorView::getAllSensors)
+            .stream(SensorView::getViewStream)
             .source());
+  }
+
+  @Get("/view/list")
+  public CompletionStage<SensorView.Sensors> getViewList() {
+    return componentClient.forView()
+        .method(SensorView::getViewList)
+        .invokeAsync();
   }
 
   @Get("/current-time")

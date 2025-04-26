@@ -1,6 +1,7 @@
 package io.example.application;
 
 import java.time.Instant;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,9 +22,19 @@ public class SensorView extends View {
         FROM sensor_view
         LIMIT 1000
           """)
-  public QueryStreamEffect<SensorView.SensorRow> getAllSensors() {
+  public QueryStreamEffect<SensorRow> getViewStream() {
     log.info("Getting all sensors");
     return queryStreamResult();
+  }
+
+  @Query("""
+      SELECT * as sensors
+        FROM sensor_view
+        LIMIT 1000
+          """)
+  public QueryEffect<Sensors> getViewList() {
+    log.info("Getting sensors by status");
+    return queryResult();
   }
 
   @Consume.FromEventSourcedEntity(SensorEntity.class)
@@ -48,4 +59,6 @@ public class SensorView extends View {
       String id,
       String status,
       Instant updatedAt) {}
+
+  public record Sensors(List<SensorRow> sensors) {}
 }

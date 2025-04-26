@@ -5,30 +5,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let gridCols = 0; // Will be calculated dynamically
   const cellMinSize = 30; // Minimum cell size in pixels (increased from 20)
 
-  // Configure URLs based on query parameters or use defaults
-  let backendApiBaseUrl = 'http://localhost:9000'; // Default Base URL for HTTP PUT
-  let streamUrl = 'http://localhost:9000/sensor/view/all'; // Default SSE URL
-
-  // Check for 'host' query parameter
-  const urlParams = new URLSearchParams(window.location.search);
-  const hostParam = urlParams.get('host');
-
-  if (hostParam) {
-    // If host parameter exists, configure URLs based on it
-    if (hostParam.startsWith('localhost') || hostParam.startsWith('127.0.0.1')) {
-      // For localhost or 127.0.0.1, use http://
-      backendApiBaseUrl = `http://${hostParam}`;
-      streamUrl = `http://${hostParam}/sensor/view/all`;
-    } else {
-      // For other hosts, use https://
-      backendApiBaseUrl = `https://${hostParam}`;
-      streamUrl = `https://${hostParam}/sensor/view/all`;
-    }
-    console.log(`Using host from query parameter: ${hostParam}`);
-  }
-
-  console.log(`API Base URL: ${backendApiBaseUrl}`);
-  console.log(`SSE URL: ${streamUrl}`);
+  // Use the current origin for API calls and SSE stream
+  const origin = window.location.origin; // Gets the protocol, hostname, and port
+  const streamUrl = `${origin}/sensor/view/stream`; // SSE URL
 
   // --- State ---
   let hoveredCellId = null; // ID of the currently hovered cell ('cell-R-C')
@@ -292,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
    * @param {string} action The action key ('r', 'g', 'b', 'd')
    */
   async function sendCellUpdate(id, action) {
-    const apiUrl = `${backendApiBaseUrl}/sensor/update-status`;
+    const apiUrl = `${origin}/sensor/update-status`;
     // Get current time in ISO8601 format
     const updatedAt = new Date().toISOString();
     const statusMap = { r: 'red', g: 'green', b: 'blue', y: 'yellow', d: 'default' };
@@ -446,7 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- Initialization ---
-  regionUrlSpan.textContent = backendApiBaseUrl; // Display configured endpoint
+  regionUrlSpan.textContent = origin; // Display configured endpoint
   createGrid();
   connectToStream();
   document.addEventListener('keydown', handleGlobalKeyDown);
