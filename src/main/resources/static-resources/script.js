@@ -7,11 +7,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Use the current origin for API calls and SSE stream
   const origin = window.location.origin; // Gets the protocol, hostname, and port
-  const streamUrl = `${origin}/sensor/view/stream`; // SSE URL
+  const viewStreamUrl = `${origin}/sensor/view/stream`; // SSE URL
+  const viewListUrl = `${origin}/sensor/view/list`; // SSE URL
 
   // --- State ---
   let hoveredCellId = null; // ID of the currently hovered cell ('cell-R-C')
   let eventSource = null; // EventSource instance
+  let sensorListInterval = null; // Interval timer for fetching sensor list
 
   // Cell count tracking
   let cellCounts = {
@@ -311,11 +313,11 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const update = JSON.parse(messageData);
       // Log the update with timestamp if available
-      if (update.updatedAt) {
-        const now = new Date();
-        const elapsedMs = now.getTime() - new Date(update.updatedAt).getTime();
-        console.log(`Received update for cell ${update.id} with status ${update.status}, updatedAt: ${update.updatedAt} (elapsed: ${elapsedMs}ms)`);
-      }
+      // if (update.updatedAt) {
+      //   const now = new Date();
+      //   const elapsedMs = now.getTime() - new Date(update.updatedAt).getTime();
+      //   console.log(`Received update for cell ${update.id} with status ${update.status}, updatedAt: ${update.updatedAt} (elapsed: ${elapsedMs}ms)`);
+      // }
 
       if (update.id && update.status !== undefined) {
         const cellId = `cell-${update.id}`; // Assumes id is "R-C"
@@ -368,6 +370,38 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /**
+   * Fetches the current list of sensors and processes each one
+   */
+  async function fetchSensorList() {
+    console.log(`Fetching sensor list from ${viewListUrl}...`);
+    try {
+      const response = await fetch(viewListUrl);
+
+      if (!response.ok) {
+        console.error(`HTTP error! Status: ${response.status}`, await response.text());
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data && data.sensors && Array.isArray(data.sensors)) {
+        console.log(`Received ${data.sensors.length} sensors from list endpoint`);
+
+        // Process each sensor through the handleStreamMessage function
+        data.sensors.forEach((sensor) => {
+          // Convert the sensor object to a JSON string as handleStreamMessage expects
+          const sensorJson = JSON.stringify(sensor);
+          handleStreamMessage(sensorJson);
+        });
+      } else {
+        console.error('Invalid response format:', data);
+      }
+    } catch (error) {
+      console.error('Error fetching sensor list:', error);
+    }
+  }
+
+  /**
    * Establishes and manages the Server-Sent Events (SSE) connection.
    */
   function connectToStream() {
@@ -376,9 +410,9 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    console.log(`Attempting to connect SSE to ${streamUrl}...`);
+    console.log(`Attempting to connect SSE to ${viewStreamUrl}...`);
     updateConnectionStatus('Connecting...', '');
-    eventSource = new EventSource(streamUrl);
+    eventSource = new EventSource(viewStreamUrl);
 
     eventSource.onopen = (event) => {
       console.log('SSE connection established.');
@@ -427,8 +461,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- Initialization ---
   regionUrlSpan.textContent = origin; // Display configured endpoint
   createGrid();
-  connectToStream();
+  fetchSensorList(); // Fetch initial state
+  connectToStream(); // Connect to stream for updates
   document.addEventListener('keydown', handleGlobalKeyDown);
+
+  // Set up interval to fetch sensor list every 250ms
+  sensorListInterval = setInterval(fetchSensorList, 250);
 
   // Add window resize event listener to adjust grid when window size changes
   window.addEventListener('resize', () => {
