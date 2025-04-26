@@ -1,0 +1,284 @@
+/* Basic Reset & Dark Theme */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: #020510; /* Darker blue background */
+  color: #a7ecff; /* Cyan-tinted text for futuristic feel */
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 50px; /* Space for info panel */
+  min-height: 100vh;
+  background-image: radial-gradient(circle at 50% 50%, rgba(10, 20, 40, 0.2) 0%, rgba(2, 5, 16, 0.1) 100%);
+  background-attachment: fixed;
+}
+
+#info-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background-color: rgba(15, 30, 60, 0.9); /* Semi-transparent dark blue */
+  color: #a7ecff; /* Cyan-tinted text */
+  padding: 8px 15px;
+  font-size: 0.9em;
+  z-index: 10;
+  border-bottom: 1px solid #2a6ca5; /* Brighter blue border */
+  text-align: center;
+  box-shadow: 0 0 15px rgba(0, 150, 255, 0.2); /* Subtle blue glow */
+  backdrop-filter: blur(5px); /* Frosted glass effect */
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
+#info-panel span {
+  margin: 0 15px;
+  text-shadow: 0 0 5px rgba(0, 200, 255, 0.5); /* Subtle text glow */
+  letter-spacing: 0.5px; /* Slightly spaced letters for readability */
+}
+
+/* Grid Summary Styling */
+#grid-summary-container {
+  grid-column: 1 / 3;
+  grid-row: 1;
+  margin-bottom: 5px;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  padding-left: 10px;
+}
+
+#grid-summary {
+  color: white;
+  font-size: 0.65em;
+  font-weight: bold;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.7);
+  background-color: rgba(5, 10, 25, 0.4);
+  padding: 3px 8px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 100, 200, 0.2);
+}
+
+#connection-status.connected {
+  color: #4dff9d; /* Cyan-green for connected */
+  text-shadow: 0 0 8px rgba(77, 255, 157, 0.7); /* Glow effect */
+}
+
+#connection-status.error {
+  color: #ff4d6f; /* Pinkish-red for error/disconnected */
+  text-shadow: 0 0 8px rgba(255, 77, 111, 0.7); /* Glow effect */
+}
+
+/* Grid System Layout */
+#grid-system {
+  display: grid;
+  grid-template-areas:
+    'summary summary'
+    'left-axis grid-container'
+    'corner-spacer bottom-axis';
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr auto;
+  max-width: 85vw;
+  margin: 20px auto;
+  box-sizing: border-box;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Grid Container Styling */
+#grid-container {
+  grid-area: grid-container;
+  display: grid;
+  /* grid-template-columns/rows will be set by JS */
+  gap: 3px; /* FUI style gap */
+  padding: 10px; /* Even padding on all sides */
+  box-sizing: border-box; /* Include padding in width calculations */
+  justify-content: center; /* Center the grid horizontally */
+  border: 1px solid rgba(0, 100, 200, 0.2); /* Darker subtle blue border */
+  border-radius: 5px 5px 0 0; /* Rounded only on top corners */
+  box-shadow: 0 0 15px rgba(0, 60, 150, 0.1); /* Subtle blue glow */
+  background-color: rgba(5, 10, 25, 0.4); /* Darker than body background */
+}
+
+/* Left Axis Styling */
+#left-axis {
+  grid-area: left-axis;
+  width: 30px;
+  position: relative;
+  background-color: rgba(5, 10, 25, 0.2);
+  border-radius: 5px 0 0 0;
+  border: 1px solid rgba(0, 100, 200, 0.2);
+  border-right: none;
+  padding-top: 0; /* Remove padding to align with grid top */
+  align-self: stretch; /* Ensure it stretches to match grid height */
+}
+
+/* Bottom Axis Styling */
+#bottom-axis {
+  grid-area: bottom-axis;
+  height: 30px;
+  position: relative;
+  background-color: rgba(5, 10, 25, 0.2);
+  border-radius: 0 0 5px 0;
+  border: 1px solid rgba(0, 100, 200, 0.2);
+  border-top: none;
+  padding-left: 10px; /* Match grid container padding */
+}
+
+/* Corner Spacer */
+#corner-spacer {
+  grid-area: corner-spacer;
+  background-color: rgba(5, 10, 25, 0.2);
+  border-radius: 0 0 0 5px;
+  border: 1px solid rgba(0, 100, 200, 0.2);
+  border-top: none;
+  border-right: none;
+}
+
+/* Axis Tick Styling */
+.axis-tick {
+  position: absolute;
+  background-color: rgba(200, 200, 200, 0.6); /* Light gray */
+}
+
+/* Left Axis Ticks */
+.left-tick {
+  right: 0;
+  height: 1px;
+  width: 5px; /* Default tick length */
+  transform: translateY(0); /* Align with top of cell */
+}
+
+.left-tick.tick-5 {
+  width: 10px; /* Medium tick for multiples of 5 */
+}
+
+.left-tick.tick-10 {
+  width: 15px; /* Long tick for multiples of 10 */
+}
+
+/* Bottom Axis Ticks */
+.bottom-tick {
+  top: 0;
+  width: 1px;
+  height: 5px; /* Default tick length */
+  transform: translateX(0); /* Align with left of cell */
+}
+
+.bottom-tick.tick-5 {
+  height: 10px; /* Medium tick for multiples of 5 */
+}
+
+.bottom-tick.tick-10 {
+  height: 15px; /* Long tick for multiples of 10 */
+}
+
+/* Axis Labels */
+.axis-label {
+  position: absolute;
+  color: white;
+  font-size: 0.65em;
+  font-weight: bold;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.7);
+}
+
+/* Left Axis Labels */
+.left-label {
+  right: 18px; /* Position to the left of the tick */
+  transform: translateY(-50%); /* Center vertically */
+}
+
+/* Bottom Axis Labels */
+.bottom-label {
+  bottom: 18px; /* Position below the tick */
+  transform: translateX(-50%); /* Center horizontally */
+}
+
+/* Grid Cell Styling */
+.grid-cell {
+  background-color: #081020; /* Darker blue cell */
+  aspect-ratio: 1 / 1; /* Square cells */
+  min-width: 20px; /* Minimum size */
+  border: 1px solid #102a45; /* Darker blue-tinted border */
+  transition: all 0.2s ease-in-out;
+  cursor: crosshair; /* Indicate interactivity */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 0.7em; /* For potential future text */
+  position: relative;
+  overflow: hidden;
+  color: transparent; /* Hide text by default */
+}
+
+/* Add subtle grid line effect */
+.grid-cell::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: linear-gradient(to bottom, rgba(0, 150, 255, 0.05) 1px, transparent 1px), linear-gradient(to right, rgba(0, 150, 255, 0.05) 1px, transparent 1px);
+  background-size: 5px 5px;
+  pointer-events: none;
+}
+
+/* Cell Hover Effect */
+.grid-cell:hover {
+  background-color: #1a3050; /* Brighter blue on hover */
+  border-color: #4a8ec2; /* Bright blue border */
+  transform: scale(1.05); /* Subtle zoom */
+  z-index: 5; /* Bring to front */
+  box-shadow: 0 0 10px rgba(0, 150, 255, 0.4); /* Blue glow on hover */
+}
+
+/* Cell Status Colors - Darker futuristic style */
+.cell-red {
+  background-color: #8a0f30; /* Darker red base */
+  border-color: #d12050;
+  box-shadow: inset 0 0 15px rgba(209, 32, 80, 0.3); /* Subtle inner glow */
+}
+
+.cell-green {
+  background-color: #064a3e; /* Darker green base */
+  border-color: #05aa6c;
+  box-shadow: inset 0 0 15px rgba(5, 170, 108, 0.3); /* Subtle inner glow */
+}
+
+.cell-blue {
+  background-color: #06304f; /* Darker blue base */
+  border-color: #0580b3;
+  box-shadow: inset 0 0 15px rgba(5, 128, 179, 0.3); /* Subtle inner glow */
+}
+
+.cell-yellow {
+  background-color: #7a5c1c; /* Darker yellow base */
+  border-color: #c29932;
+  box-shadow: inset 0 0 15px rgba(194, 153, 50, 0.3); /* Subtle inner glow */
+}
+
+/* Styling for cells with elapsed time */
+.has-elapsed-time {
+  color: white !important; /* White text for elapsed time */
+  font-size: 0.65em;
+  font-weight: bold;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.7); /* Text shadow for better readability */
+}
+
+/* Make sure text is still visible on colored cells */
+.cell-red.has-elapsed-time,
+.cell-green.has-elapsed-time,
+.cell-blue.has-elapsed-time,
+.cell-yellow.has-elapsed-time {
+  color: white !important;
+}
+
+/* Default state is handled by base .grid-cell style */

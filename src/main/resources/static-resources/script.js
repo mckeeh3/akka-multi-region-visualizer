@@ -1,0 +1,465 @@
+document.addEventListener('DOMContentLoaded', () => {
+  // --- Configuration ---
+  // Grid dimensions will be calculated dynamically based on viewport size
+  let gridRows = 0; // Will be calculated dynamically
+  let gridCols = 0; // Will be calculated dynamically
+  const cellMinSize = 30; // Minimum cell size in pixels (increased from 20)
+
+  // Configure URLs based on query parameters or use defaults
+  let backendApiBaseUrl = 'http://localhost:9000'; // Default Base URL for HTTP PUT
+  let streamUrl = 'http://localhost:9000/sensor/view/all'; // Default SSE URL
+
+  // Check for 'host' query parameter
+  const urlParams = new URLSearchParams(window.location.search);
+  const hostParam = urlParams.get('host');
+
+  if (hostParam) {
+    // If host parameter exists, configure URLs based on it
+    if (hostParam.startsWith('localhost') || hostParam.startsWith('127.0.0.1')) {
+      // For localhost or 127.0.0.1, use http://
+      backendApiBaseUrl = `http://${hostParam}`;
+      streamUrl = `http://${hostParam}/sensor/view/all`;
+    } else {
+      // For other hosts, use https://
+      backendApiBaseUrl = `https://${hostParam}`;
+      streamUrl = `https://${hostParam}/sensor/view/all`;
+    }
+    console.log(`Using host from query parameter: ${hostParam}`);
+  }
+
+  console.log(`API Base URL: ${backendApiBaseUrl}`);
+  console.log(`SSE URL: ${streamUrl}`);
+
+  // --- State ---
+  let hoveredCellId = null; // ID of the currently hovered cell ('cell-R-C')
+  let eventSource = null; // EventSource instance
+
+  // Cell count tracking
+  let cellCounts = {
+    total: 0,
+    red: 0,
+    green: 0,
+    blue: 0,
+    yellow: 0,
+  };
+
+  // --- DOM References ---
+  const gridContainer = document.getElementById('grid-container');
+  const leftAxis = document.getElementById('left-axis');
+  const bottomAxis = document.getElementById('bottom-axis');
+  const regionUrlSpan = document.getElementById('region-url');
+  const connectionStatusSpan = document.getElementById('connection-status');
+  const gridSummary = document.getElementById('grid-summary');
+
+  // --- Functions ---
+
+  /**
+   * Updates the grid summary display with current cell counts
+   */
+  function updateGridSummary() {
+    gridSummary.textContent = `Total: ${cellCounts.total}, R: ${cellCounts.red}, G: ${cellCounts.green}, B: ${cellCounts.blue}, Y: ${cellCounts.yellow}`;
+  }
+
+  /**
+   * Updates the cell counts when a cell status changes
+   * @param {string} oldStatus Previous cell status
+   * @param {string} newStatus New cell status
+   */
+  function updateCellCounts(oldStatus, newStatus) {
+    // Decrement the old status count if it was active
+    if (oldStatus !== 'default') {
+      cellCounts[oldStatus]--;
+      cellCounts.total--;
+    }
+
+    // Increment the new status count if it's active
+    if (newStatus !== 'default') {
+      cellCounts[newStatus]++;
+      cellCounts.total++;
+    }
+  }
+
+  /**
+   * Gets the current status of a cell from its classes
+   * @param {HTMLElement} cellElement The cell element
+   * @returns {string} The cell status ('red', 'green', 'blue', 'yellow', or 'default')
+   */
+  function getCellStatus(cellElement) {
+    if (cellElement.classList.contains('cell-red')) return 'red';
+    if (cellElement.classList.contains('cell-green')) return 'green';
+    if (cellElement.classList.contains('cell-blue')) return 'blue';
+    if (cellElement.classList.contains('cell-yellow')) return 'yellow';
+    return 'default';
+  }
+
+  /**
+   * Updates the connection status display.
+   * @param {string} statusText Text to display
+   * @param {string} cssClass Class ('connected', 'error', '')
+   */
+  function updateConnectionStatus(statusText, cssClass = '') {
+    connectionStatusSpan.textContent = statusText;
+    connectionStatusSpan.className = cssClass;
+  }
+
+  /**
+   * Calculates the optimal number of rows and columns to fill the available space
+   * based on the current viewport dimensions and minimum cell size.
+   */
+  function calculateGridDimensions() {
+    // Get the info panel height for top spacing reference
+    const infoPanelHeight = document.getElementById('info-panel').offsetHeight;
+
+    // Calculate available space (accounting for padding and margins)
+    // Use larger side margins to reduce the number of columns
+    const sideMargin = infoPanelHeight * 2; // Doubled side margin
+    const availableWidth = window.innerWidth - 2 * sideMargin; // Double margin on both sides
+    const availableHeight = window.innerHeight - infoPanelHeight - 2 * sideMargin; // Top panel + bottom margin
+
+    // Calculate number of cells that can fit (accounting for 3px gap between cells)
+    gridCols = Math.max(1, Math.floor(availableWidth / (cellMinSize + 3)));
+    gridRows = Math.max(1, Math.floor(availableHeight / (cellMinSize + 3)));
+
+    console.log(`Calculated grid dimensions: ${gridRows}x${gridCols} based on viewport ${window.innerWidth}x${window.innerHeight}`);
+  }
+
+  /**
+   * Creates the left axis with tick marks and labels
+   */
+  function createLeftAxis() {
+    leftAxis.innerHTML = ''; // Clear existing axis
+
+    // Calculate exact cell dimensions from the grid
+    const gridComputedStyle = window.getComputedStyle(gridContainer);
+    const gridContentHeight = gridContainer.clientHeight - parseInt(gridComputedStyle.paddingTop, 10) - parseInt(gridComputedStyle.paddingBottom, 10);
+
+    // Get the exact cell height including gap
+    const totalGapHeight = (gridRows - 1) * 3; // 3px gap between cells
+    const cellHeight = (gridContentHeight - totalGapHeight) / gridRows;
+
+    // Get grid container's computed style
+    const gridStyle = window.getComputedStyle(gridContainer);
+    const topPadding = parseInt(gridStyle.paddingTop, 10) || 0;
+    const borderWidth = parseInt(gridStyle.borderTopWidth, 10) || 0;
+    const gapSize = 3; // Match the gap size from CSS
+
+    // Create ticks and labels for each row
+    for (let r = 0; r < gridRows; r++) {
+      // Create tick mark
+      const tick = document.createElement('div');
+      tick.classList.add('axis-tick', 'left-tick');
+
+      // Add special classes for multiples of 5 and 10
+      if (r % 10 === 0) {
+        tick.classList.add('tick-10');
+
+        // Add label for multiples of 10
+        const label = document.createElement('div');
+        label.classList.add('axis-label', 'left-label');
+        label.textContent = r;
+        // Position label at the center of the cell
+        const cellStart = topPadding + borderWidth + r * cellHeight + (r > 0 ? r * 3 : 0);
+        const labelPosition = cellStart + cellHeight / 2;
+        label.style.top = `${labelPosition}px`;
+        leftAxis.appendChild(label);
+      } else if (r % 5 === 0) {
+        tick.classList.add('tick-5');
+      }
+
+      // Create a tick for each cell boundary
+      let tickPosition;
+      if (r === 0) {
+        // First tick at the top edge of the first cell
+        tickPosition = topPadding + borderWidth;
+      } else {
+        // Other ticks at the boundaries between cells (accounting for gaps)
+        tickPosition = topPadding + borderWidth + r * cellHeight + (r - 0.5) * 3;
+      }
+      tick.style.top = `${tickPosition}px`;
+      leftAxis.appendChild(tick);
+    }
+  }
+
+  /**
+   * Creates the bottom axis with tick marks and labels
+   */
+  function createBottomAxis() {
+    bottomAxis.innerHTML = ''; // Clear existing axis
+
+    // Calculate exact cell dimensions from the grid
+    const gridComputedStyle = window.getComputedStyle(gridContainer);
+    const gridContentWidth = gridContainer.clientWidth - parseInt(gridComputedStyle.paddingLeft, 10) - parseInt(gridComputedStyle.paddingRight, 10);
+
+    // Get the exact cell width including gap
+    const totalGapWidth = (gridCols - 1) * 3; // 3px gap between cells
+    const cellWidth = (gridContentWidth - totalGapWidth) / gridCols;
+
+    // Get grid container's computed style
+    const gridStyle = window.getComputedStyle(gridContainer);
+    const leftPadding = parseInt(gridStyle.paddingLeft, 10) || 10;
+    const borderWidth = parseInt(gridStyle.borderLeftWidth, 10) || 0;
+    const gapSize = 3; // Match the gap size from CSS
+
+    // Create ticks and labels for each column
+    for (let c = 0; c < gridCols; c++) {
+      // Create tick mark
+      const tick = document.createElement('div');
+      tick.classList.add('axis-tick', 'bottom-tick');
+
+      // Add special classes for multiples of 5 and 10
+      if (c % 10 === 0) {
+        tick.classList.add('tick-10');
+
+        // Add label for multiples of 10
+        const label = document.createElement('div');
+        label.classList.add('axis-label', 'bottom-label');
+        label.textContent = c;
+        // Position label at the center of the cell
+        const cellStart = leftPadding + borderWidth + c * cellWidth + (c > 0 ? c * 3 : 0);
+        const labelPosition = cellStart + cellWidth / 2;
+        label.style.left = `${labelPosition}px`;
+        bottomAxis.appendChild(label);
+      } else if (c % 5 === 0) {
+        tick.classList.add('tick-5');
+      }
+
+      // Create a tick for each cell boundary
+      let tickPosition;
+      if (c === 0) {
+        // First tick at the left edge of the first cell
+        tickPosition = leftPadding + borderWidth;
+      } else {
+        // Other ticks at the boundaries between cells (accounting for gaps)
+        tickPosition = leftPadding + borderWidth + c * cellWidth + (c - 0.5) * 3;
+      }
+      tick.style.left = `${tickPosition}px`;
+      bottomAxis.appendChild(tick);
+    }
+  }
+
+  /**
+   * Generates the grid cells dynamically.
+   */
+  function createGrid() {
+    // Calculate grid dimensions based on current viewport
+    calculateGridDimensions();
+
+    gridContainer.innerHTML = ''; // Clear existing grid
+    gridContainer.style.gridTemplateColumns = `repeat(${gridCols}, minmax(${cellMinSize}px, 1fr))`;
+    gridContainer.style.gridTemplateRows = `repeat(${gridRows}, minmax(${cellMinSize}px, 1fr))`;
+
+    // Reset cell counts
+    cellCounts = {
+      total: 0,
+      red: 0,
+      green: 0,
+      blue: 0,
+      yellow: 0,
+    };
+
+    // Update the grid summary display
+    updateGridSummary();
+
+    for (let r = 0; r < gridRows; r++) {
+      for (let c = 0; c < gridCols; c++) {
+        const cell = document.createElement('div');
+        cell.classList.add('grid-cell');
+        cell.id = `cell-${r}-${c}`; // e.g., cell-0-0, cell-1-0
+
+        // Add interaction listeners
+        cell.addEventListener('mouseover', () => {
+          hoveredCellId = cell.id;
+        });
+        cell.addEventListener('mouseout', () => {
+          hoveredCellId = null;
+        });
+
+        gridContainer.appendChild(cell);
+      }
+    }
+    console.log(`Grid created with ${gridRows}x${gridCols} cells.`);
+
+    // Create axes after grid is populated
+    setTimeout(() => {
+      createLeftAxis();
+      createBottomAxis();
+    }, 0);
+  }
+
+  /**
+   * Sends the update command to the backend via HTTP PUT.
+   * @param {string} id The cell's entity ID (e.g., "R-C")
+   * @param {string} action The action key ('r', 'g', 'b', 'd')
+   */
+  async function sendCellUpdate(id, action) {
+    const apiUrl = `${backendApiBaseUrl}/sensor/update-status`;
+    // Get current time in ISO8601 format
+    const updatedAt = new Date().toISOString();
+    const statusMap = { r: 'red', g: 'green', b: 'blue', d: 'default' };
+    const status = statusMap[action];
+
+    console.log(`Sending PUT to ${apiUrl} with id: ${id}, status: ${status}, updatedAt: ${updatedAt}`);
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: id,
+          status: status,
+          updatedAt: updatedAt,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error(`HTTP error! Status: ${response.status}`, await response.text());
+      } else {
+        console.log(`Update request for ${id} sent successfully.`);
+        // Note: Visual update happens via WebSocket stream, not here.
+      }
+    } catch (error) {
+      console.error('Error sending cell update:', error);
+    }
+  }
+
+  /**
+   * Handles incoming messages from the SSE stream.
+   * @param {string} messageData Raw message data string (expected JSON)
+   */
+  function handleStreamMessage(messageData) {
+    try {
+      const update = JSON.parse(messageData);
+      // Log the update with timestamp if available
+      if (update.updatedAt) {
+        const now = new Date();
+        const elapsedMs = Math.max(0, Math.min(9999, now.getTime() - new Date(update.updatedAt).getTime()));
+        console.log(`Received update for cell ${update.id} with status ${update.status}, updatedAt: ${update.updatedAt} (elapsed: ${elapsedMs}ms)`);
+      }
+
+      if (update.id && update.status !== undefined) {
+        const cellId = `cell-${update.id}`; // Assumes id is "R-C"
+        const cellElement = document.getElementById(cellId);
+
+        if (cellElement) {
+          // Get the previous status before removing classes
+          const previousStatus = getCellStatus(cellElement);
+
+          // Remove existing status classes first
+          cellElement.classList.remove('cell-red', 'cell-green', 'cell-blue', 'cell-yellow');
+
+          // Update cell counts
+          updateCellCounts(previousStatus, update.status);
+
+          // Add the appropriate class based on status
+          if (update.status !== 'default') {
+            cellElement.classList.add(`cell-${update.status}`);
+          }
+
+          // Calculate and display elapsed time if available
+          if (update.updatedAt && update.status !== 'default') {
+            const updatedAt = new Date(update.updatedAt);
+            const receivedAt = new Date();
+            const elapsedMs = receivedAt - updatedAt;
+
+            if (elapsedMs > 0) {
+              cellElement.textContent = elapsedMs;
+              cellElement.classList.add('has-elapsed-time');
+            } else {
+              cellElement.textContent = '';
+              cellElement.classList.remove('has-elapsed-time');
+            }
+          } else {
+            // Clear text content for default state
+            cellElement.textContent = '';
+            cellElement.classList.remove('has-elapsed-time');
+          }
+
+          // Update the grid summary display
+          updateGridSummary();
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing stream message:', error, 'Data:', messageData);
+    }
+  }
+
+  /**
+   * Establishes and manages the Server-Sent Events (SSE) connection.
+   */
+  function connectToStream() {
+    if (eventSource && eventSource.readyState !== EventSource.CLOSED) {
+      console.log('EventSource already open or connecting.');
+      return;
+    }
+
+    console.log(`Attempting to connect SSE to ${streamUrl}...`);
+    updateConnectionStatus('Connecting...', '');
+    eventSource = new EventSource(streamUrl);
+
+    eventSource.onopen = (event) => {
+      console.log('SSE connection established.');
+      updateConnectionStatus('Connected', 'connected');
+    };
+
+    eventSource.onmessage = (event) => {
+      handleStreamMessage(event.data);
+    };
+
+    eventSource.onerror = (event) => {
+      if (eventSource.readyState === EventSource.CONNECTING) {
+        return;
+      }
+      console.error('SSE error:', event);
+      updateConnectionStatus('Error', 'error');
+
+      if (eventSource.readyState === EventSource.CLOSED) {
+        console.log('SSE connection closed.');
+        updateConnectionStatus('Disconnected', 'error');
+        eventSource = null; // Clear the instance
+
+        // Optional: Attempt to reconnect after a delay
+        console.log('Attempting to reconnect in 5 seconds...');
+        setTimeout(connectToStream, 5000);
+      }
+    };
+  }
+
+  /**
+   * Handles global keydown events for cell updates.
+   * @param {KeyboardEvent} event
+   */
+  function handleGlobalKeyDown(event) {
+    if (hoveredCellId && ['r', 'g', 'b', 'y', 'd'].includes(event.key.toLowerCase())) {
+      event.preventDefault(); // Prevent default browser action (e.g., scrolling on space)
+
+      // Extract "R-C" from "cell-R-C"
+      const id = hoveredCellId.substring(5); // Remove "cell-" prefix
+      const action = event.key.toLowerCase();
+
+      sendCellUpdate(id, action);
+    }
+  }
+
+  // --- Initialization ---
+  regionUrlSpan.textContent = backendApiBaseUrl; // Display configured endpoint
+  createGrid();
+  connectToStream();
+  document.addEventListener('keydown', handleGlobalKeyDown);
+
+  // Add window resize event listener to adjust grid when window size changes
+  window.addEventListener('resize', () => {
+    // Use debounce to avoid excessive recalculations during resize
+    clearTimeout(window.resizeTimer);
+    window.resizeTimer = setTimeout(() => {
+      console.log('Window resized, recalculating grid dimensions...');
+      createGrid();
+      // Recreate axes after grid is resized
+      setTimeout(() => {
+        createLeftAxis();
+        createBottomAxis();
+      }, 0);
+    }, 250); // Wait 250ms after resize ends before recalculating
+  });
+}); // End DOMContentLoaded
