@@ -1,6 +1,7 @@
 package io.example.domain;
 
 import java.time.Instant;
+import java.util.Optional;
 
 public interface Sensor {
 
@@ -17,8 +18,11 @@ public interface Sensor {
       return this.id.isEmpty();
     }
 
-    public Event onCommand(Command.UpdateStatus command) {
-      return new Event.StatusUpdated(command.id, command.status, command.updatedAt);
+    public Optional<Sensor.Event> onCommand(Command.UpdateStatus command) {
+      if (isEmpty() && command.status().equals("default")) {
+        return Optional.empty();
+      }
+      return Optional.of(new Event.StatusUpdated(command.id, command.status, command.updatedAt));
     }
 
     public State onEvent(Event.StatusUpdated event) {

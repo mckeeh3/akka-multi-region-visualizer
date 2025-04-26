@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Akka Multi-Region Grid Demo - Help</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="icon" href="favicon.ico" type="image/x-icon" />
+    <style>
+      /* Additional styles for help page */
+      .help-container {
+        max-width: 900px;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: rgba(15, 30, 60, 0.8);
+        border-radius: 8px;
+        box-shadow: 0 0 15px rgba(0, 150, 255, 0.3);
+        backdrop-filter: blur(5px);
+      }
+
+      h1,
+      h2 {
+        color: #a7ecff;
+        margin-bottom: 15px;
+        text-shadow: 0 0 5px rgba(0, 200, 255, 0.5);
+      }
+
+      h1 {
+        text-align: center;
+        border-bottom: 1px solid #2a6ca5;
+        padding-bottom: 10px;
+      }
+
+      p,
+      ul {
+        margin-bottom: 15px;
+        line-height: 1.6;
+      }
+
+      ul {
+        padding-left: 25px;
+      }
+
+      .key {
+        display: inline-block;
+        background-color: rgba(30, 50, 80, 0.9);
+        padding: 2px 8px;
+        border-radius: 4px;
+        border: 1px solid #2a6ca5;
+        margin: 0 3px;
+        font-family: monospace;
+        box-shadow: 0 0 5px rgba(0, 150, 255, 0.2);
+      }
+
+      .color-box {
+        display: inline-block;
+        width: 15px;
+        height: 15px;
+        margin: 0 5px;
+        border-radius: 3px;
+        vertical-align: middle;
+      }
+
+      .red {
+        background-color: #ff5252;
+      }
+      .green {
+        background-color: #4caf50;
+      }
+      .blue {
+        background-color: #2196f3;
+      }
+      .yellow {
+        background-color: #ffeb3b;
+      }
+
+      .section {
+        margin-bottom: 30px;
+      }
+
+      .back-link {
+        display: block;
+        text-align: center;
+        margin-top: 20px;
+        color: #a7ecff;
+        text-decoration: none;
+      }
+
+      .back-link:hover {
+        text-decoration: underline;
+        text-shadow: 0 0 8px rgba(0, 200, 255, 0.8);
+      }
+
+      .diagram {
+        background-color: rgba(10, 20, 40, 0.5);
+        padding: 15px;
+        border-radius: 6px;
+        margin: 20px 0;
+        border: 1px dashed #2a6ca5;
+      }
+
+      code {
+        font-family: monospace;
+        background-color: rgba(30, 50, 80, 0.9);
+        padding: 2px 5px;
+        border-radius: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="info-panel">
+      <div>Region: <span id="region-url">Help Page</span></div>
+      <div><a href="index.html" style="color: #a7ecff; text-decoration: none">Return to Grid</a></div>
+    </div>
+
+    <div class="help-container">
+      <h1>Akka Multi-Region Grid Demo - Help</h1>
+
+      <div class="section">
+        <h2>How to Use the UI</h2>
+        <p>
+          The Akka Multi-Region Grid Demo provides a visual interface for interacting with a distributed grid of cells. Each cell can be in one of five states: default (empty) or colored (red, green,
+          blue, yellow).
+        </p>
+
+        <h3>Basic Interactions:</h3>
+        <ul>
+          <li>
+            <strong>Changing Cell States</strong>: Hover over any cell and press one of the following keys:
+            <ul>
+              <li><span class="key">r</span> - Set cell to <span class="color-box red"></span> red</li>
+              <li><span class="key">g</span> - Set cell to <span class="color-box green"></span> green</li>
+              <li><span class="key">b</span> - Set cell to <span class="color-box blue"></span> blue</li>
+              <li><span class="key">y</span> - Set cell to <span class="color-box yellow"></span> yellow</li>
+              <li><span class="key">d</span> - Set cell to default (clear)</li>
+            </ul>
+          </li>
+          <li><strong>Cell Information</strong>: Cells display the elapsed time (in milliseconds) since they were last updated.</li>
+          <li><strong>Grid Summary</strong>: The top of the grid shows a summary of the total number of colored cells and the count for each color.</li>
+          <li><strong>Connection Status</strong>: The top bar shows the current connection status and the server endpoint being used.</li>
+        </ul>
+
+        <h3>Advanced Features:</h3>
+        <ul>
+          <li><strong>URL Parameters</strong>: You can customize the polling interval by adding <code>?interval=X</code> to the URL, where X is the interval in milliseconds (default is 250ms).</li>
+          <li><strong>Responsive Design</strong>: The grid automatically adjusts to your screen size, showing as many cells as possible while maintaining readability.</li>
+        </ul>
+
+        <h3>Understanding Elapsed Time Display:</h3>
+        <p>Each colored cell displays a number representing the elapsed time in milliseconds. This measurement is particularly significant and works as follows:</p>
+        <ul>
+          <li><strong>Time Capture</strong>: When a client submits a request to update a grid cell's state, the current client device time is captured and sent along with the update.</li>
+          <li>
+            <strong>Time Calculation</strong>: When any client receives a grid update (via fetch or stream), the arrival time is compared with the original timestamp, calculating the elapsed
+            milliseconds between these two points in the processing flow.
+          </li>
+          <li>
+            <strong>Multi-Client Scenario</strong>: When multiple clients are accessing the service, the elapsed time represents the duration between Client A changing a grid cell's state and Client B
+            being notified of this change.
+          </li>
+          <li>
+            <strong>Multi-Region Significance</strong>: This measurement becomes especially interesting when the Akka service is running in a multi-region configuration. When Client A submits a grid
+            cell state change in Region A, and Client B is accessing the Akka service in Region B, the elapsed time represents:
+            <ul>
+              <li>The replication time between regions</li>
+              <li>Plus the processing time in both Akka service instances</li>
+              <li>Plus network latency between clients and services</li>
+            </ul>
+          </li>
+        </ul>
+        <p>This provides a real-time visualization of distributed system latency and replication performance across regions.</p>
+      </div>
+
+      <div class="section">
+        <h2>How the Akka Service Works</h2>
+        <p>This application demonstrates several key features of Akka's architecture and capabilities:</p>
+
+        <div class="diagram">
+          <pre>
+┌─────────────────────────────────────────────────────────┐
+│                      Web Browser                        │
+│                                                         │
+│  ┌─────────────┐     ┌─────────────┐    ┌────────────┐  │
+│  │ HTTP Fetch  │     │ Server-Sent │    │ User Input │  │
+│  │ (List View) │     │   Events    │    │ (Keyboard) │  │
+│  └──────┬──────┘     └──────┬──────┘    └──────┬─────┘  │
+└─────────┼─────────────────────────────────────┼─────────┘
+          │                   │                 │
+          ▼                   ▼                 ▼
+┌─────────────────────────────────────────────────────────┐
+│                     Akka HTTP Server                    │
+│                                                         │
+│  ┌─────────────┐     ┌─────────────┐    ┌────────────┐  │
+│  │  View List  │     │ View Stream │    │   Update   │  │
+│  │  Endpoint   │     │  Endpoint   │    │  Endpoint  │  │
+│  └──────┬──────┘     └──────┬──────┘    └──────┬─────┘  │
+└─────────┼─────────────────────────────────────┼─────────┘
+          │                   │                 │
+          ▼                   ▼                 ▼
+┌─────────────────────────────────────────────────────────┐
+│                    Akka Component System                │
+│                                                         │
+│  ┌─────────────┐                        ┌────────────┐  │
+│  │ SensorView  │◄───────────────────────┤SensorEntity│  │
+│  │  (View)     │                        │ (Entity)   │  │
+│  └─────────────┘                        └────────────┘  │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+          </pre>
+        </div>
+
+        <h3>Key Components:</h3>
+        <ul>
+          <li><strong>Event Sourcing</strong>: Each cell is an Event Sourced Entity (<code>SensorEntity</code>) that maintains its state through events.</li>
+          <li>
+            <strong>Views</strong>: The <code>SensorView</code> component provides two ways to access the data:
+            <ul>
+              <li><code>getViewList</code>: Returns a snapshot of all sensors as a list</li>
+              <li><code>getViewStream</code>: Provides a real-time stream of sensor updates</li>
+            </ul>
+          </li>
+          <li>
+            <strong>HTTP API</strong>: The <code>SensorEndpoint</code> exposes these capabilities through HTTP:
+            <ul>
+              <li><code>/sensor/view/list</code>: HTTP endpoint to get all sensors</li>
+              <li><code>/sensor/view/stream</code>: Server-Sent Events (SSE) endpoint for real-time updates</li>
+              <li><code>/sensor/update-status</code>: HTTP PUT endpoint to update a sensor's status</li>
+            </ul>
+          </li>
+          <li>
+            <strong>Client-Side Integration</strong>: The JavaScript client uses:
+            <ul>
+              <li>HTTP fetch for initial state and polling updates</li>
+              <li>EventSource API for real-time SSE updates</li>
+              <li>HTTP PUT requests to send updates to the server</li>
+            </ul>
+          </li>
+        </ul>
+
+        <h3>Technical Details:</h3>
+        <ul>
+          <li>
+            <strong>Optimizations</strong>:
+            <ul>
+              <li>Cell updates only occur when the status actually changes</li>
+              <li>The server avoids persisting events when setting a default cell back to default</li>
+              <li>Both polling and streaming are used for maximum reliability</li>
+            </ul>
+          </li>
+          <li>
+            <strong>Scalability</strong>: This architecture can scale to handle thousands of concurrent users and cells, as Akka's distributed nature allows entities to be spread across multiple
+            nodes.
+          </li>
+        </ul>
+      </div>
+
+      <a href="index.html" class="back-link">Return to Grid Demo</a>
+    </div>
+  </body>
+</html>

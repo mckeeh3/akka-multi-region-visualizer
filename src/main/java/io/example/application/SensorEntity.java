@@ -28,12 +28,8 @@ public class SensorEntity extends EventSourcedEntity<Sensor.State, Sensor.Event>
   public Effect<Done> updateStatus(Sensor.Command.UpdateStatus command) {
     log.info("EntityId: {}\n_State: {}\n_Command: {}", entityId, currentState(), command);
 
-    if (!command.id().equals(entityId)) {
-      return effects().error("Sensor ID must match entity ID");
-    }
-
     return effects()
-        .persist(currentState().onCommand(command))
+        .persistAll(currentState().onCommand(command).stream().toList())
         .thenReply(newState -> done());
   }
 

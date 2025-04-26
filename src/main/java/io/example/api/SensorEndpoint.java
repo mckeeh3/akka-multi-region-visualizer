@@ -1,5 +1,6 @@
 package io.example.api;
 
+import java.time.Duration;
 import java.util.concurrent.CompletionStage;
 
 import org.slf4j.Logger;
@@ -13,11 +14,10 @@ import akka.javasdk.annotations.http.HttpEndpoint;
 import akka.javasdk.annotations.http.Put;
 import akka.javasdk.client.ComponentClient;
 import akka.javasdk.http.HttpResponses;
+import akka.stream.javadsl.Source;
 import io.example.application.SensorEntity;
 import io.example.application.SensorView;
 import io.example.domain.Sensor;
-import akka.stream.javadsl.Source;
-import java.time.Duration;
 
 @Acl(allow = @Acl.Matcher(principal = Acl.Principal.INTERNET))
 @HttpEndpoint("/sensor")

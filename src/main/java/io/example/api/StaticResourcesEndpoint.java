@@ -16,6 +16,11 @@ public class StaticResourcesEndpoint {
     return HttpResponses.staticResource("index.html");
   }
 
+  @Get("/index.html")
+  public HttpResponse indexHtml() {
+    return HttpResponses.staticResource("index.html");
+  }
+
   @Get("/favicon.ico")
   public HttpResponse favicon() {
     return HttpResponses.staticResource("favicon.ico");
@@ -29,6 +34,11 @@ public class StaticResourcesEndpoint {
   @Get("/style.css")
   public HttpResponse style() {
     return HttpResponses.staticResource("style.css");
+  }
+
+  @Get("/help.html")
+  public HttpResponse help() {
+    return HttpResponses.staticResource("help.html");
   }
 
   @Get("/static/**") // Serve static files (e.g. HTML, CSS, JS)

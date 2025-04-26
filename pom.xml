@@ -6,14 +6,14 @@
     <artifactId>akka-javasdk-parent</artifactId>
     <version>3.3.0</version>
   </parent>
-  
+
   <groupId>io.example</groupId>
   <artifactId>akka-multi-region-visualizer</artifactId>
   <version>v.0.0.1</version>
   <packaging>jar</packaging>
 
   <name>akka-multi-region-visualizer</name>
-    <properties>
+  <properties>
 
   </properties>
 

@@ -373,7 +373,7 @@ document.addEventListener('DOMContentLoaded', () => {
    * Fetches the current list of sensors and processes each one
    */
   async function fetchSensorList() {
-    console.log(`Fetching sensor list from ${viewListUrl}...`);
+    // console.log(`Fetching sensor list from ${viewListUrl}...`);
     try {
       const response = await fetch(viewListUrl);
 
@@ -385,7 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await response.json();
 
       if (data && data.sensors && Array.isArray(data.sensors)) {
-        console.log(`Received ${data.sensors.length} sensors from list endpoint`);
+        // console.log(`Received ${data.sensors.length} sensors from list endpoint`);
 
         // Process each sensor through the handleStreamMessage function
         data.sensors.forEach((sensor) => {
@@ -415,7 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
     eventSource = new EventSource(viewStreamUrl);
 
     eventSource.onopen = (event) => {
-      console.log('SSE connection established.');
+      // console.log('SSE connection established.');
       updateConnectionStatus('Connected', 'connected');
     };
 
@@ -466,7 +466,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('keydown', handleGlobalKeyDown);
 
   // Set up interval to fetch sensor list every 250ms
-  sensorListInterval = setInterval(fetchSensorList, 250);
+  const urlParams = new URLSearchParams(window.location.search);
+  const interval = parseInt(urlParams.get('interval'), 10) || 250;
+  sensorListInterval = setInterval(fetchSensorList, interval);
 
   // Add window resize event listener to adjust grid when window size changes
   window.addEventListener('resize', () => {
