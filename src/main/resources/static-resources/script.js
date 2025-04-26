@@ -295,7 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const apiUrl = `${backendApiBaseUrl}/sensor/update-status`;
     // Get current time in ISO8601 format
     const updatedAt = new Date().toISOString();
-    const statusMap = { r: 'red', g: 'green', b: 'blue', d: 'default' };
+    const statusMap = { r: 'red', g: 'green', b: 'blue', y: 'yellow', d: 'default' };
     const status = statusMap[action];
 
     console.log(`Sending PUT to ${apiUrl} with id: ${id}, status: ${status}, updatedAt: ${updatedAt}`);
@@ -334,7 +334,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Log the update with timestamp if available
       if (update.updatedAt) {
         const now = new Date();
-        const elapsedMs = Math.max(0, Math.min(9999, now.getTime() - new Date(update.updatedAt).getTime()));
+        const elapsedMs = now.getTime() - new Date(update.updatedAt).getTime();
         console.log(`Received update for cell ${update.id} with status ${update.status}, updatedAt: ${update.updatedAt} (elapsed: ${elapsedMs}ms)`);
       }
 
@@ -346,38 +346,41 @@ document.addEventListener('DOMContentLoaded', () => {
           // Get the previous status before removing classes
           const previousStatus = getCellStatus(cellElement);
 
-          // Remove existing status classes first
-          cellElement.classList.remove('cell-red', 'cell-green', 'cell-blue', 'cell-yellow');
+          // Only update if the status has changed
+          if (previousStatus !== update.status) {
+            // Remove existing status classes first
+            cellElement.classList.remove('cell-red', 'cell-green', 'cell-blue', 'cell-yellow');
 
-          // Update cell counts
-          updateCellCounts(previousStatus, update.status);
+            // Update cell counts
+            updateCellCounts(previousStatus, update.status);
 
-          // Add the appropriate class based on status
-          if (update.status !== 'default') {
-            cellElement.classList.add(`cell-${update.status}`);
-          }
+            // Add the appropriate class based on status
+            if (update.status !== 'default') {
+              cellElement.classList.add(`cell-${update.status}`);
+            }
 
-          // Calculate and display elapsed time if available
-          if (update.updatedAt && update.status !== 'default') {
-            const updatedAt = new Date(update.updatedAt);
-            const receivedAt = new Date();
-            const elapsedMs = receivedAt - updatedAt;
+            // Calculate and display elapsed time if available
+            if (update.updatedAt && update.status !== 'default') {
+              const updatedAt = new Date(update.updatedAt);
+              const receivedAt = new Date();
+              const elapsedMs = receivedAt - updatedAt;
 
-            if (elapsedMs > 0) {
-              cellElement.textContent = elapsedMs;
-              cellElement.classList.add('has-elapsed-time');
+              if (elapsedMs > 0 && elapsedMs < 9999) {
+                cellElement.textContent = elapsedMs;
+                cellElement.classList.add('has-elapsed-time');
+              } else {
+                cellElement.textContent = '';
+                cellElement.classList.remove('has-elapsed-time');
+              }
             } else {
+              // Clear text content for default state
               cellElement.textContent = '';
               cellElement.classList.remove('has-elapsed-time');
             }
-          } else {
-            // Clear text content for default state
-            cellElement.textContent = '';
-            cellElement.classList.remove('has-elapsed-time');
-          }
 
-          // Update the grid summary display
-          updateGridSummary();
+            // Update the grid summary display
+            updateGridSummary();
+          }
         }
       }
     } catch (error) {
