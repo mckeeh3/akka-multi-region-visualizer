@@ -7,13 +7,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Use the current origin for API calls and SSE stream
   const origin = window.location.origin; // Gets the protocol, hostname, and port
-  const viewStreamUrl = `${origin}/sensor/view/stream`; // SSE URL
-  const viewListUrl = `${origin}/sensor/view/list`; // SSE URL
+  const viewStreamUrl = `${origin}/sensor/stream`; // SSE URL
+  const viewListUrl = `${origin}/sensor/list`; // SSE URL
 
   // --- State ---
   let hoveredCellId = null; // ID of the currently hovered cell ('cell-R-C')
   let eventSource = null; // EventSource instance
   let sensorListInterval = null; // Interval timer for fetching sensor list
+
+  // Selection state
+  let selectionMode = false;
+  let selectionStart = null;
+  let selectionEnd = null;
+  let currentSelection = []; // Array of selected cell IDs
 
   // Cell count tracking
   let cellCounts = {
@@ -225,7 +231,54 @@ document.addEventListener('DOMContentLoaded', () => {
     // Calculate grid dimensions based on current viewport
     calculateGridDimensions();
 
-    gridContainer.innerHTML = ''; // Clear existing grid
+    // Clear existing grid
+    gridContainer.innerHTML = '';
+
+    // Create grid cells
+    for (let row = 0; row < gridRows; row++) {
+      for (let col = 0; col < gridCols; col++) {
+        const cell = document.createElement('div');
+        cell.className = 'grid-cell';
+        cell.id = `cell-${row}-${col}`;
+
+        // Add hover tracking for keyboard shortcuts
+        cell.addEventListener('mouseenter', () => {
+          hoveredCellId = cell.id;
+          if (selectionMode && selectionStart) {
+            selectionEnd = getCellCoordinates(cell.id);
+            updateSelectionPreview();
+          }
+        });
+
+        cell.addEventListener('mouseleave', () => {
+          if (hoveredCellId === cell.id) {
+            hoveredCellId = null;
+          }
+        });
+
+        // Add mouse events for selection
+        cell.addEventListener('mousedown', (event) => {
+          if (selectionMode) {
+            event.preventDefault();
+            selectionStart = getCellCoordinates(cell.id);
+            selectionEnd = selectionStart;
+            updateSelectionPreview();
+          }
+        });
+
+        cell.addEventListener('mouseup', (event) => {
+          if (selectionMode && selectionStart) {
+            event.preventDefault();
+            selectionEnd = getCellCoordinates(cell.id);
+            finalizeSelection();
+          }
+        });
+
+        gridContainer.appendChild(cell);
+      }
+    }
+    console.log(`Grid created with ${gridRows}x${gridCols} cells.`);
+
     gridContainer.style.gridTemplateColumns = `repeat(${gridCols}, minmax(${cellMinSize}px, 1fr))`;
     gridContainer.style.gridTemplateRows = `repeat(${gridRows}, minmax(${cellMinSize}px, 1fr))`;
 
@@ -240,25 +293,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update the grid summary display
     updateGridSummary();
-
-    for (let r = 0; r < gridRows; r++) {
-      for (let c = 0; c < gridCols; c++) {
-        const cell = document.createElement('div');
-        cell.classList.add('grid-cell');
-        cell.id = `cell-${r}-${c}`; // e.g., cell-0-0, cell-1-0
-
-        // Add interaction listeners
-        cell.addEventListener('mouseover', () => {
-          hoveredCellId = cell.id;
-        });
-        cell.addEventListener('mouseout', () => {
-          hoveredCellId = null;
-        });
-
-        gridContainer.appendChild(cell);
-      }
-    }
-    console.log(`Grid created with ${gridRows}x${gridCols} cells.`);
 
     // Create axes after grid is populated
     setTimeout(() => {
@@ -443,18 +477,150 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /**
-   * Handles global keydown events for cell updates.
+   * Handles global keydown events for cell updates and selection mode.
    * @param {KeyboardEvent} event
    */
   function handleGlobalKeyDown(event) {
-    if (hoveredCellId && ['r', 'g', 'b', 'y', 'd'].includes(event.key.toLowerCase())) {
-      event.preventDefault(); // Prevent default browser action (e.g., scrolling on space)
+    // Toggle selection mode with Shift key
+    if (event.key === 'Shift' && !event.repeat) {
+      selectionMode = true;
+      document.body.classList.add('selection-active');
+      updateSelectionStatus('Selection mode active - Click and drag to select cells');
+      return;
+    }
 
-      // Extract "R-C" from "cell-R-C"
-      const id = hoveredCellId.substring(5); // Remove "cell-" prefix
+    // Handle color keys
+    if (['r', 'g', 'b', 'y', 'd'].includes(event.key.toLowerCase())) {
+      event.preventDefault(); // Prevent default browser action
       const action = event.key.toLowerCase();
 
-      sendCellUpdate(id, action);
+      if (currentSelection.length > 0) {
+        // Apply to all selected cells
+        currentSelection.forEach((id) => {
+          sendCellUpdate(id, action);
+        });
+
+        // Clear selection after applying
+        clearSelection();
+        updateSelectionStatus('Color applied to selection');
+      } else if (hoveredCellId) {
+        // Extract "R-C" from "cell-R-C"
+        const id = hoveredCellId.substring(5); // Remove "cell-" prefix
+        sendCellUpdate(id, action);
+      }
+    }
+  }
+
+  /**
+   * Handles global keyup events.
+   * @param {KeyboardEvent} event
+   */
+  function handleGlobalKeyUp(event) {
+    if (event.key === 'Shift') {
+      selectionMode = false;
+      document.body.classList.remove('selection-active');
+      clearSelection();
+      updateSelectionStatus('');
+    }
+  }
+
+  /**
+   * Gets cell coordinates from a cell ID.
+   * @param {string} cellId - The cell ID in format "cell-R-C"
+   * @returns {Object} - Object with row and col properties
+   */
+  function getCellCoordinates(cellId) {
+    // Extract row and column from cell-R-C format
+    const parts = cellId.substring(5).split('-');
+    return { row: parseInt(parts[0]), col: parseInt(parts[1]) };
+  }
+
+  /**
+   * Updates the selection preview.
+   */
+  function updateSelectionPreview() {
+    clearSelectionHighlight();
+
+    if (!selectionStart || !selectionEnd) return;
+
+    // Get the rectangle bounds
+    const startRow = Math.min(selectionStart.row, selectionEnd.row);
+    const endRow = Math.max(selectionStart.row, selectionEnd.row);
+    const startCol = Math.min(selectionStart.col, selectionEnd.col);
+    const endCol = Math.max(selectionStart.col, selectionEnd.col);
+
+    // Highlight all cells in the rectangle
+    currentSelection = [];
+    for (let r = startRow; r <= endRow; r++) {
+      for (let c = startCol; c <= endCol; c++) {
+        const cellId = `cell-${r}-${c}`;
+        const cell = document.getElementById(cellId);
+        if (cell) {
+          highlightCell(cell);
+          currentSelection.push(`${r}-${c}`); // Store ID without "cell-" prefix
+        }
+      }
+    }
+
+    updateSelectionStatus(`${currentSelection.length} cells selected`);
+  }
+
+  /**
+   * Finalizes the selection.
+   */
+  function finalizeSelection() {
+    // Selection is now ready for color application
+    updateSelectionStatus(`${currentSelection.length} cells selected. Press r/g/b/y/d to apply color.`);
+  }
+
+  /**
+   * Highlights a cell as part of the selection.
+   * @param {HTMLElement} cell - The cell element to highlight
+   */
+  function highlightCell(cell) {
+    cell.classList.add('selection-highlight');
+  }
+
+  /**
+   * Clears all selection highlights.
+   */
+  function clearSelectionHighlight() {
+    document.querySelectorAll('.selection-highlight').forEach((cell) => {
+      cell.classList.remove('selection-highlight');
+    });
+  }
+
+  /**
+   * Clears the current selection.
+   */
+  function clearSelection() {
+    clearSelectionHighlight();
+    currentSelection = [];
+    selectionStart = null;
+    selectionEnd = null;
+  }
+
+  /**
+   * Updates the selection status message.
+   * @param {string} message - The status message to display
+   */
+  function updateSelectionStatus(message) {
+    // Create status element if it doesn't exist
+    let statusElement = document.getElementById('selection-status');
+    if (!statusElement) {
+      statusElement = document.createElement('div');
+      statusElement.id = 'selection-status';
+      statusElement.className = 'status-message';
+      document.getElementById('info-panel').appendChild(statusElement);
+    }
+
+    statusElement.textContent = message;
+
+    // Hide after 3 seconds if empty message
+    if (!message) {
+      setTimeout(() => {
+        statusElement.textContent = '';
+      }, 3000);
     }
   }
 
@@ -464,6 +630,7 @@ document.addEventListener('DOMContentLoaded', () => {
   fetchSensorList(); // Fetch initial state
   connectToStream(); // Connect to stream for updates
   document.addEventListener('keydown', handleGlobalKeyDown);
+  document.addEventListener('keyup', handleGlobalKeyUp);
 
   // Set up interval to fetch sensor list every 250ms
   const urlParams = new URLSearchParams(window.location.search);

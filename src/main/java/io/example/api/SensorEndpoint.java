@@ -17,6 +17,7 @@ import akka.javasdk.http.HttpResponses;
 import akka.stream.javadsl.Source;
 import io.example.application.SensorEntity;
 import io.example.application.SensorView;
+import io.example.application.SensorView.PagedSensorsRequest;
 import io.example.domain.Sensor;
 
 @Acl(allow = @Acl.Matcher(principal = Acl.Principal.INTERNET))
@@ -44,19 +45,27 @@ public class SensorEndpoint {
         .invokeAsync();
   }
 
-  @Get("/view/stream")
-  public HttpResponse getViewStream() {
+  @Get("/stream")
+  public HttpResponse getSensorsStream() {
     return HttpResponses.serverSentEvents(
         componentClient.forView()
-            .stream(SensorView::getViewStream)
+            .stream(SensorView::getSensorsStream)
             .source());
   }
 
-  @Get("/view/list")
-  public CompletionStage<SensorView.Sensors> getViewList() {
+  @Get("/list")
+  public CompletionStage<SensorView.Sensors> getSensorsList() {
     return componentClient.forView()
-        .method(SensorView::getViewList)
+        .method(SensorView::getSensorsList)
         .invokeAsync();
+  }
+
+  @Get("/paginated-list/{pageTokenOffset}")
+  public CompletionStage<SensorView.PagedSensors> getSensorsPagedList(String pageTokenOffset) {
+    pageTokenOffset = pageTokenOffset.equals("start") ? "" : pageTokenOffset;
+    return componentClient.forView()
+        .method(SensorView::getSensorsPagedList)
+        .invokeAsync(new PagedSensorsRequest(pageTokenOffset));
   }
 
   @Get("/current-time")

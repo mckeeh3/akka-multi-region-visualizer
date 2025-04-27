@@ -44,6 +44,14 @@ body {
   letter-spacing: 0.5px; /* Slightly spaced letters for readability */
 }
 
+/* Selection status message */
+.status-message {
+  color: #a7ecff;
+  font-weight: bold;
+  text-shadow: 0 0 5px rgba(0, 200, 255, 0.5);
+  margin-left: 15px;
+}
+
 /* Grid Summary Styling */
 #grid-summary-container {
   grid-column: 1 / 3;
@@ -216,6 +224,20 @@ body {
   position: relative;
   overflow: hidden;
   color: transparent; /* Hide text by default */
+}
+
+/* Selection highlighting */
+.selection-highlight {
+  outline: 2px dashed rgba(255, 255, 255, 0.8);
+  z-index: 2;
+  position: relative;
+  box-shadow: 0 0 10px rgba(0, 200, 255, 0.3);
+}
+
+/* Hover effect when in selection mode */
+.selection-active .grid-cell:hover {
+  outline: 1px solid rgba(255, 255, 255, 0.5);
+  cursor: crosshair;
 }
 
 /* Add subtle grid line effect */

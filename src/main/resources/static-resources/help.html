@@ -146,6 +146,44 @@
           <li><strong>Responsive Design</strong>: The grid automatically adjusts to your screen size, showing as many cells as possible while maintaining readability.</li>
         </ul>
 
+        <h3>Box Selection for Multi-Cell Updates</h3>
+        <p>The grid visualizer includes a powerful box selection feature that allows you to update multiple cells simultaneously:</p>
+
+        <ol>
+          <li>
+            <strong>Enter Selection Mode</strong>: Hold down the <span class="key">Shift</span> key. You'll see a status message indicating "Selection mode active" and the cursor will change to a
+            crosshair.
+          </li>
+          <li>
+            <strong>Select a Region</strong>: While still holding <span class="key">Shift</span>, click on a cell that will be one corner of your selection, then drag to the opposite corner. As you
+            drag, you'll see cells highlighted with a dashed outline.
+          </li>
+          <li>
+            <strong>Apply Color</strong>: With cells selected (still holding <span class="key">Shift</span>), press one of the color keys:
+            <ul>
+              <li><span class="key">r</span> - Set all selected cells to <span class="color-box red"></span> red</li>
+              <li><span class="key">g</span> - Set all selected cells to <span class="color-box green"></span> green</li>
+              <li><span class="key">b</span> - Set all selected cells to <span class="color-box blue"></span> blue</li>
+              <li><span class="key">y</span> - Set all selected cells to <span class="color-box yellow"></span> yellow</li>
+              <li><span class="key">d</span> - Clear all selected cells (default)</li>
+            </ul>
+          </li>
+          <li><strong>Release Selection</strong>: After applying a color, or when you release the <span class="key">Shift</span> key, the selection will be cleared.</li>
+        </ol>
+
+        <p><strong>Use Cases:</strong> This feature is particularly useful for:</p>
+        <ul>
+          <li>Testing multi-region replication with a large number of cells at once</li>
+          <li>Creating patterns to visualize replication behavior</li>
+          <li>Comparing replication times across different regions</li>
+          <li>Stress-testing the system with many simultaneous updates</li>
+        </ul>
+
+        <p>
+          <strong>Tip:</strong> When using box selection in a multi-region deployment, try selecting large areas in one region and observe how quickly the changes propagate to clients connected to
+          other regions. The elapsed time numbers will help you visualize the replication latency across your distributed system.
+        </p>
+
         <h3>Understanding Elapsed Time Display:</h3>
         <p>Each colored cell displays a number representing the elapsed time in milliseconds. This measurement is particularly significant and works as follows:</p>
         <ul>

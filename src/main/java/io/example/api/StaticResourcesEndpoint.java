@@ -26,14 +26,14 @@ public class StaticResourcesEndpoint {
     return HttpResponses.staticResource("favicon.ico");
   }
 
-  @Get("/script.js")
+  @Get("/index.js")
   public HttpResponse script() {
-    return HttpResponses.staticResource("script.js");
+    return HttpResponses.staticResource("index.js");
   }
 
-  @Get("/style.css")
+  @Get("/index.css")
   public HttpResponse style() {
-    return HttpResponses.staticResource("style.css");
+    return HttpResponses.staticResource("index.css");
   }
 
   @Get("/help.html")

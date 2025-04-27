@@ -22,7 +22,7 @@ public class SensorView extends View {
         FROM sensor_view
         LIMIT 1000
           """)
-  public QueryStreamEffect<SensorRow> getViewStream() {
+  public QueryStreamEffect<SensorRow> getSensorsStream() {
     log.info("Getting all sensors");
     return queryStreamResult();
   }
@@ -32,7 +32,18 @@ public class SensorView extends View {
         FROM sensor_view
         LIMIT 1000
           """)
-  public QueryEffect<Sensors> getViewList() {
+  public QueryEffect<Sensors> getSensorsList() {
+    log.info("Getting sensors by status");
+    return queryResult();
+  }
+
+  @Query("""
+      SELECT * as sensors, next_page_token() AS nextPageToken, has_more() AS hasMore
+        FROM sensor_view
+        LIMIT 1000
+        OFFSET page_token_offset(:pageTokenOffset)
+          """)
+  public QueryEffect<PagedSensors> getSensorsPagedList(PagedSensorsRequest request) {
     log.info("Getting sensors by status");
     return queryResult();
   }
@@ -61,4 +72,8 @@ public class SensorView extends View {
       Instant updatedAt) {}
 
   public record Sensors(List<SensorRow> sensors) {}
+
+  public record PagedSensorsRequest(String pageTokenOffset) {}
+
+  public record PagedSensors(List<SensorRow> sensors, String nextPageToken, boolean hasMore) {}
 }
