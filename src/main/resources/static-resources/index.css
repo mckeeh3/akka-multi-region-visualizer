@@ -63,7 +63,7 @@ body {
   padding-left: 10px;
 }
 
-#grid-summary {
+#grid-summary, #grid-position {
   color: white;
   font-size: 0.9em;
   font-weight: bold;
@@ -72,6 +72,10 @@ body {
   padding: 3px 8px;
   border-radius: 3px;
   border: 1px solid rgba(0, 100, 200, 0.2);
+}
+
+#grid-position {
+  margin-right: 10px;
 }
 
 #connection-status.connected {

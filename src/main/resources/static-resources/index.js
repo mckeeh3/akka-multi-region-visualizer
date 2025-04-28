@@ -102,14 +102,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const infoPanel = document.getElementById('info-panel');
     if (!infoPanel) return;
 
-    // Create grid position display if it doesn't exist
-    if (!document.getElementById('grid-position')) {
-      const gridPosition = document.createElement('div');
-      gridPosition.id = 'grid-position';
-      gridPosition.textContent = `Grid Position: x=${viewportX}, y=${viewportY}`;
-      infoPanel.appendChild(gridPosition);
-    }
-
     // Create command status display if it doesn't exist
     if (!document.getElementById('command-status')) {
       const commandStatus = document.createElement('div');
