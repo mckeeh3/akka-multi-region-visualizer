@@ -96,6 +96,40 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /**
+   * Creates and adds a command status display to the info panel
+   */
+  function createCommandDisplay() {
+    const infoPanel = document.getElementById('info-panel');
+    if (!infoPanel) return;
+
+    // Create grid position display if it doesn't exist
+    if (!document.getElementById('grid-position')) {
+      const gridPosition = document.createElement('div');
+      gridPosition.id = 'grid-position';
+      gridPosition.textContent = `Grid Position: x=${viewportX}, y=${viewportY}`;
+      infoPanel.appendChild(gridPosition);
+    }
+
+    // Create command status display if it doesn't exist
+    if (!document.getElementById('command-status')) {
+      const commandStatus = document.createElement('div');
+      commandStatus.id = 'command-status';
+      commandStatus.textContent = 'Type number + x/y to navigate (e.g., 100x, -50y)';
+      infoPanel.appendChild(commandStatus);
+    }
+  }
+
+  /**
+   * Updates the grid position display in the info panel
+   */
+  function updateGridPositionDisplay() {
+    const gridPositionElement = document.getElementById('grid-position');
+    if (gridPositionElement) {
+      gridPositionElement.textContent = `Grid Position: x=${viewportX}, y=${viewportY}`;
+    }
+  }
+
+  /**
    * Calculates the optimal number of rows and columns to fill the available space
    * based on the current viewport dimensions and minimum cell size.
    */
@@ -503,7 +537,91 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /**
-   * Handles global keydown events for cell updates and selection mode.
+   * Parses a viewport command in the format '123x' or '-76y'
+   * @param {string} command - The command string
+   * @returns {Object|null} - Object with x or y value, or null if invalid
+   */
+  function parseViewportCommand(command) {
+    // Check if the command ends with 'x' or 'y'
+    const lastChar = command.charAt(command.length - 1);
+    if (lastChar !== 'x' && lastChar !== 'y') {
+      return null;
+    }
+
+    // Extract the numeric part
+    const numericPart = command.substring(0, command.length - 1);
+    const value = parseInt(numericPart);
+
+    if (isNaN(value)) {
+      return null;
+    }
+
+    // Return an object with the appropriate property set
+    return lastChar === 'x' ? { x: value } : { y: value };
+  }
+
+  /**
+   * Updates the viewport position and refreshes the grid
+   * @param {number} x - New X coordinate (optional)
+   * @param {number} y - New Y coordinate (optional)
+   */
+  function updateViewport(x, y) {
+    let changed = false;
+
+    if (x !== undefined) {
+      const newX = Math.round(x / 10) * 10; // Round to nearest 10
+      const clampedX = Math.max(MIN_GRID_COORD, Math.min(MAX_GRID_COORD, newX));
+      if (viewportX !== clampedX) {
+        viewportX = clampedX;
+        changed = true;
+      }
+    }
+
+    if (y !== undefined) {
+      const newY = Math.round(y / 10) * 10; // Round to nearest 10
+      const clampedY = Math.max(MIN_GRID_COORD, Math.min(MAX_GRID_COORD, newY));
+      if (viewportY !== clampedY) {
+        viewportY = clampedY;
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      // Update the grid position display
+      updateGridPositionDisplay();
+
+      // Refresh the grid
+      createGrid();
+
+      // Show a notification
+      updateCommandStatus(`Viewport moved to x:${viewportX}, y:${viewportY}`, 2000);
+    }
+  }
+
+  // Command buffer for vim-like navigation
+  let commandBuffer = '';
+  let commandTimeout = null;
+
+  /**
+   * Updates the command status display
+   * @param {string} message - The message to display
+   * @param {number} timeout - Optional timeout in ms to clear the message
+   */
+  function updateCommandStatus(message, timeout = 0) {
+    const commandStatus = document.getElementById('command-status');
+    if (commandStatus) {
+      commandStatus.textContent = message;
+
+      if (timeout > 0) {
+        setTimeout(() => {
+          commandStatus.textContent = 'Type number + x/y to navigate (e.g., 100x, -50y)';
+        }, timeout);
+      }
+    }
+  }
+
+  /**
+   * Handles global keydown events for cell updates, selection mode, and vim-like navigation.
    * @param {KeyboardEvent} event
    */
   function handleGlobalKeyDown(event) {
@@ -512,6 +630,48 @@ document.addEventListener('DOMContentLoaded', () => {
       selectionMode = true;
       document.body.classList.add('selection-active');
       updateSelectionStatus('Selection mode active - Click and drag to select cells');
+      return;
+    }
+
+    // Handle navigation commands (numbers, minus sign, x, y)
+    if (/^[0-9\-xy]$/.test(event.key)) {
+      // Clear the command timeout if it exists
+      if (commandTimeout) {
+        clearTimeout(commandTimeout);
+      }
+
+      // Add the key to the command buffer
+      commandBuffer += event.key;
+
+      // Update the command status display
+      updateCommandStatus(`Command: ${commandBuffer}`);
+
+      // Check if the command is complete (ends with x or y)
+      if (commandBuffer.endsWith('x') || commandBuffer.endsWith('y')) {
+        const parsedCommand = parseViewportCommand(commandBuffer);
+
+        if (parsedCommand) {
+          updateViewport(parsedCommand.x, parsedCommand.y);
+          updateCommandStatus(`Executed: ${commandBuffer}`, 2000);
+        } else {
+          updateCommandStatus(`Invalid command: ${commandBuffer}`, 2000);
+        }
+
+        // Reset the command buffer
+        commandBuffer = '';
+      } else {
+        // Set a timeout to clear the command buffer if no key is pressed for 3 seconds
+        commandTimeout = setTimeout(() => {
+          commandBuffer = '';
+          updateCommandStatus('Command timeout. Type number + x/y to navigate', 2000);
+        }, 3000);
+      }
+
+      return;
+    } else if (commandBuffer.length > 0 && event.key === 'Escape') {
+      // Clear the command buffer if Escape is pressed
+      commandBuffer = '';
+      updateCommandStatus('Command canceled', 2000);
       return;
     }
 
@@ -530,7 +690,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearSelection();
         updateSelectionStatus('Color applied to selection');
       } else if (hoveredCellId) {
-        // Extract "R-C" from "cell-R-C"
+        // Extract "RxC" from "cell-RxC"
         const id = hoveredCellId.substring(5); // Remove "cell-" prefix
         sendCellUpdate(id, action);
       }
@@ -675,40 +835,21 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /**
-   * Parse URL query parameters and set the viewport position
+   * Initialize the viewport position to default values
    */
-  function parseViewportQueryParams() {
-    const urlParams = new URLSearchParams(window.location.search);
-
-    // Check for x parameter
-    if (urlParams.has('x')) {
-      const xParam = parseInt(urlParams.get('x'));
-      if (!isNaN(xParam)) {
-        // Round to nearest 10
-        viewportX = Math.round(xParam / 10) * 10;
-        // Ensure within bounds
-        viewportX = Math.max(MIN_GRID_COORD, Math.min(MAX_GRID_COORD, viewportX));
-      }
-    }
-
-    // Check for y parameter
-    if (urlParams.has('y')) {
-      const yParam = parseInt(urlParams.get('y'));
-      if (!isNaN(yParam)) {
-        // Round to nearest 10
-        viewportY = Math.round(yParam / 10) * 10;
-        // Ensure within bounds
-        viewportY = Math.max(MIN_GRID_COORD, Math.min(MAX_GRID_COORD, viewportY));
-      }
-    }
+  function initializeViewport() {
+    // Set default viewport position (0,0)
+    viewportX = 0;
+    viewportY = 0;
 
     // Update the URL display to show the viewport position
-    regionUrlSpan.textContent = `${origin} (Grid position: ${viewportX},${viewportY})`;
+    regionUrlSpan.textContent = `${origin}`;
   }
 
   // --- Initialization ---
-  parseViewportQueryParams(); // Parse query parameters for viewport position
-  regionUrlSpan.textContent = `${origin} (Grid position: ${viewportX},${viewportY})`;
+  initializeViewport(); // Set default viewport position
+  createCommandDisplay(); // Add command status display to the info panel
+  updateGridPositionDisplay(); // Update grid position display
   createGrid();
   fetchSensorList(); // Fetch initial state
   // connectToStream(); // Connect to stream for updates
