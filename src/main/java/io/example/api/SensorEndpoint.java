@@ -1,6 +1,7 @@
 package io.example.api;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.CompletionStage;
 
 import org.slf4j.Logger;
@@ -31,8 +32,9 @@ public class SensorEndpoint {
   }
 
   @Put("/update-status")
-  public CompletionStage<Done> updateStatus(Sensor.Command.UpdateStatus command) {
-    log.info("{}", command);
+  public CompletionStage<Done> updateStatus(UpdateStatusRequest request) {
+    log.info("{}", request);
+    var command = new Sensor.Command.UpdateStatus(request.id(), request.status(), request.updatedAt(), Instant.now());
     return componentClient.forEventSourcedEntity(command.id())
         .method(SensorEntity::updateStatus)
         .invokeAsync(command);
@@ -74,4 +76,6 @@ public class SensorEndpoint {
         Source.tick(Duration.ZERO, Duration.ofSeconds(5), "tick")
             .map(__ -> System.currentTimeMillis()));
   }
+
+  public record UpdateStatusRequest(String id, String status, Instant updatedAt) {}
 }

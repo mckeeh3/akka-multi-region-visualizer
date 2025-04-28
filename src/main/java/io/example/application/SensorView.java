@@ -62,14 +62,22 @@ public class SensorView extends View {
       return new SensorRow(
           event.id(),
           event.status(),
-          event.updatedAt());
+          event.createdAt(),
+          event.updatedAt(),
+          event.clientAt(),
+          event.endpointAt(),
+          Instant.now());
     }
   }
 
   public record SensorRow(
       String id,
       String status,
-      Instant updatedAt) {}
+      Instant createdAt,
+      Instant updatedAt,
+      Instant clientAt,
+      Instant endpointAt,
+      Instant viewAt) {}
 
   public record Sensors(List<SensorRow> sensors) {}
 

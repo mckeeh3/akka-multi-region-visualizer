@@ -346,12 +346,6 @@ document.addEventListener('DOMContentLoaded', () => {
   function handleStreamMessage(messageData) {
     try {
       const update = JSON.parse(messageData);
-      // Log the update with timestamp if available
-      // if (update.updatedAt) {
-      //   const now = new Date();
-      //   const elapsedMs = now.getTime() - new Date(update.updatedAt).getTime();
-      //   console.log(`Received update for cell ${update.id} with status ${update.status}, updatedAt: ${update.updatedAt} (elapsed: ${elapsedMs}ms)`);
-      // }
 
       if (update.id && update.status !== undefined) {
         const cellId = `cell-${update.id}`; // Assumes id is "R-C"
@@ -377,10 +371,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // Calculate and display elapsed time if available
             if (update.updatedAt && update.status !== 'default') {
               const updatedAt = new Date(update.updatedAt);
-              const receivedAt = new Date();
-              const elapsedMs = receivedAt - updatedAt;
+              const viewAt = new Date(update.viewAt);
+              const elapsedMs = viewAt - updatedAt;
 
-              if (elapsedMs > 0 && elapsedMs < 9999) {
+              if (elapsedMs >= 0 && elapsedMs <= 9999) {
                 cellElement.textContent = elapsedMs;
                 cellElement.classList.add('has-elapsed-time');
               } else {
@@ -405,11 +399,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /**
    * Fetches the current list of sensors and processes each one
+   * Handles pagination for large sensor lists
    */
   async function fetchSensorList() {
-    // console.log(`Fetching sensor list from ${viewListUrl}...`);
+    await fetchSensorPage('start');
+  }
+
+  /**
+   * Fetches a page of sensors and processes them
+   * @param {string} pageToken - The page token for pagination ('start' for first page)
+   */
+  async function fetchSensorPage(pageToken) {
     try {
-      const response = await fetch(viewListUrl);
+      const url = `${origin}/sensor/paginated-list/${pageToken}`;
+      // console.log(`Fetching sensor page from ${url}...`);
+
+      const response = await fetch(url);
 
       if (!response.ok) {
         console.error(`HTTP error! Status: ${response.status}`, await response.text());
@@ -419,7 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await response.json();
 
       if (data && data.sensors && Array.isArray(data.sensors)) {
-        // console.log(`Received ${data.sensors.length} sensors from list endpoint`);
+        // console.log(`Received ${data.sensors.length} sensors from page ${pageToken}`);
 
         // Process each sensor through the handleStreamMessage function
         data.sensors.forEach((sensor) => {
@@ -427,11 +432,17 @@ document.addEventListener('DOMContentLoaded', () => {
           const sensorJson = JSON.stringify(sensor);
           handleStreamMessage(sensorJson);
         });
+
+        // Check if there are more pages to fetch
+        if (data.hasMore && data.nextPageToken) {
+          // Fetch the next page
+          await fetchSensorPage(data.nextPageToken);
+        }
       } else {
         console.error('Invalid response format:', data);
       }
     } catch (error) {
-      console.error('Error fetching sensor list:', error);
+      console.error(`Error fetching sensor page ${pageToken}:`, error);
     }
   }
 
@@ -628,7 +639,7 @@ document.addEventListener('DOMContentLoaded', () => {
   regionUrlSpan.textContent = origin; // Display configured endpoint
   createGrid();
   fetchSensorList(); // Fetch initial state
-  connectToStream(); // Connect to stream for updates
+  // connectToStream(); // Connect to stream for updates
   document.addEventListener('keydown', handleGlobalKeyDown);
   document.addEventListener('keyup', handleGlobalKeyUp);
 
