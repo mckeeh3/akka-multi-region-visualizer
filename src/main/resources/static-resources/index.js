@@ -5,6 +5,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let gridCols = 0; // Will be calculated dynamically
   const cellMinSize = 30; // Minimum cell size in pixels (increased from 20)
 
+  // Viewport configuration
+  const MIN_GRID_COORD = -1000000; // Minimum grid coordinate
+  const MAX_GRID_COORD = 1000000; // Maximum grid coordinate
+  let viewportX = 0; // Current X offset of the viewport (horizontal)
+  let viewportY = 0; // Current Y offset of the viewport (vertical)
+
   // Use the current origin for API calls and SSE stream
   const origin = window.location.origin; // Gets the protocol, hostname, and port
   const viewStreamUrl = `${origin}/sensor/stream`; // SSE URL
@@ -239,7 +245,12 @@ document.addEventListener('DOMContentLoaded', () => {
       for (let col = 0; col < gridCols; col++) {
         const cell = document.createElement('div');
         cell.className = 'grid-cell';
-        cell.id = `cell-${row}-${col}`;
+
+        // Calculate the actual grid coordinates based on viewport position
+        const actualRow = row + viewportY;
+        const actualCol = col + viewportX;
+        // Use 'x' as separator between row and column to avoid issues with negative numbers
+        cell.id = `cell-${actualRow}x${actualCol}`;
 
         // Add hover tracking for keyboard shortcuts
         cell.addEventListener('mouseenter', () => {
@@ -303,17 +314,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /**
    * Sends the update command to the backend via HTTP PUT.
-   * @param {string} id The cell's entity ID (e.g., "R-C")
+   * @param {string} id The cell's entity ID (e.g., "RxC" format)
    * @param {string} action The action key ('r', 'g', 'b', 'd')
    */
   async function sendCellUpdate(id, action) {
+    // Use 'rxc' as the service ID format (no conversion needed)
+    const serverFormatId = id;
+
     const apiUrl = `${origin}/sensor/update-status`;
     // Get current time in ISO8601 format
     const updatedAt = new Date().toISOString();
     const statusMap = { r: 'red', g: 'green', b: 'blue', y: 'yellow', d: 'default' };
     const status = statusMap[action];
 
-    console.log(`Sending PUT to ${apiUrl} with id: ${id}, status: ${status}, updatedAt: ${updatedAt}`);
+    console.log(`Sending PUT to ${apiUrl} with id: ${serverFormatId}, status: ${status}, updatedAt: ${updatedAt}`);
 
     try {
       const response = await fetch(apiUrl, {
@@ -322,7 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          id: id,
+          id: serverFormatId,
           status: status,
           updatedAt: updatedAt,
         }),
@@ -348,7 +362,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const update = JSON.parse(messageData);
 
       if (update.id && update.status !== undefined) {
-        const cellId = `cell-${update.id}`; // Assumes id is "R-C"
+        // Server is using the 'rxc' format, just prepend 'cell-'
+        const cellId = `cell-${update.id}`;
         const cellElement = document.getElementById(cellId);
 
         if (cellElement) {
@@ -537,13 +552,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /**
    * Gets cell coordinates from a cell ID.
-   * @param {string} cellId - The cell ID in format "cell-R-C"
+   * @param {string} cellId - The cell ID in format "cell-RxC"
    * @returns {Object} - Object with row and col properties
    */
   function getCellCoordinates(cellId) {
-    // Extract row and column from cell-R-C format
-    const parts = cellId.substring(5).split('-');
-    return { row: parseInt(parts[0]), col: parseInt(parts[1]) };
+    // Make sure the cell ID starts with 'cell-'
+    if (!cellId.startsWith('cell-')) {
+      console.error('Invalid cell ID format, missing prefix:', cellId);
+      return { row: 0, col: 0 };
+    }
+
+    // Extract the coordinates part (after 'cell-')
+    const coordPart = cellId.substring(5); // Remove 'cell-' prefix
+    const xIndex = coordPart.indexOf('x');
+
+    if (xIndex === -1) {
+      console.error('Invalid cell ID format, missing x separator:', cellId);
+      return { row: 0, col: 0 };
+    }
+
+    // Parse the row and column parts
+    const row = parseInt(coordPart.substring(0, xIndex));
+    const col = parseInt(coordPart.substring(xIndex + 1));
+
+    // Validate the parsed values
+    if (isNaN(row) || isNaN(col)) {
+      console.error('Invalid cell coordinates:', cellId, row, col);
+      return { row: 0, col: 0 };
+    }
+
+    return { row, col };
   }
 
   /**
@@ -564,11 +602,12 @@ document.addEventListener('DOMContentLoaded', () => {
     currentSelection = [];
     for (let r = startRow; r <= endRow; r++) {
       for (let c = startCol; c <= endCol; c++) {
-        const cellId = `cell-${r}-${c}`;
+        // Use the actual cell coordinates (already include viewport offset)
+        const cellId = `cell-${r}x${c}`;
         const cell = document.getElementById(cellId);
         if (cell) {
           highlightCell(cell);
-          currentSelection.push(`${r}-${c}`); // Store ID without "cell-" prefix
+          currentSelection.push(`${r}x${c}`); // Store ID without "cell-" prefix
         }
       }
     }
@@ -635,8 +674,41 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  /**
+   * Parse URL query parameters and set the viewport position
+   */
+  function parseViewportQueryParams() {
+    const urlParams = new URLSearchParams(window.location.search);
+
+    // Check for x parameter
+    if (urlParams.has('x')) {
+      const xParam = parseInt(urlParams.get('x'));
+      if (!isNaN(xParam)) {
+        // Round to nearest 10
+        viewportX = Math.round(xParam / 10) * 10;
+        // Ensure within bounds
+        viewportX = Math.max(MIN_GRID_COORD, Math.min(MAX_GRID_COORD, viewportX));
+      }
+    }
+
+    // Check for y parameter
+    if (urlParams.has('y')) {
+      const yParam = parseInt(urlParams.get('y'));
+      if (!isNaN(yParam)) {
+        // Round to nearest 10
+        viewportY = Math.round(yParam / 10) * 10;
+        // Ensure within bounds
+        viewportY = Math.max(MIN_GRID_COORD, Math.min(MAX_GRID_COORD, viewportY));
+      }
+    }
+
+    // Update the URL display to show the viewport position
+    regionUrlSpan.textContent = `${origin} (Grid position: ${viewportX},${viewportY})`;
+  }
+
   // --- Initialization ---
-  regionUrlSpan.textContent = origin; // Display configured endpoint
+  parseViewportQueryParams(); // Parse query parameters for viewport position
+  regionUrlSpan.textContent = `${origin} (Grid position: ${viewportX},${viewportY})`;
   createGrid();
   fetchSensorList(); // Fetch initial state
   // connectToStream(); // Connect to stream for updates
