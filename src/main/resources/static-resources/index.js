@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!document.getElementById('command-status')) {
       const commandStatus = document.createElement('div');
       commandStatus.id = 'command-status';
-      commandStatus.textContent = 'Type number + x/y to navigate (e.g., 100x, -50y)';
+      commandStatus.textContent = 'Type number + x/y/h/j/k/l to navigate (e.g., 100x, 50h, 30j)';
       infoPanel.appendChild(commandStatus);
     }
   }
@@ -529,53 +529,102 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /**
-   * Parses a viewport command in the format '123x' or '-76y'
+   * Parses a viewport command in various formats:
+   * - '123x' or '-76y': Absolute positioning
+   * - '50h', '30j', '20k', '40l': Relative movement (left, down, up, right)
    * @param {string} command - The command string
-   * @returns {Object|null} - Object with x or y value, or null if invalid
+   * @returns {Object|null} - Object with movement data or null if invalid
    */
   function parseViewportCommand(command) {
-    // Check if the command ends with 'x' or 'y'
+    // Check if the command is empty
+    if (!command || command.length < 2) {
+      return null;
+    }
+
     const lastChar = command.charAt(command.length - 1);
-    if (lastChar !== 'x' && lastChar !== 'y') {
+    const validCommands = ['x', 'y', 'h', 'j', 'k', 'l'];
+
+    if (!validCommands.includes(lastChar)) {
       return null;
     }
 
     // Extract the numeric part
     const numericPart = command.substring(0, command.length - 1);
-    const value = parseInt(numericPart);
+    let value = parseInt(numericPart);
 
     if (isNaN(value)) {
       return null;
     }
 
-    // Return an object with the appropriate property set
-    return lastChar === 'x' ? { x: value } : { y: value };
+    // For vim-like commands, we only accept positive numbers
+    if (['h', 'j', 'k', 'l'].includes(lastChar) && value < 0) {
+      return null;
+    }
+
+    // Create the appropriate movement object based on the command
+    switch (lastChar) {
+      case 'x': // Absolute X position
+        return { x: value };
+      case 'y': // Absolute Y position
+        return { y: value };
+      case 'h': // Move left
+        return { relativeX: -value };
+      case 'j': // Move down
+        return { relativeY: value };
+      case 'k': // Move up
+        return { relativeY: -value };
+      case 'l': // Move right
+        return { relativeX: value };
+      default:
+        return null;
+    }
   }
 
   /**
    * Updates the viewport position and refreshes the grid
-   * @param {number} x - New X coordinate (optional)
-   * @param {number} y - New Y coordinate (optional)
+   * @param {number} x - New absolute X coordinate (optional)
+   * @param {number} y - New absolute Y coordinate (optional)
+   * @param {number} relativeX - Relative X movement (optional)
+   * @param {number} relativeY - Relative Y movement (optional)
    */
-  function updateViewport(x, y) {
+  function updateViewport(x, y, relativeX, relativeY) {
     let changed = false;
+    let newX = viewportX;
+    let newY = viewportY;
 
+    // Handle absolute X positioning
     if (x !== undefined) {
-      const newX = Math.round(x / 10) * 10; // Round to nearest 10
-      const clampedX = Math.max(MIN_GRID_COORD, Math.min(MAX_GRID_COORD, newX));
-      if (viewportX !== clampedX) {
-        viewportX = clampedX;
-        changed = true;
-      }
+      newX = Math.round(x / 10) * 10; // Round to nearest 10
     }
 
+    // Handle absolute Y positioning
     if (y !== undefined) {
-      const newY = Math.round(y / 10) * 10; // Round to nearest 10
-      const clampedY = Math.max(MIN_GRID_COORD, Math.min(MAX_GRID_COORD, newY));
-      if (viewportY !== clampedY) {
-        viewportY = clampedY;
-        changed = true;
-      }
+      newY = Math.round(y / 10) * 10; // Round to nearest 10
+    }
+
+    // Handle relative X movement (h/l commands)
+    if (relativeX !== undefined) {
+      newX = viewportX + Math.round(relativeX / 10) * 10; // Round to nearest 10
+    }
+
+    // Handle relative Y movement (j/k commands)
+    if (relativeY !== undefined) {
+      newY = viewportY + Math.round(relativeY / 10) * 10; // Round to nearest 10
+    }
+
+    // Clamp values to grid boundaries
+    const clampedX = Math.max(MIN_GRID_COORD, Math.min(MAX_GRID_COORD, newX));
+    const clampedY = Math.max(MIN_GRID_COORD, Math.min(MAX_GRID_COORD, newY));
+
+    // Check if position actually changed
+    if (viewportX !== clampedX) {
+      viewportX = clampedX;
+      changed = true;
+    }
+
+    if (viewportY !== clampedY) {
+      viewportY = clampedY;
+      changed = true;
     }
 
     if (changed) {
@@ -606,7 +655,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (timeout > 0) {
         setTimeout(() => {
-          commandStatus.textContent = 'Type number + x/y to navigate (e.g., 100x, -50y)';
+          commandStatus.textContent = 'Type number + x/y/h/j/k/l to navigate (e.g., 100x, 50h, 30j)';
         }, timeout);
       }
     }
@@ -625,8 +674,8 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Handle navigation commands (numbers, minus sign, x, y)
-    if (/^[0-9\-xy]$/.test(event.key)) {
+    // Handle navigation commands (numbers, minus sign, x, y, h, j, k, l)
+    if (/^[0-9\-xyhijkl]$/.test(event.key)) {
       // Clear the command timeout if it exists
       if (commandTimeout) {
         clearTimeout(commandTimeout);
@@ -638,12 +687,12 @@ document.addEventListener('DOMContentLoaded', () => {
       // Update the command status display
       updateCommandStatus(`Command: ${commandBuffer}`);
 
-      // Check if the command is complete (ends with x or y)
-      if (commandBuffer.endsWith('x') || commandBuffer.endsWith('y')) {
+      // Check if the command is complete (ends with a valid command character)
+      if (/[xyhijkl]$/.test(commandBuffer)) {
         const parsedCommand = parseViewportCommand(commandBuffer);
 
         if (parsedCommand) {
-          updateViewport(parsedCommand.x, parsedCommand.y);
+          updateViewport(parsedCommand.x, parsedCommand.y, parsedCommand.relativeX, parsedCommand.relativeY);
           updateCommandStatus(`Executed: ${commandBuffer}`, 2000);
         } else {
           updateCommandStatus(`Invalid command: ${commandBuffer}`, 2000);
