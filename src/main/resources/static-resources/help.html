@@ -140,6 +140,39 @@
           <li><strong>Connection Status</strong>: The top bar shows the current connection status and the server endpoint being used.</li>
         </ul>
 
+        <h3>Grid Navigation:</h3>
+        <p>
+          The grid visualizer implements an <strong>infinite grid viewport</strong> concept. Think of the grid display as a window or viewport into a much larger grid that extends in all directions.
+          The visible cells represent just a small portion of this infinite grid, and you can navigate to view different regions.
+        </p>
+        <p>Your current position in the grid is displayed at the top of the grid area as "Grid Position: x=X, y=Y", where X and Y are the coordinates of the top-left cell of your viewport.</p>
+
+        <h4>Navigation Commands:</h4>
+        <p>You can navigate the grid using vim-like keyboard commands. Simply type a number followed by one of the command keys:</p>
+
+        <h5>Absolute Positioning:</h5>
+        <ul>
+          <li><span class="key">100x</span> - Move to X-coordinate 100 (sets the left edge of the viewport)</li>
+          <li><span class="key">-50y</span> - Move to Y-coordinate -50 (sets the top edge of the viewport)</li>
+        </ul>
+
+        <h5>Relative Movement:</h5>
+        <ul>
+          <li><span class="key">50h</span> - Move left 50 units (like vim's h key)</li>
+          <li><span class="key">30j</span> - Move down 30 units (like vim's j key)</li>
+          <li><span class="key">20k</span> - Move up 20 units (like vim's k key)</li>
+          <li><span class="key">40l</span> - Move right 40 units (like vim's l key)</li>
+        </ul>
+
+        <p><strong>Notes on Navigation:</strong></p>
+        <ul>
+          <li>All movements are rounded to the nearest 10 units for consistency</li>
+          <li>The grid has boundaries at ±1,000,000 in both directions</li>
+          <li>As you type a command, it appears in the info panel at the top</li>
+          <li>Press <span class="key">Escape</span> to cancel a command in progress</li>
+          <li>Relative movement commands (h/j/k/l) only accept positive numbers</li>
+        </ul>
+
         <h3>Advanced Features:</h3>
         <ul>
           <li><strong>URL Parameters</strong>: You can customize the polling interval by adding <code>?interval=X</code> to the URL, where X is the interval in milliseconds (default is 250ms).</li>
