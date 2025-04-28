@@ -350,7 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const apiUrl = `${origin}/sensor/update-status`;
     // Get current time in ISO8601 format
     const updatedAt = new Date().toISOString();
-    const statusMap = { r: 'red', g: 'green', b: 'blue', y: 'yellow', d: 'default' };
+    const statusMap = { r: 'red', g: 'green', b: 'blue', o: 'yellow', d: 'default' };
     const status = statusMap[action];
 
     console.log(`Sending PUT to ${apiUrl} with id: ${serverFormatId}, status: ${status}, updatedAt: ${updatedAt}`);
@@ -675,7 +675,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Handle navigation commands (numbers, minus sign, x, y, h, j, k, l)
-    if (/^[0-9\-xyhijkl]$/.test(event.key)) {
+    if (/^[0-9\-xyhjkl]$/.test(event.key)) {
       // Clear the command timeout if it exists
       if (commandTimeout) {
         clearTimeout(commandTimeout);
@@ -688,7 +688,7 @@ document.addEventListener('DOMContentLoaded', () => {
       updateCommandStatus(`Command: ${commandBuffer}`);
 
       // Check if the command is complete (ends with a valid command character)
-      if (/[xyhijkl]$/.test(commandBuffer)) {
+      if (/[xyhjkl]$/.test(commandBuffer)) {
         const parsedCommand = parseViewportCommand(commandBuffer);
 
         if (parsedCommand) {
@@ -717,7 +717,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Handle color keys
-    if (['r', 'g', 'b', 'y', 'd'].includes(event.key.toLowerCase())) {
+    if (['r', 'g', 'b', 'o', 'd'].includes(event.key.toLowerCase())) {
       event.preventDefault(); // Prevent default browser action
       const action = event.key.toLowerCase();
 
