@@ -40,6 +40,7 @@ public class SensorView extends View {
   @Query("""
       SELECT * as sensors, next_page_token() AS nextPageToken, has_more() AS hasMore
         FROM sensor_view
+        WHERE x >= :x1 AND x <= :x2 AND y >= :y1 AND y <= :y2
         LIMIT 1000
         OFFSET page_token_offset(:pageTokenOffset)
           """)
@@ -59,9 +60,12 @@ public class SensorView extends View {
     private SensorRow onEvent(Sensor.Event.StatusUpdated event) {
       log.info("Event: {}\n_State: {}", event, rowState());
 
+      var rc = event.id().split("x"); // RxC / YxX
       return new SensorRow(
           event.id(),
           event.status(),
+          Integer.parseInt(rc[1]),
+          Integer.parseInt(rc[0]),
           event.createdAt(),
           event.updatedAt(),
           event.clientAt(),
@@ -73,6 +77,8 @@ public class SensorView extends View {
   public record SensorRow(
       String id,
       String status,
+      Integer x,
+      Integer y,
       Instant createdAt,
       Instant updatedAt,
       Instant clientAt,
@@ -81,7 +87,7 @@ public class SensorView extends View {
 
   public record Sensors(List<SensorRow> sensors) {}
 
-  public record PagedSensorsRequest(String pageTokenOffset) {}
+  public record PagedSensorsRequest(Integer x1, Integer y1, Integer x2, Integer y2, String pageTokenOffset) {}
 
   public record PagedSensors(List<SensorRow> sensors, String nextPageToken, boolean hasMore) {}
 }

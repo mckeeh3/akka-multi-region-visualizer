@@ -62,12 +62,12 @@ public class SensorEndpoint {
         .invokeAsync();
   }
 
-  @Get("/paginated-list/{pageTokenOffset}")
-  public CompletionStage<SensorView.PagedSensors> getSensorsPagedList(String pageTokenOffset) {
+  @Get("/paginated-list/{x1}/{y1}/{x2}/{y2}/{pageTokenOffset}")
+  public CompletionStage<SensorView.PagedSensors> getSensorsPagedList(Integer x1, Integer y1, Integer x2, Integer y2, String pageTokenOffset) {
     pageTokenOffset = pageTokenOffset.equals("start") ? "" : pageTokenOffset;
     return componentClient.forView()
         .method(SensorView::getSensorsPagedList)
-        .invokeAsync(new PagedSensorsRequest(pageTokenOffset));
+        .invokeAsync(new PagedSensorsRequest(x1, y1, x2, y2, pageTokenOffset));
   }
 
   @Get("/current-time")

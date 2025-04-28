@@ -452,8 +452,12 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   async function fetchSensorPage(pageToken) {
     try {
-      const url = `${origin}/sensor/paginated-list/${pageToken}`;
-      // console.log(`Fetching sensor page from ${url}...`);
+      const x1 = viewportX; // Current viewport X offset
+      const y1 = viewportY; // Current viewport Y offset
+      const x2 = x1 + gridCols; // End of viewport X offset
+      const y2 = y1 + gridRows; // End of viewport Y offset
+      const url = `${origin}/sensor/paginated-list/${x1}/${y1}/${x2}/${y2}/${pageToken}`;
+      // console.log(`Fetching sensor data from ${url}...`);
 
       const response = await fetch(url);
 
