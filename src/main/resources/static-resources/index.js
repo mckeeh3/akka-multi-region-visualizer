@@ -510,7 +510,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     eventSource.onmessage = (event) => {
-      handleStreamMessage(event.data);
+      if (event.data) {
+        handleStreamMessage(event.data);
+      }
     };
 
     eventSource.onerror = (event) => {
@@ -898,7 +900,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateGridPositionDisplay(); // Update grid position display
   createGrid();
   fetchSensorList(); // Fetch initial state
-  // connectToStream(); // Connect to stream for updates
+  connectToStream(); // Connect to stream for updates
   document.addEventListener('keydown', handleGlobalKeyDown);
   document.addEventListener('keyup', handleGlobalKeyUp);
 
