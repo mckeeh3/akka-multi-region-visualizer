@@ -86,3 +86,13 @@ This latency visualization is one of the main features of this demo app, providi
 
 **Purpose:**
 This app visualizes a massive, distributed grid of sensors, allowing users to interactively update and monitor sensor states in real time. It demonstrates multi-region, event-driven architecture using Akka, and provides a highly interactive and responsive UI for managing sensor data.
+
+---
+
+## Accessing the UI
+
+When running the app [locally](https://doc.akka.io/java/running-locally.html), you can access the UI at `http://localhost:8080`.
+
+When running the app on an Akka platform, after the app is [deployed](https://doc.akka.io/operations/services/deploy-service.html), create a [route](https://doc.akka.io/operations/services/invoke-service.html). The app UI will be accessible atthe route UR://the-service-route-hostname.
+
+Click the Help link to access the help page.
