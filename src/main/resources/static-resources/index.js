@@ -505,7 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
     eventSource = new EventSource(viewStreamUrl);
 
     eventSource.onopen = (event) => {
-      // console.log('SSE connection established.');
+      console.log('SSE connection established.');
       updateConnectionStatus('Connected', 'connected');
     };
 
@@ -514,6 +514,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     eventSource.onerror = (event) => {
+      console.log(`${new Date().toISOString()} SSE error:`, event, 'EventSource readyState:', eventSource.readyState);
       if (eventSource.readyState === EventSource.CONNECTING) {
         return;
       }
