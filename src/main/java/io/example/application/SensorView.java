@@ -71,16 +71,20 @@ public class SensorView extends View {
       log.info("Event: {}\n_State: {}", event, rowState());
 
       var rc = event.id().split("x"); // RxC / YxX
+      var viewAt = Instant.now();
+      var elapsedMs = (int) (viewAt.toEpochMilli() - event.updatedAt().toEpochMilli());
+
       return new SensorRow(
           event.id(),
           event.status(),
           Integer.parseInt(rc[1]),
           Integer.parseInt(rc[0]),
-          event.createdAt(),
-          event.updatedAt(),
           event.clientAt(),
           event.endpointAt(),
-          Instant.now());
+          event.createdAt(),
+          event.updatedAt(),
+          viewAt,
+          elapsedMs);
     }
   }
 
@@ -89,11 +93,12 @@ public class SensorView extends View {
       String status,
       Integer x,
       Integer y,
-      Instant createdAt,
-      Instant updatedAt,
       Instant clientAt,
       Instant endpointAt,
-      Instant viewAt) {}
+      Instant createdAt,
+      Instant updatedAt,
+      Instant viewAt,
+      int elapsedMs) {}
 
   public record Sensors(List<SensorRow> sensors) {}
 

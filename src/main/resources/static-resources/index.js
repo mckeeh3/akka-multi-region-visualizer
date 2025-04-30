@@ -546,11 +546,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Calculate and display elapsed time if available
             if (update.updatedAt && update.status !== 'default') {
-              const updatedAt = new Date(update.updatedAt);
-              const viewAt = new Date(update.viewAt);
-              const elapsedMs = viewAt - updatedAt;
+              // const updatedAt = new Date(update.updatedAt);
+              // const viewAt = new Date(update.viewAt);
+              // const elapsedMs = viewAt - updatedAt;
+              const elapsedMs = Math.min(9999, update.elapsedMs);
 
-              if (elapsedMs >= 0 && elapsedMs <= 9999) {
+              if (elapsedMs >= 0) {
                 cellElement.textContent = elapsedMs;
                 cellElement.classList.add('has-elapsed-time');
               } else {
