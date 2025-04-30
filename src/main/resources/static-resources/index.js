@@ -47,6 +47,92 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- Functions ---
 
   /**
+   * Shows a grid overlay with sensor data on the given cell.
+   * @param {HTMLElement} cell
+   * @param {Object} data
+   */
+  function showSensorOverlay(cell, data) {
+    removeSensorOverlay();
+    const overlay = document.createElement('div');
+    overlay.className = 'sensor-overlay';
+    overlay.style.position = 'fixed';
+    overlay.style.background = 'rgba(10,20,40,0.98)';
+    overlay.style.color = '#a7ecff';
+    overlay.style.zIndex = '10000';
+    overlay.style.display = 'flex';
+    overlay.style.flexDirection = 'column';
+    overlay.style.justifyContent = 'center';
+    overlay.style.alignItems = 'center';
+    overlay.style.fontSize = '0.75em';
+    overlay.style.border = '2px solid #0ace83';
+    overlay.style.borderRadius = '7px';
+    overlay.style.boxShadow = '0 0 16px #0ace83';
+    overlay.style.padding = '14px 18px';
+    overlay.style.pointerEvents = 'none';
+    overlay.style.maxWidth = '350px';
+    overlay.style.maxHeight = '70vh';
+    overlay.style.overflowY = 'auto';
+
+    // Format data as a table
+    const table = document.createElement('table');
+    table.style.borderCollapse = 'collapse';
+    Object.entries(data).forEach(([key, value]) => {
+      const row = document.createElement('tr');
+      const k = document.createElement('td');
+      k.textContent = key;
+      k.style.padding = '2px 6px';
+      k.style.fontWeight = 'bold';
+      k.style.textAlign = 'right';
+      k.style.color = '#6fffc8';
+      const v = document.createElement('td');
+      v.textContent = value;
+      v.style.padding = '2px 6px';
+      v.style.textAlign = 'left';
+      v.style.color = '#fff';
+      row.appendChild(k);
+      row.appendChild(v);
+      table.appendChild(row);
+    });
+    overlay.appendChild(table);
+    document.body.appendChild(overlay);
+
+    // Position overlay near the cell, but within viewport
+    const cellRect = cell.getBoundingClientRect();
+    const overlayRect = overlay.getBoundingClientRect();
+    let left = cellRect.right + 12;
+    let top = cellRect.top;
+    // If overlay would go off right edge, move to left side
+    if (left + overlayRect.width > window.innerWidth - 8) {
+      left = cellRect.left - overlayRect.width - 12;
+    }
+    // If overlay would go off left edge, clamp to 8px
+    if (left < 8) left = 8;
+    // If overlay would go off bottom, clamp
+    if (top + overlayRect.height > window.innerHeight - 8) {
+      top = window.innerHeight - overlayRect.height - 8;
+    }
+    // If overlay would go off top, clamp
+    if (top < 8) top = 8;
+    overlay.style.left = `${left}px`;
+    overlay.style.top = `${top}px`;
+    cell.classList.add('sensor-overlay-active');
+  }
+
+  /**
+   * Removes any sensor overlay from the grid.
+   */
+  function removeSensorOverlay() {
+    document.querySelectorAll('.sensor-overlay').forEach((el) => {
+      if (el.parentNode) {
+        if (el.parentNode.classList) {
+          el.parentNode.classList.remove('sensor-overlay-active');
+        }
+        el.remove();
+      }
+    });
+  }
+
+  /**
    * Updates the grid summary display with current cell counts
    */
   function updateGridSummary() {
@@ -129,17 +215,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Get the info panel height for top spacing reference
     const infoPanelHeight = document.getElementById('info-panel').offsetHeight;
 
-    // Calculate available space (accounting for padding and margins)
-    // Use larger side margins to reduce the number of columns
-    const sideMargin = infoPanelHeight * 2; // Doubled side margin
-    const availableWidth = window.innerWidth - 2 * sideMargin; // Double margin on both sides
-    const availableHeight = window.innerHeight - infoPanelHeight - 2 * sideMargin; // Top panel + bottom margin
+    // Use a fixed border for all 4 sides
+    const sideMargin = infoPanelHeight * 2; // px
+    const availableWidth = Math.max(cellMinSize, window.innerWidth - 2 * sideMargin);
+    const availableHeight = Math.max(cellMinSize, window.innerHeight - infoPanelHeight - 2 * sideMargin);
 
     // Calculate number of cells that can fit (accounting for 3px gap between cells)
     gridCols = Math.max(1, Math.floor(availableWidth / (cellMinSize + 3)));
     gridRows = Math.max(1, Math.floor(availableHeight / (cellMinSize + 3)));
 
-    console.info(`${new Date().toISOString()} `, `Calculated grid dimensions: ${gridRows}x${gridCols} based on viewport ${window.innerWidth}x${window.innerHeight}`);
+    console.info(`${new Date().toISOString()} `, `Calculated grid dimensions: ${gridRows}x${gridCols} based on viewport ${window.innerWidth}x${window.innerHeight}, border ${sideMargin}px`);
   }
 
   /**
@@ -260,6 +345,8 @@ document.addEventListener('DOMContentLoaded', () => {
    * Generates the grid cells dynamically.
    */
   function createGrid() {
+    // Remove any lingering overlay from previous grid
+    removeSensorOverlay();
     // Calculate grid dimensions based on current viewport
     calculateGridDimensions();
 
@@ -275,8 +362,35 @@ document.addEventListener('DOMContentLoaded', () => {
         // Calculate the actual grid coordinates based on viewport position
         const actualRow = row + viewportY;
         const actualCol = col + viewportX;
-        // Use 'x' as separator between row and column to avoid issues with negative numbers
-        cell.id = `cell-${actualRow}x${actualCol}`;
+        const cellId = `${actualRow}x${actualCol}`;
+        cell.id = `cell-${cellId}`;
+
+        // Sensor overlay hover logic
+        let hoverTimer = null;
+        cell.addEventListener('mouseenter', () => {
+          removeSensorOverlay();
+          // Only show overlay for cells with 'has-elapsed-time'
+          if (!cell.classList.contains('has-elapsed-time')) {
+            return;
+          }
+          hoverTimer = setTimeout(async () => {
+            // Double-check class in case cell state changed during delay
+            if (!cell.classList.contains('has-elapsed-time')) return;
+            try {
+              const resp = await fetch(`${origin}/sensor/view-row-by-id/${cellId}`);
+              if (resp.ok) {
+                const data = await resp.json();
+                showSensorOverlay(cell, data);
+              }
+            } catch (e) {
+              // Optionally log error
+            }
+          }, 3000);
+        });
+        cell.addEventListener('mouseleave', () => {
+          clearTimeout(hoverTimer);
+          removeSensorOverlay();
+        });
 
         // Add hover tracking for keyboard shortcuts
         cell.addEventListener('mouseenter', () => {
