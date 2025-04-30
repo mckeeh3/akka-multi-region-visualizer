@@ -346,36 +346,57 @@ document.addEventListener('DOMContentLoaded', () => {
   async function sendCellUpdate(id, action) {
     // Use 'rxc' as the service ID format (no conversion needed)
     const serverFormatId = id;
-
     const apiUrl = `${origin}/sensor/update-status`;
-    // Get current time in ISO8601 format
     const updatedAt = new Date().toISOString();
     const statusMap = { r: 'red', g: 'green', b: 'blue', o: 'yellow', d: 'default' };
     const status = statusMap[action];
+    const maxRetries = 5;
+    const retryDelay = 50; // ms
+    let attempt = 0;
+    let success = false;
+    let lastError = null;
 
-    console.info(`${new Date().toISOString()} `, `Sending PUT to ${apiUrl} with id: ${serverFormatId}, status: ${status}, updatedAt: ${updatedAt}`);
-
-    try {
-      const response = await fetch(apiUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: serverFormatId,
-          status: status,
-          updatedAt: updatedAt,
-        }),
-      });
-
-      if (!response.ok) {
-        console.error(`${new Date().toISOString()} `, `HTTP error for ${id}! Status: ${response.status}`, await response.text());
+    while (attempt < maxRetries && !success) {
+      attempt++;
+      if (attempt > 1) {
+        console.warn(`${new Date().toISOString()} `, `Retrying sendCellUpdate for ${id}, attempt ${attempt}...`);
       } else {
-        console.info(`${new Date().toISOString()} `, `Update request for ${id} sent successfully.`);
-        // Note: Visual update happens via WebSocket stream, not here.
+        console.info(`${new Date().toISOString()} `, `Sending PUT to ${apiUrl} with id: ${serverFormatId}, status: ${status}, updatedAt: ${updatedAt}`);
       }
-    } catch (error) {
-      console.error(`${new Date().toISOString()} `, `Error sending cell ${id} update:`, error);
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: serverFormatId,
+            status: status,
+            updatedAt: updatedAt,
+          }),
+        });
+
+        if (response.ok) {
+          console.info(`${new Date().toISOString()} `, `Update request for ${id} sent successfully.`);
+          success = true;
+        } else {
+          const errorText = await response.text();
+          lastError = `HTTP error for ${id}! Status: ${response.status} ${errorText}`;
+          console.error(`${new Date().toISOString()} `, lastError);
+          if (attempt < maxRetries) {
+            await new Promise((res) => setTimeout(res, retryDelay));
+          }
+        }
+      } catch (error) {
+        lastError = error;
+        console.error(`${new Date().toISOString()} `, `Error sending cell ${id} update:`, error);
+        if (attempt < maxRetries) {
+          await new Promise((res) => setTimeout(res, retryDelay));
+        }
+      }
+    }
+    if (!success) {
+      console.error(`${new Date().toISOString()} `, `Failed to update cell ${id} after ${maxRetries} attempts. Last error:`, lastError);
     }
   }
 
