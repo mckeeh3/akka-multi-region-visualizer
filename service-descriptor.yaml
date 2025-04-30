@@ -1,0 +1,7 @@
+name: akka-multi-region-visualizer
+service:
+  image: acr.aws-us-east-2.akka.io/mckeeh3/three-regions-demos/akka-multi-region-visualizer:v.0.0.2
+  replication:
+    mode: replicated-read
+    replicatedRead:
+      primarySelectionMode: request-region

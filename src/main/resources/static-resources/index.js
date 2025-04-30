@@ -385,7 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (e) {
               // Optionally log error
             }
-          }, 3000);
+          }, 2000);
         });
         cell.addEventListener('mouseleave', () => {
           clearTimeout(hoverTimer);
@@ -464,8 +464,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const updatedAt = new Date().toISOString();
     const statusMap = { r: 'red', g: 'green', b: 'blue', o: 'orange', d: 'default' };
     const status = statusMap[action];
-    const maxRetries = 5;
-    const retryDelay = 50; // ms
+    const maxRetries = 10;
+    const retryDelay = 100; // ms
     let attempt = 0;
     let success = false;
     let lastError = null;
