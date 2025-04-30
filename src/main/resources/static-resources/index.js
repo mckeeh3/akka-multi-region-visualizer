@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     red: 0,
     green: 0,
     blue: 0,
-    yellow: 0,
+    orange: 0,
   };
 
   // --- DOM References ---
@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
    * Updates the grid summary display with current cell counts
    */
   function updateGridSummary() {
-    gridSummary.textContent = `Total: ${cellCounts.total}, R: ${cellCounts.red}, G: ${cellCounts.green}, B: ${cellCounts.blue}, Y: ${cellCounts.yellow}`;
+    gridSummary.textContent = `Total: ${cellCounts.total}, R: ${cellCounts.red}, G: ${cellCounts.green}, B: ${cellCounts.blue}, O: ${cellCounts.orange}`;
   }
 
   /**
@@ -75,13 +75,13 @@ document.addEventListener('DOMContentLoaded', () => {
   /**
    * Gets the current status of a cell from its classes
    * @param {HTMLElement} cellElement The cell element
-   * @returns {string} The cell status ('red', 'green', 'blue', 'yellow', or 'default')
+   * @returns {string} The cell status ('red', 'green', 'blue', 'orange', or 'default')
    */
   function getCellStatus(cellElement) {
     if (cellElement.classList.contains('cell-red')) return 'red';
     if (cellElement.classList.contains('cell-green')) return 'green';
     if (cellElement.classList.contains('cell-blue')) return 'blue';
-    if (cellElement.classList.contains('cell-yellow')) return 'yellow';
+    if (cellElement.classList.contains('cell-orange')) return 'orange';
     return 'default';
   }
 
@@ -325,7 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
       red: 0,
       green: 0,
       blue: 0,
-      yellow: 0,
+      orange: 0,
     };
 
     // Update the grid summary display
@@ -348,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const serverFormatId = id;
     const apiUrl = `${origin}/sensor/update-status`;
     const updatedAt = new Date().toISOString();
-    const statusMap = { r: 'red', g: 'green', b: 'blue', o: 'yellow', d: 'default' };
+    const statusMap = { r: 'red', g: 'green', b: 'blue', o: 'orange', d: 'default' };
     const status = statusMap[action];
     const maxRetries = 5;
     const retryDelay = 50; // ms
@@ -420,7 +420,7 @@ document.addEventListener('DOMContentLoaded', () => {
           // Only update if the status has changed
           if (previousStatus !== update.status) {
             // Remove existing status classes first
-            cellElement.classList.remove('cell-red', 'cell-green', 'cell-blue', 'cell-yellow');
+            cellElement.classList.remove('cell-red', 'cell-green', 'cell-blue', 'cell-orange');
 
             // Update cell counts
             updateCellCounts(previousStatus, update.status);

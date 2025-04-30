@@ -63,7 +63,8 @@ body {
   padding-left: 10px;
 }
 
-#grid-summary, #grid-position {
+#grid-summary,
+#grid-position {
   color: white;
   font-size: 0.9em;
   font-weight: bold;
@@ -275,19 +276,19 @@ body {
 
 .cell-green {
   background-color: #064a3e; /* Darker green base */
-  border-color: #05aa6c;
+  border-color: #0ace83;
   box-shadow: inset 0 0 15px rgba(5, 170, 108, 0.3); /* Subtle inner glow */
 }
 
 .cell-blue {
   background-color: #06304f; /* Darker blue base */
-  border-color: #0580b3;
+  border-color: #11a1df;
   box-shadow: inset 0 0 15px rgba(5, 128, 179, 0.3); /* Subtle inner glow */
 }
 
-.cell-yellow {
-  background-color: #7a5c1c; /* Darker yellow base */
-  border-color: #c29932;
+.cell-orange {
+  background-color: #7a5c1c; /* Darker orange base */
+  border-color: #d8a82f;
   box-shadow: inset 0 0 15px rgba(194, 153, 50, 0.3); /* Subtle inner glow */
 }
 
@@ -303,7 +304,7 @@ body {
 .cell-red.has-elapsed-time,
 .cell-green.has-elapsed-time,
 .cell-blue.has-elapsed-time,
-.cell-yellow.has-elapsed-time {
+.cell-orange.has-elapsed-time {
   color: white !important;
 }
 
