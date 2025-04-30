@@ -20,9 +20,18 @@ public class SensorView extends View {
   @Query("""
       SELECT *
         FROM sensor_view
-        LIMIT 1000
           """)
-  public QueryStreamEffect<SensorRow> getSensorsStream() {
+  public QueryStreamEffect<SensorRow> getSensorsStreamOld() {
+    log.info("Getting all sensors");
+    return queryStreamResult();
+  }
+
+  @Query("""
+      SELECT *
+        FROM sensor_view
+        WHERE x >= :x1 AND x <= :x2 AND y >= :y1 AND y <= :y2
+          """)
+  public QueryStreamEffect<SensorRow> getSensorsStream(StreamedSensorsRequest request) {
     log.info("Getting all sensors");
     return queryStreamResult();
   }
@@ -86,6 +95,8 @@ public class SensorView extends View {
       Instant viewAt) {}
 
   public record Sensors(List<SensorRow> sensors) {}
+
+  public record StreamedSensorsRequest(Integer x1, Integer y1, Integer x2, Integer y2) {}
 
   public record PagedSensorsRequest(Integer x1, Integer y1, Integer x2, Integer y2, String pageTokenOffset) {}
 

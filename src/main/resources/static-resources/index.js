@@ -139,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
     gridCols = Math.max(1, Math.floor(availableWidth / (cellMinSize + 3)));
     gridRows = Math.max(1, Math.floor(availableHeight / (cellMinSize + 3)));
 
-    console.log(`Calculated grid dimensions: ${gridRows}x${gridCols} based on viewport ${window.innerWidth}x${window.innerHeight}`);
+    console.info(`${new Date().toISOString()} `, `Calculated grid dimensions: ${gridRows}x${gridCols} based on viewport ${window.innerWidth}x${window.innerHeight}`);
   }
 
   /**
@@ -314,7 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gridContainer.appendChild(cell);
       }
     }
-    console.log(`Grid created with ${gridRows}x${gridCols} cells.`);
+    console.info(`${new Date().toISOString()} `, `Grid created with ${gridRows}x${gridCols} cells.`);
 
     gridContainer.style.gridTemplateColumns = `repeat(${gridCols}, minmax(${cellMinSize}px, 1fr))`;
     gridContainer.style.gridTemplateRows = `repeat(${gridRows}, minmax(${cellMinSize}px, 1fr))`;
@@ -353,7 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusMap = { r: 'red', g: 'green', b: 'blue', o: 'yellow', d: 'default' };
     const status = statusMap[action];
 
-    console.log(`Sending PUT to ${apiUrl} with id: ${serverFormatId}, status: ${status}, updatedAt: ${updatedAt}`);
+    console.info(`${new Date().toISOString()} `, `Sending PUT to ${apiUrl} with id: ${serverFormatId}, status: ${status}, updatedAt: ${updatedAt}`);
 
     try {
       const response = await fetch(apiUrl, {
@@ -371,7 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!response.ok) {
         console.error(`HTTP error! Status: ${response.status}`, await response.text());
       } else {
-        console.log(`Update request for ${id} sent successfully.`);
+        console.info(`${new Date().toISOString()} `, `Update request for ${id} sent successfully.`);
         // Note: Visual update happens via WebSocket stream, not here.
       }
     } catch (error) {
@@ -457,7 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const x2 = x1 + gridCols; // End of viewport X offset
       const y2 = y1 + gridRows; // End of viewport Y offset
       const url = `${origin}/sensor/paginated-list/${x1}/${y1}/${x2}/${y2}/${pageToken}`;
-      // console.log(`Fetching sensor data from ${url}...`);
+      // console.info(`Fetching sensor data from ${url}...`);
 
       const response = await fetch(url);
 
@@ -469,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await response.json();
 
       if (data && data.sensors && Array.isArray(data.sensors)) {
-        // console.log(`Received ${data.sensors.length} sensors from page ${pageToken}`);
+        // console.info(`Received ${data.sensors.length} sensors from page ${pageToken}`);
 
         // Process each sensor through the handleStreamMessage function
         data.sensors.forEach((sensor) => {
@@ -494,29 +494,76 @@ document.addEventListener('DOMContentLoaded', () => {
   /**
    * Establishes and manages the Server-Sent Events (SSE) connection.
    */
+  function closeStream() {
+    if (eventSource) {
+      eventSource.close();
+      eventSource = null;
+      updateConnectionStatus('Disconnected', 'error');
+    }
+  }
+
+  /**
+   * Connects to the /sensor/current-time event stream and logs messages.
+   */
+  function connectToTimeStream() {
+    const url = `${origin}/sensor/current-time`;
+    const timeSource = new EventSource(url);
+    console.log(`${new Date().toISOString()} `, `Connecting to time stream at ${url}`);
+
+    timeSource.onopen = () => {
+      console.log(`${new Date().toISOString()} `, 'Time stream connection established.');
+    };
+
+    timeSource.onmessage = (event) => {
+      if (event.data) {
+        console.log(`${new Date().toISOString()} `, '[Time Stream]', event.data);
+      }
+    };
+
+    timeSource.onerror = (event) => {
+      console.log(`${new Date().toISOString()} `, 'Time stream error:', event);
+      if (timeSource.readyState === EventSource.CLOSED) {
+        console.log(`${new Date().toISOString()} `, 'Time stream connection closed.');
+      }
+    };
+  }
+
   function connectToStream() {
     if (eventSource && eventSource.readyState !== EventSource.CLOSED) {
-      console.log('EventSource already open or connecting.');
+      console.info(`${new Date().toISOString()} `, 'EventSource already open or connecting.');
       return;
     }
 
-    console.log(`Attempting to connect SSE to ${viewStreamUrl}...`);
+    const x1 = viewportX; // Current viewport X offset
+    const y1 = viewportY; // Current viewport Y offset
+    const x2 = x1 + gridCols; // End of viewport X offset
+    const y2 = y1 + gridRows; // End of viewport Y offset
+    const url = `${viewStreamUrl}/${x1}/${y1}/${x2}/${y2}`;
+    console.info(`${new Date().toISOString()} `, `Attempting to connect SSE to ${url}...`);
     updateConnectionStatus('Connecting...', '');
-    eventSource = new EventSource(viewStreamUrl);
+    eventSource = new EventSource(url);
+
+    const readyStateMap = {
+      0: '(0) Connecting',
+      1: '(1) Open',
+      2: '(2) Closed',
+    };
 
     eventSource.onopen = (event) => {
-      console.log('SSE connection established.');
+      console.info(`${new Date().toISOString()} `, `SSE connection established, readyState: ${readyStateMap[eventSource.readyState]}.`);
       updateConnectionStatus('Connected', 'connected');
     };
 
     eventSource.onmessage = (event) => {
       if (event.data) {
+        console.debug(`${new Date().toISOString()} SSE message: ${event.data}`);
         handleStreamMessage(event.data);
       }
     };
 
     eventSource.onerror = (event) => {
-      console.log(`${new Date().toISOString()} SSE error:`, event, 'EventSource readyState:', eventSource.readyState);
+      // console.error(`${new Date().toISOString()} `, `SSE error:`, event);
+      console.error(`${new Date().toISOString()} `, `SSE error, EventSource readyState: ${readyStateMap[eventSource.readyState]}`);
       if (eventSource.readyState === EventSource.CONNECTING) {
         return;
       }
@@ -524,12 +571,12 @@ document.addEventListener('DOMContentLoaded', () => {
       updateConnectionStatus('Error', 'error');
 
       if (eventSource.readyState === EventSource.CLOSED) {
-        console.log('SSE connection closed.');
+        console.info(`${new Date().toISOString()} `, 'SSE connection closed.');
         updateConnectionStatus('Disconnected', 'error');
         eventSource = null; // Clear the instance
 
         // Optional: Attempt to reconnect after a delay
-        console.log('Attempting to reconnect in 5 seconds...');
+        console.info(`${new Date().toISOString()} `, 'Attempting to reconnect in 5 seconds...');
         setTimeout(connectToStream, 5000);
       }
     };
@@ -643,6 +690,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Show a notification
       updateCommandStatus(`Viewport moved to x:${viewportX}, y:${viewportY}`, 2000);
+
+      // Close and reconnect SSE stream to match new viewport
+      closeStream();
+      connectToStream();
     }
   }
 
@@ -901,6 +952,7 @@ document.addEventListener('DOMContentLoaded', () => {
   createGrid();
   fetchSensorList(); // Fetch initial state
   connectToStream(); // Connect to stream for updates
+  // connectToTimeStream(); // Connect to time stream for updates
   document.addEventListener('keydown', handleGlobalKeyDown);
   document.addEventListener('keyup', handleGlobalKeyUp);
 
@@ -914,7 +966,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Use debounce to avoid excessive recalculations during resize
     clearTimeout(window.resizeTimer);
     window.resizeTimer = setTimeout(() => {
-      console.log('Window resized, recalculating grid dimensions...');
+      console.info(`${new Date().toISOString()} `, 'Window resized, recalculating grid dimensions...');
       createGrid();
       // Recreate axes after grid is resized
       setTimeout(() => {
