@@ -369,13 +369,13 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       if (!response.ok) {
-        console.error(`HTTP error! Status: ${response.status}`, await response.text());
+        console.error(`${new Date().toISOString()} `, `HTTP error for ${id}! Status: ${response.status}`, await response.text());
       } else {
         console.info(`${new Date().toISOString()} `, `Update request for ${id} sent successfully.`);
         // Note: Visual update happens via WebSocket stream, not here.
       }
     } catch (error) {
-      console.error('Error sending cell update:', error);
+      console.error(`${new Date().toISOString()} `, `Error sending cell ${id} update:`, error);
     }
   }
 
@@ -951,7 +951,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateGridPositionDisplay(); // Update grid position display
   createGrid();
   fetchSensorList(); // Fetch initial state
-  connectToStream(); // Connect to stream for updates
+  // connectToStream(); // Connect to stream for updates
   // connectToTimeStream(); // Connect to time stream for updates
   document.addEventListener('keydown', handleGlobalKeyDown);
   document.addEventListener('keyup', handleGlobalKeyUp);
