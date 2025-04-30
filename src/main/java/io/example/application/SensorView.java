@@ -20,10 +20,11 @@ public class SensorView extends View {
   @Query("""
       SELECT *
         FROM sensor_view
+        WHERE id = :id
           """)
-  public QueryStreamEffect<SensorRow> getSensorsStreamOld() {
-    log.info("Getting all sensors");
-    return queryStreamResult();
+  public QueryEffect<SensorRow> getSensor(String id) {
+    log.info("Getting sensor {}", id);
+    return queryResult();
   }
 
   @Query("""

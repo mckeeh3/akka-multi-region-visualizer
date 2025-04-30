@@ -39,11 +39,18 @@ public class SensorEndpoint {
         .invokeAsync(command);
   }
 
-  @Get("/{entityId}")
-  public CompletionStage<Sensor.State> get(String entityId) {
-    return componentClient.forEventSourcedEntity(entityId)
+  @Get("/entity-by-id/{id}")
+  public CompletionStage<Sensor.State> getEntityById(String id) {
+    return componentClient.forEventSourcedEntity(id)
         .method(SensorEntity::get)
         .invokeAsync();
+  }
+
+  @Get("/view-row-by-id/{id}")
+  public CompletionStage<SensorView.SensorRow> getViewRowById(String id) {
+    return componentClient.forView()
+        .method(SensorView::getSensor)
+        .invokeAsync(id);
   }
 
   @Get("/stream/{x1}/{y1}/{x2}/{y2}")
