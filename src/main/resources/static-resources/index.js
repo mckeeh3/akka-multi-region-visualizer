@@ -455,15 +455,17 @@ document.addEventListener('DOMContentLoaded', () => {
   /**
    * Sends the update command to the backend via HTTP PUT.
    * @param {string} id The cell's entity ID (e.g., "RxC" format)
-   * @param {string} action The action key ('r', 'g', 'b', 'd')
+   * @param {string} colorChar The action key ('r', 'g', 'b', 'd')
    */
-  async function sendCellUpdate(id, action) {
-    // Use 'rxc' as the service ID format (no conversion needed)
+  async function sendCellUpdate(id, colorChar, command, radius) {
+    // Use 'RxC' as the service ID format (no conversion needed)
     const serverFormatId = id;
-    const apiUrl = `${origin}/sensor/update-status`;
+    const apiUrl = `${origin}/sensor/${command}`;
     const updatedAt = new Date().toISOString();
     const statusMap = { r: 'red', g: 'green', b: 'blue', o: 'orange', d: 'default' };
-    const status = statusMap[action];
+    const status = statusMap[colorChar];
+    const centerX = parseInt(id.split('x')[1]);
+    const centerY = parseInt(id.split('x')[0]);
     const maxRetries = 10;
     const retryDelay = 100; // ms
     let attempt = 0;
@@ -487,6 +489,9 @@ document.addEventListener('DOMContentLoaded', () => {
             id: serverFormatId,
             status: status,
             updatedAt: updatedAt,
+            centerX: centerX,
+            centerY: centerY,
+            radius: radius,
           }),
         });
 
@@ -913,12 +918,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // Handle color keys
     if (['r', 'g', 'b', 'o', 'd'].includes(event.key.toLowerCase())) {
       event.preventDefault(); // Prevent default browser action
-      const action = event.key.toLowerCase();
+      const colorChar = event.key.toLowerCase();
+      const radius = commandBuffer.length == 0 ? 0 : parseInt(commandBuffer);
+      const cellElement = document.getElementById(hoveredCellId);
+      const hasElapsedTime = cellElement.classList.contains('has-elapsed-time');
+      const command =
+        radius == 0 //
+          ? 'update-status' //
+          : hasElapsedTime //
+          ? 'span-status' //
+          : 'fill-status'; //
 
       if (currentSelection.length > 0) {
         // Apply to all selected cells
         currentSelection.forEach((id) => {
-          sendCellUpdate(id, action);
+          sendCellUpdate(id, colorChar, command, radius);
         });
 
         // Clear selection after applying
@@ -927,7 +941,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (hoveredCellId) {
         // Extract "RxC" from "cell-RxC"
         const id = hoveredCellId.substring(5); // Remove "cell-" prefix
-        sendCellUpdate(id, action);
+        sendCellUpdate(id, colorChar, command, radius);
       }
     }
   }
@@ -1087,7 +1101,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateGridPositionDisplay(); // Update grid position display
   createGrid();
   fetchSensorList(); // Fetch initial state
-  // connectToStream(); // Connect to stream for updates
+  connectToStream(); // Connect to stream for updates
   // connectToTimeStream(); // Connect to time stream for updates
   document.addEventListener('keydown', handleGlobalKeyDown);
   document.addEventListener('keyup', handleGlobalKeyUp);

@@ -27,11 +27,11 @@ public class SensorView extends View {
     return queryResult();
   }
 
-  @Query("""
+  @Query(value = """
       SELECT *
         FROM sensor_view
         WHERE x >= :x1 AND x <= :x2 AND y >= :y1 AND y <= :y2
-          """)
+          """, streamUpdates = true)
   public QueryStreamEffect<SensorRow> getSensorsStream(StreamedSensorsRequest request) {
     log.info("Getting all sensors");
     return queryStreamResult();
@@ -64,6 +64,7 @@ public class SensorView extends View {
     public Effect<SensorRow> onEvent(Sensor.Event event) {
       return switch (event) {
         case Sensor.Event.StatusUpdated e -> effects().updateRow(onEvent(e));
+        default -> effects().ignore();
       };
     }
 
@@ -76,7 +77,7 @@ public class SensorView extends View {
 
       return new SensorRow(
           event.id(),
-          event.status(),
+          event.status().toString(),
           Integer.parseInt(rc[1]),
           Integer.parseInt(rc[0]),
           event.clientAt(),

@@ -31,11 +31,32 @@ public class SensorEndpoint {
   }
 
   @Put("/update-status")
-  public CompletionStage<Done> updateStatus(UpdateStatusRequest request) {
+  public CompletionStage<Done> updateStatus(UpdateSensorRequest request) {
     log.info("{}", request);
-    var command = new Sensor.Command.UpdateStatus(request.id(), request.status(), request.updatedAt(), Instant.now());
+    var status = Sensor.Status.valueOf(request.status().equals("default") ? "inactive" : request.status());
+    var command = new Sensor.Command.UpdateStatus(request.id(), status, request.updatedAt(), Instant.now());
     return componentClient.forEventSourcedEntity(command.id())
         .method(SensorEntity::updateStatus)
+        .invokeAsync(command);
+  }
+
+  @Put("/span-status")
+  public CompletionStage<Done> spanStatus(UpdateSensorRequest request) {
+    log.info("{}", request);
+    var status = Sensor.Status.valueOf(request.status().equals("default") ? "inactive" : request.status());
+    var command = new Sensor.Command.SpanStatus(request.id(), status, request.updatedAt(), Instant.now(), request.centerX(), request.centerY(), request.radius());
+    return componentClient.forEventSourcedEntity(command.id())
+        .method(SensorEntity::updateSpanStatus)
+        .invokeAsync(command);
+  }
+
+  @Put("/fill-status")
+  public CompletionStage<Done> fillStatus(UpdateSensorRequest request) {
+    log.info("{}", request);
+    var status = Sensor.Status.valueOf(request.status().equals("default") ? "inactive" : request.status());
+    var command = new Sensor.Command.FillStatus(request.id(), status, request.updatedAt(), Instant.now(), request.centerX(), request.centerY(), request.radius());
+    return componentClient.forEventSourcedEntity(command.id())
+        .method(SensorEntity::updateFillStatus)
         .invokeAsync(command);
   }
 
@@ -83,5 +104,5 @@ public class SensorEndpoint {
             .map(__ -> System.currentTimeMillis()));
   }
 
-  public record UpdateStatusRequest(String id, String status, Instant updatedAt) {}
+  public record UpdateSensorRequest(String id, String status, Instant updatedAt, Integer centerX, Integer centerY, Integer radius) {}
 }

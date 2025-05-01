@@ -33,6 +33,22 @@ public class SensorEntity extends EventSourcedEntity<Sensor.State, Sensor.Event>
         .thenReply(newState -> done());
   }
 
+  public Effect<Done> updateSpanStatus(Sensor.Command.SpanStatus command) {
+    log.info("EntityId: {}\n_State: {}\n_Command: {}", entityId, currentState(), command);
+
+    return effects()
+        .persistAll(currentState().onCommand(command).stream().toList())
+        .thenReply(newState -> done());
+  }
+
+  public Effect<Done> updateFillStatus(Sensor.Command.FillStatus command) {
+    log.info("EntityId: {}\n_State: {}\n_Command: {}", entityId, currentState(), command);
+
+    return effects()
+        .persistAll(currentState().onCommand(command).stream().toList())
+        .thenReply(newState -> done());
+  }
+
   public ReadOnlyEffect<Sensor.State> get() {
     log.info("EntityId: {}\n_State: {}", entityId, currentState());
     if (currentState().isEmpty()) {
@@ -43,8 +59,12 @@ public class SensorEntity extends EventSourcedEntity<Sensor.State, Sensor.Event>
 
   @Override
   public Sensor.State applyEvent(Sensor.Event event) {
+    log.info("EntityId: {}\n_State: {}\n_Event: {}", entityId, currentState(), event);
+
     return switch (event) {
       case Sensor.Event.StatusUpdated e -> currentState().onEvent(e);
+      case Sensor.Event.SpanStatusUpdated e -> currentState().onEvent(e);
+      case Sensor.Event.FillStatusUpdated e -> currentState().onEvent(e);
     };
   }
 }
