@@ -146,13 +146,13 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   function updateCellCounts(oldStatus, newStatus) {
     // Decrement the old status count if it was active
-    if (oldStatus !== 'default') {
+    if (oldStatus !== 'inactive') {
       cellCounts[oldStatus]--;
       cellCounts.total--;
     }
 
     // Increment the new status count if it's active
-    if (newStatus !== 'default') {
+    if (newStatus !== 'inactive') {
       cellCounts[newStatus]++;
       cellCounts.total++;
     }
@@ -161,14 +161,14 @@ document.addEventListener('DOMContentLoaded', () => {
   /**
    * Gets the current status of a cell from its classes
    * @param {HTMLElement} cellElement The cell element
-   * @returns {string} The cell status ('red', 'green', 'blue', 'orange', or 'default')
+   * @returns {string} The cell status ('red', 'green', 'blue', 'orange', or 'inactive')
    */
   function getCellStatus(cellElement) {
     if (cellElement.classList.contains('cell-red')) return 'red';
     if (cellElement.classList.contains('cell-green')) return 'green';
     if (cellElement.classList.contains('cell-blue')) return 'blue';
     if (cellElement.classList.contains('cell-orange')) return 'orange';
-    return 'default';
+    return 'inactive';
   }
 
   /**
@@ -450,6 +450,9 @@ document.addEventListener('DOMContentLoaded', () => {
       createLeftAxis();
       createBottomAxis();
     }, 0);
+
+    closeStream();
+    connectToStream();
   }
 
   /**
@@ -462,7 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const serverFormatId = id;
     const apiUrl = `${origin}/sensor/${command}`;
     const updatedAt = new Date().toISOString();
-    const statusMap = { r: 'red', g: 'green', b: 'blue', o: 'orange', d: 'default' };
+    const statusMap = { r: 'red', g: 'green', b: 'blue', o: 'orange', d: 'inactive' };
     const status = statusMap[colorChar];
     const centerX = parseInt(id.split('x')[1]);
     const centerY = parseInt(id.split('x')[0]);
@@ -545,12 +548,12 @@ document.addEventListener('DOMContentLoaded', () => {
             updateCellCounts(previousStatus, update.status);
 
             // Add the appropriate class based on status
-            if (update.status !== 'default') {
+            if (update.status !== 'inactive') {
               cellElement.classList.add(`cell-${update.status}`);
             }
 
             // Calculate and display elapsed time if available
-            if (update.updatedAt && update.status !== 'default') {
+            if (update.updatedAt && update.status !== 'inactive') {
               // const updatedAt = new Date(update.updatedAt);
               // const viewAt = new Date(update.viewAt);
               // const elapsedMs = viewAt - updatedAt;
@@ -564,7 +567,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 cellElement.classList.remove('has-elapsed-time');
               }
             } else {
-              // Clear text content for default state
+              // Clear text content for inactive state
               cellElement.textContent = '';
               cellElement.classList.remove('has-elapsed-time');
             }
@@ -640,6 +643,7 @@ document.addEventListener('DOMContentLoaded', () => {
       eventSource.close();
       eventSource = null;
       updateConnectionStatus('Disconnected', 'error');
+      console.info(`${new Date().toISOString()} `, 'EventSource closed.');
     }
   }
 
@@ -697,7 +701,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     eventSource.onmessage = (event) => {
       if (event.data) {
-        console.debug(`${new Date().toISOString()} SSE message: ${event.data}`);
+        // console.debug(`${new Date().toISOString()} SSE message: ${event.data}`);
         handleStreamMessage(event.data);
       }
     };
@@ -1100,7 +1104,7 @@ document.addEventListener('DOMContentLoaded', () => {
   createCommandDisplay(); // Add command status display to the info panel
   updateGridPositionDisplay(); // Update grid position display
   createGrid();
-  fetchSensorList(); // Fetch initial state
+  // fetchSensorList(); // Fetch initial state
   connectToStream(); // Connect to stream for updates
   // connectToTimeStream(); // Connect to time stream for updates
   document.addEventListener('keydown', handleGlobalKeyDown);
@@ -1109,7 +1113,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Set up interval to fetch sensor list every 250ms
   const urlParams = new URLSearchParams(window.location.search);
   const interval = parseInt(urlParams.get('interval'), 10) || 250;
-  sensorListInterval = setInterval(fetchSensorList, interval);
+  // sensorListInterval = setInterval(fetchSensorList, interval);
 
   // Add window resize event listener to adjust grid when window size changes
   window.addEventListener('resize', () => {

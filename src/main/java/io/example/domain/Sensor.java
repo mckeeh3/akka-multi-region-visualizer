@@ -32,7 +32,7 @@ public interface Sensor {
     }
 
     public Optional<Sensor.Event> onCommand(Command.UpdateStatus command) {
-      if (isEmpty() && command.status().equals("default")) {
+      if (isEmpty() && command.status().equals(Status.inactive)) {
         return Optional.empty();
       }
       return Optional.of(new Event.StatusUpdated(
@@ -45,7 +45,7 @@ public interface Sensor {
     }
 
     public List<Sensor.Event> onCommand(Command.SpanStatus command) {
-      if (isEmpty() || status.equals("default")) {
+      if (isEmpty() || status.equals(Status.inactive)) {
         return List.of();
       }
       if (status.equals(command.status())) {
@@ -78,7 +78,7 @@ public interface Sensor {
     }
 
     public List<Sensor.Event> onCommand(Command.FillStatus command) {
-      if (!isEmpty() && !status.equals("default")) {
+      if (!isEmpty() && !status.equals(Status.inactive)) {
         return List.of();
       }
       if (!insideRadius(command.id, command.centerX, command.centerY, command.radius)) {
