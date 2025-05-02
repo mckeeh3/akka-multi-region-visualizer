@@ -20,6 +20,15 @@ public class SensorToSensorConsumer extends Consumer {
   }
 
   public Effect onEvent(Sensor.Event event) {
+    if (!messageContext().hasLocalOrigin()) {
+      log.info("Ignore event: {}\nHasLocalOrigin: {}, OriginRegion: {}, SelfRegion: {}",
+          event,
+          messageContext().hasLocalOrigin(),
+          messageContext().originRegion(),
+          messageContext().selfRegion());
+      return effects().ignore();
+    }
+
     return switch (event) {
       case Sensor.Event.SpanStatusUpdated e -> onSpanStatusUpdated(e);
       case Sensor.Event.FillStatusUpdated e -> onFillStatusUpdated(e);

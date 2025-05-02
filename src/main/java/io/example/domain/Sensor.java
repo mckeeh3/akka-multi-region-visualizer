@@ -54,12 +54,16 @@ public interface Sensor {
       if (!insideRadius(command.id, command.centerX, command.centerY, command.radius)) {
         return List.of();
       }
+      var newUpdatedAt = Instant.now();
+      if (newUpdatedAt.toEpochMilli() - updatedAt.toEpochMilli() < 1_000) {
+        return List.of(); // Skip if too recent since last update
+      }
 
       var statusUpdatedEvent = new Event.StatusUpdated(
           command.id,
           command.status,
           isEmpty() ? Instant.now() : createdAt,
-          Instant.now(),
+          newUpdatedAt,
           command.clientAt,
           command.endpointAt);
 
@@ -84,12 +88,16 @@ public interface Sensor {
       if (!insideRadius(command.id, command.centerX, command.centerY, command.radius)) {
         return List.of();
       }
+      var newUpdatedAt = Instant.now();
+      if (newUpdatedAt.toEpochMilli() - updatedAt.toEpochMilli() < 1_000) {
+        return List.of(); // Skip if too recent since last update
+      }
 
       var updateStatusEvent = new Event.StatusUpdated(
           command.id,
           command.status,
           isEmpty() ? Instant.now() : createdAt,
-          Instant.now(),
+          newUpdatedAt,
           command.clientAt,
           command.endpointAt);
 

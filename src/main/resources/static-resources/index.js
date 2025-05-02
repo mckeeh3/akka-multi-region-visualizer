@@ -478,9 +478,9 @@ document.addEventListener('DOMContentLoaded', () => {
     while (attempt < maxRetries && !success) {
       attempt++;
       if (attempt > 1) {
-        console.warn(`${new Date().toISOString()} `, `Retrying sendCellUpdate for ${id}, attempt ${attempt}...`);
+        console.warn(`${new Date().toISOString()} `, `Retrying PUT to ${apiUrl} with id: ${serverFormatId}, status: ${status}, updatedAt: ${updatedAt}, cx: ${centerX}, cy: ${centerY}, r: ${radius}`);
       } else {
-        console.info(`${new Date().toISOString()} `, `Sending PUT to ${apiUrl} with id: ${serverFormatId}, status: ${status}, updatedAt: ${updatedAt}`);
+        console.info(`${new Date().toISOString()} `, `Sending PUT to ${apiUrl} with id: ${serverFormatId}, status: ${status}, updatedAt: ${updatedAt}, cx: ${centerX}, cy: ${centerY}, r: ${radius}`);
       }
       try {
         const response = await fetch(apiUrl, {
@@ -1104,7 +1104,7 @@ document.addEventListener('DOMContentLoaded', () => {
   createCommandDisplay(); // Add command status display to the info panel
   updateGridPositionDisplay(); // Update grid position display
   createGrid();
-  // fetchSensorList(); // Fetch initial state
+  fetchSensorList(); // Fetch initial state
   connectToStream(); // Connect to stream for updates
   // connectToTimeStream(); // Connect to time stream for updates
   document.addEventListener('keydown', handleGlobalKeyDown);
@@ -1112,8 +1112,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Set up interval to fetch sensor list every 250ms
   const urlParams = new URLSearchParams(window.location.search);
-  const interval = parseInt(urlParams.get('interval'), 10) || 250;
-  // sensorListInterval = setInterval(fetchSensorList, interval);
+  const interval = parseInt(urlParams.get('interval'), 10) || 5000;
+  sensorListInterval = setInterval(fetchSensorList, interval);
 
   // Add window resize event listener to adjust grid when window size changes
   window.addEventListener('resize', () => {
