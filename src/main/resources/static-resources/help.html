@@ -70,8 +70,8 @@
       .blue {
         background-color: #2196f3;
       }
-      .yellow {
-        background-color: #ffeb3b;
+      .orange {
+        background-color: #f0950c;
       }
 
       .section {
@@ -119,8 +119,8 @@
       <div class="section">
         <h2>How to Use the UI</h2>
         <p>
-          The Akka Multi-Region Grid Demo provides a visual interface for interacting with a distributed grid of cells. Each cell can be in one of five states: default (empty) or colored (red, green,
-          blue, yellow).
+          The Akka Multi-Region Grid Demo provides a visual interface for interacting with a distributed grid of cells. Each cell can be in one of five states: default (empty) or color (red, green,
+          blue, orange).
         </p>
 
         <h3>Basic Interactions:</h3>
@@ -131,19 +131,19 @@
               <li><span class="key">r</span> - Set cell to <span class="color-box red"></span> red</li>
               <li><span class="key">g</span> - Set cell to <span class="color-box green"></span> green</li>
               <li><span class="key">b</span> - Set cell to <span class="color-box blue"></span> blue</li>
-              <li><span class="key">o</span> - Set cell to <span class="color-box yellow"></span> orange</li>
-              <li><span class="key">d</span> - Set cell to default (clear)</li>
+              <li><span class="key">o</span> - Set cell to <span class="color-box orange"></span> orange</li>
+              <li><span class="key">d</span> - Set cell to default (empty)</li>
             </ul>
           </li>
           <li><strong>Cell Information</strong>: Cells display the elapsed time (in milliseconds) since they were last updated.</li>
-          <li><strong>Grid Summary</strong>: The top of the grid shows a summary of the total number of colored cells and the count for each color.</li>
+          <li><strong>Grid Summary</strong>: The top of the grid shows a summary of the total number of cells in each state.</li>
           <li><strong>Connection Status</strong>: The top bar shows the current connection status and the server endpoint being used.</li>
         </ul>
 
         <h3>Grid Navigation:</h3>
         <p>
           The grid visualizer implements an <strong>infinite grid viewport</strong> concept. Think of the grid display as a window or viewport into a much larger grid that extends in all directions.
-          The visible cells represent just a small portion of this infinite grid, and you can navigate to view different regions.
+          The visible cells represent just a small portion of this larger grid, and you can navigate to view different grid locations.
         </p>
         <p>Your current position in the grid is displayed at the top of the grid area as "Grid Position: x=X, y=Y", where X and Y are the coordinates of the top-left cell of your viewport.</p>
 
@@ -166,8 +166,8 @@
 
         <p><strong>Notes on Navigation:</strong></p>
         <ul>
-          <li>All movements are rounded to the nearest 10 units for consistency</li>
-          <li>The grid has boundaries at ±1,000,000 in both directions</li>
+          <li>All movements are rounded to the nearest 10 units for alignment consistency</li>
+          <li>The grid has boundaries at ±1,000,000 in all directions</li>
           <li>As you type a command, it appears in the info panel at the top</li>
           <li>Press <span class="key">Escape</span> to cancel a command in progress</li>
           <li>Relative movement commands (h/j/k/l) only accept positive numbers</li>
@@ -175,7 +175,7 @@
 
         <h3>Advanced Features:</h3>
         <ul>
-          <li><strong>URL Parameters</strong>: You can customize the polling interval by adding <code>?interval=X</code> to the URL, where X is the interval in milliseconds (default is 250ms).</li>
+          <li><strong>URL Parameters</strong>: You can customize the polling interval by adding <code>?interval=X</code> to the URL, where X is the interval in milliseconds (default is 2000ms).</li>
           <li><strong>Responsive Design</strong>: The grid automatically adjusts to your screen size, showing as many cells as possible while maintaining readability.</li>
         </ul>
 
@@ -188,8 +188,8 @@
             crosshair.
           </li>
           <li>
-            <strong>Select a Region</strong>: While still holding <span class="key">Shift</span>, click on a cell that will be one corner of your selection, then drag to the opposite corner. As you
-            drag, you'll see cells highlighted with a dashed outline.
+            <strong>Select a Region</strong>: While still holding <span class="key">Shift</span>, click on a cell that will be one corner of your selection, then move to the opposite corner. As you
+            move the mouse pointer, you'll see cells highlighted with a dashed outline.
           </li>
           <li>
             <strong>Apply Color</strong>: With cells selected (still holding <span class="key">Shift</span>), press one of the color keys:
@@ -197,12 +197,43 @@
               <li><span class="key">r</span> - Set all selected cells to <span class="color-box red"></span> red</li>
               <li><span class="key">g</span> - Set all selected cells to <span class="color-box green"></span> green</li>
               <li><span class="key">b</span> - Set all selected cells to <span class="color-box blue"></span> blue</li>
-              <li><span class="key">o</span> - Set all selected cells to <span class="color-box yellow"></span> orange</li>
+              <li><span class="key">o</span> - Set all selected cells to <span class="color-box orange"></span> orange</li>
               <li><span class="key">d</span> - Clear all selected cells (default)</li>
             </ul>
           </li>
           <li><strong>Release Selection</strong>: After applying a color, or when you release the <span class="key">Shift</span> key, the selection will be cleared.</li>
         </ol>
+
+        <br />
+        <h3>Circular Multi-Cell Updates</h3>
+        <p>
+          Another way to perform multi-cell state changes is with a circular generation. Position the mouse pointer on any cell, then enter a number followed by one of the color keys. The mouse
+          position is the center of a circle with a radius of the number entered (in cells). For example, <code>10r</code> will attempt to propagate the red color state to all cells within a circle of
+          radius 10. There are two generation modes: <strong>span</strong> and <strong>fill</strong>.
+        </p>
+        <ul>
+          <li>
+            <strong>Fill Mode:</strong> If the center cell is empty, an attempt is made to set all empty cells within the circle to the specified color. Fill mode does not alter cells that are already
+            in a different color state.
+          </li>
+          <li>
+            <strong>Span Mode:</strong> If the center cell has a color, an attempt is made to update all other color state cells in the circle to match. Span mode does not alter cells that are empty.
+          </li>
+        </ul>
+        <p><strong>How it works:</strong> When the center cell's state is altered, the corresponding Akka SDK entity emits eight events—one for each of its neighboring cells:</p>
+        <pre style="font-size: 0.95em; background: #101825; color: #a7ecff; border-radius: 6px; padding: 8px; line-height: 1.2em">
+            NW   N   NE
+               \ | /
+            W -- C -- E
+               / | \
+            SW   S   SE
+        </pre>
+        <p>
+          An Akka SDK consumer component receives these events and sends a <em>fill</em> or <em>span</em> command to each neighbor entity. Each entity then decides whether to accept the command based
+          on the command type and its own current state. This process can repeat recursively, allowing the color to propagate outward in a circle. As the neighbors receive the command, they may emit
+          events for their own neighbors, and the process continues until the circle is fully propagated or until no more cells can be altered.
+        </p>
+        <p>This mechanism enables rapid propagation of color changes in circular patterns, supporting both contiguous fills and color state region spanning, depending on the starting cell's state.</p>
 
         <p><strong>Use Cases:</strong> This feature is particularly useful for:</p>
         <ul>
@@ -213,33 +244,41 @@
         </ul>
 
         <p>
-          <strong>Tip:</strong> When using box selection in a multi-region deployment, try selecting large areas in one region and observe how quickly the changes propagate to clients connected to
-          other regions. The elapsed time numbers will help you visualize the replication latency across your distributed system.
+          <strong>Tip:</strong> When using box selection or circular generation in a multi-region deployment, try selecting large areas in one region and observe how quickly the changes propagate to
+          clients connected to other regions. The elapsed time numbers will help you visualize the replication latency across your distributed system.
         </p>
 
         <h3>Understanding Elapsed Time Display:</h3>
-        <p>Each colored cell displays a number representing the elapsed time in milliseconds. This measurement is particularly significant and works as follows:</p>
+        <p>
+          Each color state cell displays a number representing the elapsed time in milliseconds (<code>elapsedMs</code>). This value provides a real-time measurement of replication and view update
+          latency in the Akka SDK multi-region architecture. The process works as follows:
+        </p>
         <ul>
-          <li><strong>Time Capture</strong>: When a client submits a request to update a grid cell's state, the current client device time is captured and sent along with the update.</li>
           <li>
-            <strong>Time Calculation</strong>: When any client receives a grid update (via fetch or stream), the arrival time is compared with the original timestamp, calculating the elapsed
-            milliseconds between these two points in the processing flow.
+            <strong>Entity Update (Primary Region):</strong> When a client updates a grid cell, the primary Akka SDK entity for that cell (located in one region) sets its <code>updatedAt</code> state
+            attribute to the current time.
           </li>
           <li>
-            <strong>Multi-Client Scenario</strong>: When multiple clients are accessing the service, the elapsed time represents the duration between Client A changing a grid cell's state and Client B
-            being notified of this change.
+            <strong>View Row Update (Primary Region):</strong> This entity state change triggers an update of the related view row, which sets its <code>viewAt</code> attribute to the current time.
+            The <code>elapsedMs</code> value is calculated as <code>viewAt - updatedAt</code> and stored in the view row.
           </li>
           <li>
-            <strong>Multi-Region Significance</strong>: This measurement becomes especially interesting when the Akka service is running in a multi-region configuration. When Client A submits a grid
-            cell state change in Region A, and Client B is accessing the Akka service in Region B, the elapsed time represents:
-            <ul>
-              <li>The replication time between regions</li>
-              <li>Plus the processing time in both Akka service instances</li>
-              <li>Plus network latency between clients and services</li>
-            </ul>
+            <strong>Replication to Other Regions:</strong> Each entity state change is replicated to other regions. When the entity is updated in another region, it triggers a region-local view row
+            update. <em>The entity's <code>updatedAt</code> is not changed during replication.</em>
+          </li>
+          <li>
+            <strong>View Row Update (Replicated Region):</strong> The local view row in the replicated region is updated, setting its own <code>viewAt</code> to the current time and recalculating
+            <code>elapsedMs = viewAt - updatedAt</code> using the original <code>updatedAt</code> from the primary region.
+          </li>
+          <li>
+            <strong>Elapsed Time Meaning:</strong> As a result, the <code>elapsedMs</code> for each grid cell reflects the time taken to replicate the entity state change across regions and update the
+            view row in each region. This includes cross-region replication time and any processing delay in updating the view.
           </li>
         </ul>
-        <p>This provides a real-time visualization of distributed system latency and replication performance across regions.</p>
+        <p>
+          This approach provides a real-time visualization of distributed system latency and cross-region replication performance. When you see a cell's elapsed time, it shows how long it took for an
+          update in the primary region to be reflected in the current region's view.
+        </p>
       </div>
 
       <div class="section">
