@@ -37,6 +37,36 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // --- DOM References ---
+  const gridPositionElement = document.getElementById('grid-position');
+  // Create and insert mouse position display after grid position
+  let mousePositionElement = document.getElementById('mouse-position');
+  if (!mousePositionElement && gridPositionElement && gridPositionElement.parentNode) {
+    mousePositionElement = document.createElement('div');
+    mousePositionElement.id = 'mouse-position';
+    mousePositionElement.style.marginLeft = '18px';
+    mousePositionElement.style.display = 'inline-block';
+    mousePositionElement.style.color = 'white';
+    mousePositionElement.style.fontSize = '0.9em';
+    mousePositionElement.style.fontWeight = 'bold';
+    mousePositionElement.style.background = 'rgba(5,10,25,0.4)';
+    mousePositionElement.style.padding = '3px 8px';
+    mousePositionElement.style.borderRadius = '3px';
+    mousePositionElement.style.border = '1px solid rgba(0,100,200,0.2)';
+    gridPositionElement.parentNode.insertBefore(mousePositionElement, gridPositionElement);
+  }
+
+  function updateMousePositionDisplay(x, y) {
+    if (mousePositionElement) {
+      mousePositionElement.textContent = `Mouse Position: x=${x}, y=${y}`;
+    }
+  }
+
+  function clearMousePositionDisplay() {
+    if (mousePositionElement) {
+      mousePositionElement.textContent = '';
+    }
+  }
+
   const gridContainer = document.getElementById('grid-container');
   const leftAxis = document.getElementById('left-axis');
   const bottomAxis = document.getElementById('bottom-axis');
@@ -45,6 +75,28 @@ document.addEventListener('DOMContentLoaded', () => {
   const gridSummary = document.getElementById('grid-summary');
 
   // --- Functions ---
+
+  // Mouse position tracking on grid
+  if (gridContainer) {
+    gridContainer.addEventListener('mousemove', (e) => {
+      // Get bounding rect of grid
+      const rect = gridContainer.getBoundingClientRect();
+      // Get mouse position relative to grid
+      const px = e.clientX - rect.left;
+      const py = e.clientY - rect.top;
+      // Calculate cell size (assume uniform)
+      const cellWidth = rect.width / gridCols;
+      const cellHeight = rect.height / gridRows;
+      // Compute grid coordinates
+      let gridX = Math.floor(px / cellWidth) + viewportX;
+      let gridY = Math.floor(py / cellHeight) + viewportY;
+      // Clamp to grid bounds
+      gridX = Math.max(MIN_GRID_COORD, Math.min(MAX_GRID_COORD, gridX));
+      gridY = Math.max(MIN_GRID_COORD, Math.min(MAX_GRID_COORD, gridY));
+      updateMousePositionDisplay(gridX, gridY);
+    });
+    gridContainer.addEventListener('mouseleave', clearMousePositionDisplay);
+  }
 
   /**
    * Shows a grid overlay with sensor data on the given cell.
@@ -85,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
       k.style.textAlign = 'right';
       k.style.color = '#6fffc8';
       const v = document.createElement('td');
-      v.textContent = value;
+      v.textContent = key == 'elapsedMs' ? `${value} ms (viewAt - updatedAt)` : value;
       v.style.padding = '2px 6px';
       v.style.textAlign = 'left';
       v.style.color = '#fff';
@@ -554,9 +606,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Calculate and display elapsed time if available
             if (update.updatedAt && update.status !== 'inactive') {
-              // const updatedAt = new Date(update.updatedAt);
-              // const viewAt = new Date(update.viewAt);
-              // const elapsedMs = viewAt - updatedAt;
               const elapsedMs = Math.min(9999, update.elapsedMs);
 
               if (elapsedMs >= 0) {
