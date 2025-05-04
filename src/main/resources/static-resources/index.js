@@ -1194,8 +1194,8 @@ document.addEventListener('DOMContentLoaded', () => {
     .then((version) => {
       document.getElementById('project-version').textContent = `Version: ${version.trim()}`;
     })
-    .catch(() => {
-      document.getElementById('project-version').textContent = '';
+    .catch((error) => {
+      document.getElementById('project-version').textContent = `Error: ${error}`;
     });
 
   // --- Initialization ---
