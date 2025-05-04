@@ -961,7 +961,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       return;
-    } else if (commandBuffer.length > 0 && event.key === 'Escape') {
+    }
+
+    if (commandBuffer.length > 0 && event.key === 'Escape') {
       // Clear the command buffer if Escape is pressed
       commandBuffer = '';
       updateCommandStatus('Command canceled', 2000);
@@ -995,6 +997,43 @@ document.addEventListener('DOMContentLoaded', () => {
         // Extract "RxC" from "cell-RxC"
         const id = hoveredCellId.substring(5); // Remove "cell-" prefix
         sendCellUpdate(id, colorChar, command, radius);
+      }
+    }
+
+    // Handle clear and erase commands
+    if (event.key === 'c') {
+      event.preventDefault(); // Prevent default browser action
+      const cellElement = document.getElementById(hoveredCellId);
+      const hasElapsedTime = cellElement.classList.contains('has-elapsed-time');
+
+      if (hasElapsedTime) {
+        const command = 'clear-status';
+        const id = hoveredCellId.substring(5); // Remove "cell-" prefix
+        const colorChar = cellElement.classList.contains('cell-red')
+          ? 'r'
+          : cellElement.classList.contains('cell-green')
+          ? 'g'
+          : cellElement.classList.contains('cell-blue')
+          ? 'b'
+          : cellElement.classList.contains('cell-orange')
+          ? 'o'
+          : '';
+        const radius = 0;
+        if (colorChar.length > 0) {
+          sendCellUpdate(id, colorChar, command, radius);
+        }
+      }
+    }
+
+    if (event.key === 'e') {
+      event.preventDefault(); // Prevent default browser action
+      const cellElement = document.getElementById(hoveredCellId);
+      const hasElapsedTime = cellElement.classList.contains('has-elapsed-time');
+
+      if (hasElapsedTime) {
+        const command = 'erase-status';
+        const id = hoveredCellId.substring(5); // Remove "cell-" prefix
+        sendCellUpdate(id, '', command, 0);
       }
     }
   }

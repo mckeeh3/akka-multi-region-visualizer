@@ -51,6 +51,22 @@ public class SensorEntity extends EventSourcedEntity<Sensor.State, Sensor.Event>
         .thenReply(newState -> done());
   }
 
+  public Effect<Done> updateClearStatus(Sensor.Command.ClearStatus command) {
+    log.info("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", region, entityId, currentState(), command);
+
+    return effects()
+        .persistAll(currentState().onCommand(command).stream().toList())
+        .thenReply(newState -> done());
+  }
+
+  public Effect<Done> updateEraseStatus(Sensor.Command.EraseStatus command) {
+    log.info("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", region, entityId, currentState(), command);
+
+    return effects()
+        .persistAll(currentState().onCommand(command).stream().toList())
+        .thenReply(newState -> done());
+  }
+
   public ReadOnlyEffect<Sensor.State> get() {
     log.info("Region: {}, EntityId: {}\n_State: {}", region, entityId, currentState());
     if (currentState().isEmpty()) {
@@ -65,8 +81,10 @@ public class SensorEntity extends EventSourcedEntity<Sensor.State, Sensor.Event>
 
     return switch (event) {
       case Sensor.Event.StatusUpdated e -> currentState().onEvent(e);
-      case Sensor.Event.SpanStatusUpdated e -> currentState().onEvent(e);
-      case Sensor.Event.FillStatusUpdated e -> currentState().onEvent(e);
+      case Sensor.Event.SpanToNeighbor e -> currentState().onEvent(e);
+      case Sensor.Event.FillToNeighbor e -> currentState().onEvent(e);
+      case Sensor.Event.ClearToNeighbor e -> currentState().onEvent(e);
+      case Sensor.Event.EraseToNeighbor e -> currentState().onEvent(e);
     };
   }
 }

@@ -74,7 +74,7 @@ public interface Sensor {
           command.region);
 
       var neighborSpanStatusUpdatedEvents = neighborIds(command.id).stream()
-          .map(id -> new Event.SpanStatusUpdated(
+          .map(id -> new Event.SpanToNeighbor(
               id,
               command.status,
               command.clientAt,
@@ -112,7 +112,7 @@ public interface Sensor {
           command.region);
 
       var neighborFillEvents = neighborIds(command.id).stream()
-          .map(id -> new Event.FillStatusUpdated(
+          .map(id -> new Event.FillToNeighbor(
               id,
               command.status,
               command.clientAt,
@@ -127,6 +127,52 @@ public interface Sensor {
       return Stream.<Event>concat(Stream.of(updateStatusEvent), neighborFillEvents.stream()).toList();
     }
 
+    public List<Event> onCommand(Command.ClearStatus command) {
+      if (isEmpty() || status.equals(Status.inactive)) {
+        return List.of();
+      }
+      if (!status.equals(command.status)) {
+        return List.of();
+      }
+
+      var updateStatusEvent = new Event.StatusUpdated(
+          command.id,
+          Status.inactive,
+          createdAt,
+          Instant.now(),
+          clientAt,
+          endpointAt,
+          created,
+          updated);
+
+      var neighborClearEvents = neighborIds(command.id).stream()
+          .map(id -> new Event.ClearToNeighbor(id, command.status))
+          .toList();
+
+      return Stream.<Event>concat(Stream.of(updateStatusEvent), neighborClearEvents.stream()).toList();
+    }
+
+    public List<Event> onCommand(Command.EraseStatus command) {
+      if (isEmpty() || status.equals(Status.inactive)) {
+        return List.of();
+      }
+      var updateStatusEvent = new Event.StatusUpdated(
+          command.id,
+          Status.inactive,
+          createdAt,
+          Instant.now(),
+          clientAt,
+          endpointAt,
+          created,
+          updated);
+
+      var neighborEraseEvents = neighborIds(command.id).stream()
+          .map(id -> new Event.EraseToNeighbor(id))
+          .toList();
+
+      return Stream.<Event>concat(Stream.of(updateStatusEvent), neighborEraseEvents.stream()).toList();
+    }
+
     public State onEvent(Event.StatusUpdated event) {
       return new State(
           event.id,
@@ -139,11 +185,19 @@ public interface Sensor {
           event.updated);
     }
 
-    public State onEvent(Event.SpanStatusUpdated event) {
+    public State onEvent(Event.SpanToNeighbor event) {
       return this;
     }
 
-    public State onEvent(Event.FillStatusUpdated event) {
+    public State onEvent(Event.FillToNeighbor event) {
+      return this;
+    }
+
+    public State onEvent(Event.ClearToNeighbor event) {
+      return this;
+    }
+
+    public State onEvent(Event.EraseToNeighbor event) {
       return this;
     }
 
@@ -197,6 +251,13 @@ public interface Sensor {
         Integer centerY,
         Integer radius,
         String region) implements Command {}
+
+    public record ClearStatus(
+        String id,
+        Status status) implements Command {}
+
+    public record EraseStatus(
+        String id) implements Command {}
   }
 
   public sealed interface Event {
@@ -210,7 +271,7 @@ public interface Sensor {
         String created,
         String updated) implements Event {}
 
-    public record SpanStatusUpdated(
+    public record SpanToNeighbor(
         String id,
         Status status,
         Instant clientAt,
@@ -221,7 +282,7 @@ public interface Sensor {
         String created,
         String updated) implements Event {}
 
-    public record FillStatusUpdated(
+    public record FillToNeighbor(
         String id,
         Status status,
         Instant clientAt,
@@ -231,5 +292,12 @@ public interface Sensor {
         Integer radius,
         String created,
         String updated) implements Event {}
+
+    public record ClearToNeighbor(
+        String id,
+        Status status) implements Event {}
+
+    public record EraseToNeighbor(
+        String id) implements Event {}
   }
 }

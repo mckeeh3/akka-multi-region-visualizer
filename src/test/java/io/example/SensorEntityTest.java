@@ -70,7 +70,7 @@ public class SensorEntityTest {
       }
 
       {
-        var event = result.getNextEventOfType(Sensor.Event.SpanStatusUpdated.class);
+        var event = result.getNextEventOfType(Sensor.Event.SpanToNeighbor.class);
         assertNotEquals(id, event.id());
         assertEquals(status, event.status());
         assertEquals(centerX, event.centerX());

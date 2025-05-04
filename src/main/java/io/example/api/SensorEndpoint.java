@@ -82,6 +82,25 @@ public class SensorEndpoint extends AbstractHttpEndpoint {
         .invokeAsync(command);
   }
 
+  @Put("/clear-status")
+  public CompletionStage<Done> clearStatus(UpdateSensorRequest request) {
+    log.info("Region: {}, {}", region(), request);
+    var status = Sensor.Status.valueOf(request.status().equals("default") ? "inactive" : request.status());
+    var command = new Sensor.Command.ClearStatus(request.id(), status);
+    return componentClient.forEventSourcedEntity(command.id())
+        .method(SensorEntity::updateClearStatus)
+        .invokeAsync(command);
+  }
+
+  @Put("/erase-status")
+  public CompletionStage<Done> eraseStatus(UpdateSensorRequest request) {
+    log.info("Region: {}, {}", region(), request);
+    var command = new Sensor.Command.EraseStatus(request.id());
+    return componentClient.forEventSourcedEntity(command.id())
+        .method(SensorEntity::updateEraseStatus)
+        .invokeAsync(command);
+  }
+
   @Get("/entity-by-id/{id}")
   public CompletionStage<Sensor.State> getEntityById(String id) {
     return componentClient.forEventSourcedEntity(id)

@@ -248,6 +248,26 @@
           clients connected to other regions. The elapsed time numbers will help you visualize the replication latency across your distributed system.
         </p>
 
+        <h3>Clear Color and Erase Colors Multi Cell Update</h3>
+        <ul>
+          <li>
+            <strong>Clear Color (<span class="key">c</span> command):</strong>
+            When you press the <span class="key">c</span> key while hovering over a colored cell, the system clears (sets to empty) that cell and all directly adjoining cells that share the same color
+            state. The clear action propagates recursively to neighboring cells with the same color, stopping at boundaries between different colors or empty cells. This is useful for quickly removing
+            a contiguous region of a specific color.
+          </li>
+          <li>
+            <strong>Erase Colors (<span class="key">e</span> command):</strong>
+            When you press the <span class="key">e</span> key while hovering over a colored cell, the system clears (sets to empty) that cell and all adjoining cells, regardless of their color. The
+            erase action propagates recursively to all neighboring colored cells, removing all color states in the connected region. This is useful for wiping out any colored area, regardless of color
+            boundaries.
+          </li>
+        </ul>
+        <p>
+          Both commands use a propagation mechanism similar to the circular fill/span commands: when a cell is cleared or erased, it emits events to its neighbors, which may in turn clear or erase
+          their own neighbors, allowing the action to spread efficiently across the grid.
+        </p>
+
         <h3>Understanding Elapsed Time Display:</h3>
         <p>
           Each color state cell displays a number representing the elapsed time in milliseconds (<code>elapsedMs</code>). This value provides a real-time measurement of replication and view update
