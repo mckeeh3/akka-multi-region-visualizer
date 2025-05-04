@@ -1187,6 +1187,17 @@ document.addEventListener('DOMContentLoaded', () => {
     regionUrlSpan.textContent = `${origin}`;
   }
 
+  // Fetch and display project version
+  // Run bash script version-to-static.sh to update version.txt
+  fetch('version.txt')
+    .then((resp) => (resp.ok ? resp.text() : Promise.reject('Version not found')))
+    .then((version) => {
+      document.getElementById('project-version').textContent = `Version: ${version.trim()}`;
+    })
+    .catch(() => {
+      document.getElementById('project-version').textContent = '';
+    });
+
   // --- Initialization ---
   initializeViewport(); // Set default viewport position
   createCommandDisplay(); // Add command status display to the info panel

@@ -41,6 +41,11 @@ public class StaticResourcesEndpoint {
     return HttpResponses.staticResource("help.html");
   }
 
+  @Get("/version.txt")
+  public HttpResponse version() {
+    return HttpResponses.staticResource("version.txt");
+  }
+
   @Get("/static/**") // Serve static files (e.g. HTML, CSS, JS)
   public HttpResponse serveStatic(HttpRequest request) {
     return HttpResponses.staticResource(request, "/static/");
