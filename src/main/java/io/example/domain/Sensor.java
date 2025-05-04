@@ -21,10 +21,12 @@ public interface Sensor {
       Instant createdAt,
       Instant updatedAt,
       Instant clientAt,
-      Instant endpointAt) {
+      Instant endpointAt,
+      String created,
+      String updated) {
 
     public static State empty() {
-      return new State("", Status.inactive, Instant.EPOCH, Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
+      return new State("", Status.inactive, Instant.EPOCH, Instant.EPOCH, Instant.EPOCH, Instant.EPOCH, "", "");
     }
 
     public boolean isEmpty() {
@@ -41,7 +43,9 @@ public interface Sensor {
           isEmpty() ? Instant.now() : createdAt,
           Instant.now(),
           command.clientAt,
-          command.endpointAt));
+          command.endpointAt,
+          created.isEmpty() ? command.region : created,
+          command.region));
     }
 
     public List<Sensor.Event> onCommand(Command.SpanStatus command) {
@@ -65,7 +69,9 @@ public interface Sensor {
           isEmpty() ? Instant.now() : createdAt,
           newUpdatedAt,
           command.clientAt,
-          command.endpointAt);
+          command.endpointAt,
+          created.isEmpty() ? command.region : created,
+          command.region);
 
       var neighborSpanStatusUpdatedEvents = neighborIds(command.id).stream()
           .map(id -> new Event.SpanStatusUpdated(
@@ -75,7 +81,9 @@ public interface Sensor {
               command.endpointAt,
               command.centerX,
               command.centerY,
-              command.radius))
+              command.radius,
+              created.isEmpty() ? command.region : created,
+              command.region))
           .toList();
 
       return Stream.<Event>concat(Stream.of(statusUpdatedEvent), neighborSpanStatusUpdatedEvents.stream()).toList();
@@ -99,7 +107,9 @@ public interface Sensor {
           isEmpty() ? Instant.now() : createdAt,
           newUpdatedAt,
           command.clientAt,
-          command.endpointAt);
+          command.endpointAt,
+          created.isEmpty() ? command.region : created,
+          command.region);
 
       var neighborFillEvents = neighborIds(command.id).stream()
           .map(id -> new Event.FillStatusUpdated(
@@ -109,7 +119,9 @@ public interface Sensor {
               command.endpointAt,
               command.centerX,
               command.centerY,
-              command.radius))
+              command.radius,
+              created.isEmpty() ? command.region : created,
+              command.region))
           .toList();
 
       return Stream.<Event>concat(Stream.of(updateStatusEvent), neighborFillEvents.stream()).toList();
@@ -122,7 +134,9 @@ public interface Sensor {
           event.createdAt,
           event.updatedAt,
           event.clientAt,
-          event.endpointAt);
+          event.endpointAt,
+          event.created,
+          event.updated);
     }
 
     public State onEvent(Event.SpanStatusUpdated event) {
@@ -161,7 +175,8 @@ public interface Sensor {
         String id,
         Status status,
         Instant clientAt,
-        Instant endpointAt) implements Command {}
+        Instant endpointAt,
+        String region) implements Command {}
 
     public record SpanStatus(
         String id,
@@ -170,7 +185,8 @@ public interface Sensor {
         Instant endpointAt,
         Integer centerX,
         Integer centerY,
-        Integer radius) implements Command {}
+        Integer radius,
+        String region) implements Command {}
 
     public record FillStatus(
         String id,
@@ -179,7 +195,8 @@ public interface Sensor {
         Instant endpointAt,
         Integer centerX,
         Integer centerY,
-        Integer radius) implements Command {}
+        Integer radius,
+        String region) implements Command {}
   }
 
   public sealed interface Event {
@@ -189,7 +206,9 @@ public interface Sensor {
         Instant createdAt,
         Instant updatedAt,
         Instant clientAt,
-        Instant endpointAt) implements Event {}
+        Instant endpointAt,
+        String created,
+        String updated) implements Event {}
 
     public record SpanStatusUpdated(
         String id,
@@ -198,7 +217,9 @@ public interface Sensor {
         Instant endpointAt,
         Integer centerX,
         Integer centerY,
-        Integer radius) implements Event {}
+        Integer radius,
+        String created,
+        String updated) implements Event {}
 
     public record FillStatusUpdated(
         String id,
@@ -207,6 +228,8 @@ public interface Sensor {
         Instant endpointAt,
         Integer centerX,
         Integer centerY,
-        Integer radius) implements Event {}
+        Integer radius,
+        String created,
+        String updated) implements Event {}
   }
 }

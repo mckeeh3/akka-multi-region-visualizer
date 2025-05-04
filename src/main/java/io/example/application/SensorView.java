@@ -10,6 +10,7 @@ import akka.javasdk.annotations.ComponentId;
 import akka.javasdk.annotations.Consume;
 import akka.javasdk.annotations.Query;
 import akka.javasdk.view.TableUpdater;
+import akka.javasdk.view.UpdateContext;
 import akka.javasdk.view.View;
 import io.example.domain.Sensor;
 
@@ -61,7 +62,9 @@ public class SensorView extends View {
 
   @Consume.FromEventSourcedEntity(SensorEntity.class)
   public static class SensorsByStatus extends TableUpdater<SensorRow> {
+
     public Effect<SensorRow> onEvent(Sensor.Event event) {
+      log.info("Region: {}, Event: {}", region(updateContext()), event);
       return switch (event) {
         case Sensor.Event.StatusUpdated e -> effects().updateRow(onEvent(e));
         default -> effects().ignore();
@@ -69,7 +72,7 @@ public class SensorView extends View {
     }
 
     private SensorRow onEvent(Sensor.Event.StatusUpdated event) {
-      log.info("Event: {}\n_State: {}", event, rowState());
+      log.info("Region: {}, Event: {}\n_State: {}", region(updateContext()), event, rowState());
 
       var rc = event.id().split("x"); // RxC / YxX
       var viewAt = Instant.now();
@@ -85,7 +88,14 @@ public class SensorView extends View {
           event.createdAt(),
           event.updatedAt(),
           viewAt,
-          elapsedMs);
+          elapsedMs,
+          event.created(),
+          event.updated());
+    }
+
+    String region(UpdateContext updateContext) {
+      var region = updateContext.selfRegion();
+      return region.isEmpty() ? "unknown" : region;
     }
   }
 
@@ -99,7 +109,9 @@ public class SensorView extends View {
       Instant createdAt,
       Instant updatedAt,
       Instant viewAt,
-      int elapsedMs) {}
+      int elapsedMs,
+      String created,
+      String updated) {}
 
   public record Sensors(List<SensorRow> sensors) {}
 

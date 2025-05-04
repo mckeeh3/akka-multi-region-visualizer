@@ -14,10 +14,12 @@ import io.example.domain.Sensor;
 @ComponentId("sensor")
 public class SensorEntity extends EventSourcedEntity<Sensor.State, Sensor.Event> {
   private final Logger log = LoggerFactory.getLogger(getClass());
+  private final String region;
   private final String entityId;
 
   public SensorEntity(EventSourcedEntityContext context) {
     this.entityId = context.entityId();
+    this.region = context.selfRegion().isEmpty() ? "unknown" : context.selfRegion();
   }
 
   @Override
@@ -26,7 +28,7 @@ public class SensorEntity extends EventSourcedEntity<Sensor.State, Sensor.Event>
   }
 
   public Effect<Done> updateStatus(Sensor.Command.UpdateStatus command) {
-    log.info("EntityId: {}\n_State: {}\n_Command: {}", entityId, currentState(), command);
+    log.info("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", region, entityId, currentState(), command);
 
     return effects()
         .persistAll(currentState().onCommand(command).stream().toList())
@@ -34,7 +36,7 @@ public class SensorEntity extends EventSourcedEntity<Sensor.State, Sensor.Event>
   }
 
   public Effect<Done> updateSpanStatus(Sensor.Command.SpanStatus command) {
-    log.info("EntityId: {}\n_State: {}\n_Command: {}", entityId, currentState(), command);
+    log.info("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", region, entityId, currentState(), command);
 
     return effects()
         .persistAll(currentState().onCommand(command).stream().toList())
@@ -42,7 +44,7 @@ public class SensorEntity extends EventSourcedEntity<Sensor.State, Sensor.Event>
   }
 
   public Effect<Done> updateFillStatus(Sensor.Command.FillStatus command) {
-    log.info("EntityId: {}\n_State: {}\n_Command: {}", entityId, currentState(), command);
+    log.info("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", region, entityId, currentState(), command);
 
     return effects()
         .persistAll(currentState().onCommand(command).stream().toList())
@@ -50,7 +52,7 @@ public class SensorEntity extends EventSourcedEntity<Sensor.State, Sensor.Event>
   }
 
   public ReadOnlyEffect<Sensor.State> get() {
-    log.info("EntityId: {}\n_State: {}", entityId, currentState());
+    log.info("Region: {}, EntityId: {}\n_State: {}", region, entityId, currentState());
     if (currentState().isEmpty()) {
       return effects().error("Sensor not found");
     }
@@ -59,7 +61,7 @@ public class SensorEntity extends EventSourcedEntity<Sensor.State, Sensor.Event>
 
   @Override
   public Sensor.State applyEvent(Sensor.Event event) {
-    log.info("EntityId: {}\n_State: {}\n_Event: {}", entityId, currentState(), event);
+    log.info("Region: {}, EntityId: {}\n_State: {}\n_Event: {}", region, entityId, currentState(), event);
 
     return switch (event) {
       case Sensor.Event.StatusUpdated e -> currentState().onEvent(e);

@@ -37,7 +37,7 @@ public class SensorToSensorConsumer extends Consumer {
   }
 
   private Effect onSpanStatusUpdated(Sensor.Event.SpanStatusUpdated event) {
-    log.info("Event: {}", event);
+    log.info("Region: {}, Event: {}", region(), event);
 
     var command = new Sensor.Command.SpanStatus(
         event.id(),
@@ -46,7 +46,8 @@ public class SensorToSensorConsumer extends Consumer {
         event.endpointAt(),
         event.centerX(),
         event.centerY(),
-        event.radius());
+        event.radius(),
+        region());
     componentClient.forEventSourcedEntity(event.id())
         .method(SensorEntity::updateSpanStatus)
         .invoke(command);
@@ -55,7 +56,7 @@ public class SensorToSensorConsumer extends Consumer {
   }
 
   private Effect onFillStatusUpdated(Sensor.Event.FillStatusUpdated event) {
-    log.info("Event: {}", event);
+    log.info("Region: {}, Event: {}", region(), event);
 
     var command = new Sensor.Command.FillStatus(
         event.id(),
@@ -64,11 +65,17 @@ public class SensorToSensorConsumer extends Consumer {
         event.endpointAt(),
         event.centerX(),
         event.centerY(),
-        event.radius());
+        event.radius(),
+        region());
     componentClient.forEventSourcedEntity(event.id())
         .method(SensorEntity::updateFillStatus)
         .invoke(command);
 
     return effects().done();
+  }
+
+  String region() {
+    var region = messageContext().selfRegion();
+    return region.isEmpty() ? "unknown" : region;
   }
 }

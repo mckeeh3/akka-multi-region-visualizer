@@ -14,6 +14,7 @@ import akka.javasdk.annotations.http.Get;
 import akka.javasdk.annotations.http.HttpEndpoint;
 import akka.javasdk.annotations.http.Put;
 import akka.javasdk.client.ComponentClient;
+import akka.javasdk.http.AbstractHttpEndpoint;
 import akka.javasdk.http.HttpResponses;
 import akka.stream.javadsl.Source;
 import io.example.application.SensorEntity;
@@ -22,7 +23,7 @@ import io.example.domain.Sensor;
 
 @Acl(allow = @Acl.Matcher(principal = Acl.Principal.INTERNET))
 @HttpEndpoint("/sensor")
-public class SensorEndpoint {
+public class SensorEndpoint extends AbstractHttpEndpoint {
   private final Logger log = LoggerFactory.getLogger(SensorEndpoint.class);
   private final ComponentClient componentClient;
 
@@ -32,9 +33,14 @@ public class SensorEndpoint {
 
   @Put("/update-status")
   public CompletionStage<Done> updateStatus(UpdateSensorRequest request) {
-    log.info("{}", request);
+    log.info("Region: {}, {}", region(), request);
     var status = Sensor.Status.valueOf(request.status().equals("default") ? "inactive" : request.status());
-    var command = new Sensor.Command.UpdateStatus(request.id(), status, request.updatedAt(), Instant.now());
+    var command = new Sensor.Command.UpdateStatus(
+        request.id(),
+        status,
+        request.updatedAt(),
+        Instant.now(),
+        region());
     return componentClient.forEventSourcedEntity(command.id())
         .method(SensorEntity::updateStatus)
         .invokeAsync(command);
@@ -42,9 +48,17 @@ public class SensorEndpoint {
 
   @Put("/span-status")
   public CompletionStage<Done> spanStatus(UpdateSensorRequest request) {
-    log.info("{}", request);
+    log.info("Region: {}, {}", region(), request);
     var status = Sensor.Status.valueOf(request.status().equals("default") ? "inactive" : request.status());
-    var command = new Sensor.Command.SpanStatus(request.id(), status, request.updatedAt(), Instant.now(), request.centerX(), request.centerY(), request.radius());
+    var command = new Sensor.Command.SpanStatus(
+        request.id(),
+        status,
+        request.updatedAt(),
+        Instant.now(),
+        request.centerX(),
+        request.centerY(),
+        request.radius(),
+        region());
     return componentClient.forEventSourcedEntity(command.id())
         .method(SensorEntity::updateSpanStatus)
         .invokeAsync(command);
@@ -52,9 +66,17 @@ public class SensorEndpoint {
 
   @Put("/fill-status")
   public CompletionStage<Done> fillStatus(UpdateSensorRequest request) {
-    log.info("{}", request);
+    log.info("Region: {}, {}", region(), request);
     var status = Sensor.Status.valueOf(request.status().equals("default") ? "inactive" : request.status());
-    var command = new Sensor.Command.FillStatus(request.id(), status, request.updatedAt(), Instant.now(), request.centerX(), request.centerY(), request.radius());
+    var command = new Sensor.Command.FillStatus(
+        request.id(),
+        status,
+        request.updatedAt(),
+        Instant.now(),
+        request.centerX(),
+        request.centerY(),
+        request.radius(),
+        region());
     return componentClient.forEventSourcedEntity(command.id())
         .method(SensorEntity::updateFillStatus)
         .invokeAsync(command);
@@ -102,6 +124,10 @@ public class SensorEndpoint {
     return HttpResponses.serverSentEvents(
         Source.tick(Duration.ZERO, Duration.ofSeconds(5), "tick")
             .map(__ -> System.currentTimeMillis()));
+  }
+
+  String region() {
+    return requestContext().selfRegion().isEmpty() ? "unknown" : requestContext().selfRegion();
   }
 
   public record UpdateSensorRequest(String id, String status, Instant updatedAt, Integer centerX, Integer centerY, Integer radius) {}

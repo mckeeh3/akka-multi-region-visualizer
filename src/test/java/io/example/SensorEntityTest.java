@@ -18,7 +18,8 @@ public class SensorEntityTest {
     var id = "1x2";
     var status = Sensor.Status.green;
     var now = Instant.now();
-    var command = new Sensor.Command.UpdateStatus(id, status, now, now);
+    var region = "test";
+    var command = new Sensor.Command.UpdateStatus(id, status, now, now, region);
     var result = testKit.method(SensorEntity::updateStatus).invoke(command);
 
     assertTrue(result.isReply());
@@ -39,7 +40,8 @@ public class SensorEntityTest {
     { // first, create a sensor with red status
       var status = Sensor.Status.red;
       var now = Instant.now();
-      var command = new Sensor.Command.UpdateStatus(id, status, now, now);
+      var region = "test";
+      var command = new Sensor.Command.UpdateStatus(id, status, now, now, region);
       var result = testKit.method(SensorEntity::updateStatus).invoke(command);
 
       assertTrue(result.isReply());
@@ -53,7 +55,8 @@ public class SensorEntityTest {
       var radius = 5;
       var clientAt = Instant.now();
       var endpointAt = Instant.now();
-      var command = new Sensor.Command.SpanStatus(id, status, clientAt, endpointAt, centerX, centerY, radius);
+      var region = "test";
+      var command = new Sensor.Command.SpanStatus(id, status, clientAt, endpointAt, centerX, centerY, radius, region);
       var result = testKit.method(SensorEntity::updateSpanStatus).invoke(command);
 
       assertTrue(result.isReply());
@@ -88,9 +91,10 @@ public class SensorEntityTest {
     var id = "2x3";
     var status = Sensor.Status.green;
     var now = Instant.now();
+    var region = "test";
 
     {
-      var command = new Sensor.Command.UpdateStatus(id, status, now, now);
+      var command = new Sensor.Command.UpdateStatus(id, status, now, now, region);
       var result = testKit.method(SensorEntity::updateStatus).invoke(command);
 
       assertTrue(result.isReply());
@@ -98,7 +102,7 @@ public class SensorEntityTest {
     }
 
     { // then, attempt to span with the same status
-      var command = new Sensor.Command.SpanStatus(id, status, now, now, 2, 3, 5);
+      var command = new Sensor.Command.SpanStatus(id, status, now, now, 2, 3, 5, region);
       var result = testKit.method(SensorEntity::updateSpanStatus).invoke(command);
 
       assertTrue(result.isReply());
@@ -112,10 +116,11 @@ public class SensorEntityTest {
     var testKit = EventSourcedTestKit.of(SensorEntity::new);
     var id = "3x4";
     var now = Instant.now();
+    var region = "test";
 
     { // first, create a sensor with default status
       var status = Sensor.Status.inactive;
-      var command = new Sensor.Command.UpdateStatus(id, status, now, now);
+      var command = new Sensor.Command.UpdateStatus(id, status, now, now, region);
       var result = testKit.method(SensorEntity::updateStatus).invoke(command);
 
       assertTrue(result.isReply());
@@ -129,7 +134,7 @@ public class SensorEntityTest {
       var radius = 2;
       var clientAt = Instant.now();
       var endpointAt = Instant.now();
-      var command = new Sensor.Command.FillStatus(id, status, clientAt, endpointAt, centerX, centerY, radius);
+      var command = new Sensor.Command.FillStatus(id, status, clientAt, endpointAt, centerX, centerY, radius, region);
       var result = testKit.method(SensorEntity::updateFillStatus).invoke(command);
 
       assertTrue(result.isReply());
@@ -150,10 +155,11 @@ public class SensorEntityTest {
     var testKit = EventSourcedTestKit.of(SensorEntity::new);
     var id = "5x6";
     var now = Instant.now();
+    var region = "test";
 
     {
       var status = Sensor.Status.green;
-      var command = new Sensor.Command.UpdateStatus(id, status, now, now);
+      var command = new Sensor.Command.UpdateStatus(id, status, now, now, region);
       var result = testKit.method(SensorEntity::updateStatus).invoke(command);
 
       assertTrue(result.isReply());
@@ -167,7 +173,7 @@ public class SensorEntityTest {
       var radius = 2;
       var clientAt = Instant.now();
       var endpointAt = Instant.now();
-      var command = new Sensor.Command.FillStatus(id, status, clientAt, endpointAt, centerX, centerY, radius);
+      var command = new Sensor.Command.FillStatus(id, status, clientAt, endpointAt, centerX, centerY, radius, region);
       var result = testKit.method(SensorEntity::updateFillStatus).invoke(command);
 
       assertTrue(result.isReply());
@@ -190,8 +196,9 @@ public class SensorEntityTest {
     var id = "5x6";
     var status = Sensor.Status.green;
     var now = Instant.now();
+    var region = "test";
 
-    var command = new Sensor.Command.UpdateStatus(id, status, now, now);
+    var command = new Sensor.Command.UpdateStatus(id, status, now, now, region);
     testKit.method(SensorEntity::updateStatus).invoke(command);
 
     var result = testKit.method(SensorEntity::get).invoke();
