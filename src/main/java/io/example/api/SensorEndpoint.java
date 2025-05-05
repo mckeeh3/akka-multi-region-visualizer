@@ -2,6 +2,7 @@ package io.example.api;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import org.slf4j.Logger;
@@ -138,6 +139,11 @@ public class SensorEndpoint extends AbstractHttpEndpoint {
         .invokeAsync(new SensorView.PagedSensorsRequest(x1, y1, x2, y2, pageTokenOffset));
   }
 
+  @Get("/region")
+  public CompletionStage<String> getRegion() {
+    return CompletableFuture.completedFuture(region());
+  }
+
   @Get("/current-time")
   public HttpResponse streamCurrentTime() {
     return HttpResponses.serverSentEvents(
@@ -146,7 +152,7 @@ public class SensorEndpoint extends AbstractHttpEndpoint {
   }
 
   String region() {
-    return requestContext().selfRegion().isEmpty() ? "unknown" : requestContext().selfRegion();
+    return requestContext().selfRegion().isEmpty() ? "Local Dev" : requestContext().selfRegion();
   }
 
   public record UpdateSensorRequest(String id, String status, Instant updatedAt, Integer centerX, Integer centerY, Integer radius) {}

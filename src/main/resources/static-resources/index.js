@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const gridContainer = document.getElementById('grid-container');
   const leftAxis = document.getElementById('left-axis');
   const bottomAxis = document.getElementById('bottom-axis');
-  const regionUrlSpan = document.getElementById('region-url');
+  const regionNameSpan = document.getElementById('region-name');
   const connectionStatusSpan = document.getElementById('connection-status');
   const gridSummary = document.getElementById('grid-summary');
 
@@ -437,7 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (e) {
               // Optionally log error
             }
-          }, 2000);
+          }, 1500);
         });
         cell.addEventListener('mouseleave', () => {
           clearTimeout(hoverTimer);
@@ -1184,7 +1184,15 @@ document.addEventListener('DOMContentLoaded', () => {
     viewportY = 0;
 
     // Update the URL display to show the viewport position
-    regionUrlSpan.textContent = `${origin}`;
+    // Fetch region name from backend and display
+    fetch(`${origin}/sensor/region`)
+      .then((resp) => (resp.ok ? resp.text() : Promise.reject('Unknown')))
+      .then((regionName) => {
+        regionNameSpan.textContent = regionName.trim();
+      })
+      .catch((error) => {
+        regionNameSpan.textContent = `${error}`;
+      });
   }
 
   // Fetch and display project version
