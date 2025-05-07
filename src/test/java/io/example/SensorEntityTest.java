@@ -128,7 +128,7 @@ public class SensorEntityTest {
     }
 
     { // then, update fill status
-      var status = Sensor.Status.inactive;
+      var status = Sensor.Status.green;
       var centerX = 3;
       var centerY = 4;
       var radius = 2;

@@ -516,7 +516,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Use 'RxC' as the service ID format (no conversion needed)
     const serverFormatId = id;
     const apiUrl = `${origin}/sensor/${command}`;
-    const updatedAt = new Date().toISOString();
     const statusMap = { r: 'red', g: 'green', b: 'blue', o: 'orange', d: 'inactive' };
     const status = statusMap[colorChar];
     const centerX = parseInt(id.split('x')[1]);
@@ -528,6 +527,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastError = null;
 
     while (attempt < maxRetries && !success) {
+      const updatedAt = new Date().toISOString();
       attempt++;
       if (attempt > 1) {
         console.warn(`${new Date().toISOString()} `, `Retrying PUT to ${apiUrl} with id: ${serverFormatId}, status: ${status}, updatedAt: ${updatedAt}, cx: ${centerX}, cy: ${centerY}, r: ${radius}`);

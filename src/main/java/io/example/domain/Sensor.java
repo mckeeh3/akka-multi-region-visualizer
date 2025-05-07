@@ -34,7 +34,7 @@ public interface Sensor {
     }
 
     public Optional<Sensor.Event> onCommand(Command.UpdateStatus command) {
-      if (isEmpty() && command.status().equals(Status.inactive)) {
+      if (!isEmpty() && status.equals(command.status)) {
         return Optional.empty();
       }
       return Optional.of(new Event.StatusUpdated(
@@ -58,10 +58,10 @@ public interface Sensor {
       if (!insideRadius(command.id, command.centerX, command.centerY, command.radius)) {
         return List.of();
       }
-      var newUpdatedAt = Instant.now();
-      if (newUpdatedAt.toEpochMilli() - updatedAt.toEpochMilli() < 1_000) {
-        return List.of(); // Skip if too recent since last update
-      }
+      var newUpdatedAt = Instant.now(); // TODO remove this if the following not needed
+      // if (newUpdatedAt.toEpochMilli() - updatedAt.toEpochMilli() < 1_000) {
+      // return List.of(); // Skip if too recent since last update
+      // }
 
       var statusUpdatedEvent = new Event.StatusUpdated(
           command.id,
@@ -93,13 +93,16 @@ public interface Sensor {
       if (!isEmpty() && !status.equals(Status.inactive)) {
         return List.of();
       }
+      if (status.equals(command.status)) {
+        return List.of();
+      }
       if (!insideRadius(command.id, command.centerX, command.centerY, command.radius)) {
         return List.of();
       }
-      var newUpdatedAt = Instant.now();
-      if (newUpdatedAt.toEpochMilli() - updatedAt.toEpochMilli() < 1_000) {
-        return List.of(); // Skip if too recent since last update
-      }
+      var newUpdatedAt = Instant.now(); // TODO remove this if the following is not needed
+      // if (newUpdatedAt.toEpochMilli() - updatedAt.toEpochMilli() < 1_000) {
+      // return List.of(); // Skip if too recent since last update
+      // }
 
       var updateStatusEvent = new Event.StatusUpdated(
           command.id,

@@ -64,7 +64,6 @@ public class SensorView extends View {
   public static class SensorsByStatus extends TableUpdater<SensorRow> {
 
     public Effect<SensorRow> onEvent(Sensor.Event event) {
-      log.info("Region: {}, Event: {}", region(updateContext()), event);
       return switch (event) {
         case Sensor.Event.StatusUpdated e -> effects().updateRow(onEvent(e));
         default -> effects().ignore();

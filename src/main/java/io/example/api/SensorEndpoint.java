@@ -2,11 +2,14 @@ package io.example.api;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.typesafe.config.ConfigFactory;
 
 import akka.Done;
 import akka.http.javadsl.model.HttpResponse;
@@ -142,6 +145,15 @@ public class SensorEndpoint extends AbstractHttpEndpoint {
   @Get("/region")
   public CompletionStage<String> getRegion() {
     return CompletableFuture.completedFuture(region());
+  }
+
+  @Get("/routes")
+  public CompletionStage<List<String>> getRoutes() {
+    var config = ConfigFactory.load();
+    config.entrySet().stream()
+        .forEach(entry -> log.info("Routes: {} = {}", entry.getKey(), entry.getValue()));
+    var routes = config.getString("akka.multi-region.routes");
+    return CompletableFuture.completedFuture(List.of(routes.split(",")));
   }
 
   @Get("/current-time")
