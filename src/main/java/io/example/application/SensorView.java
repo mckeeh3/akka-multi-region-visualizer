@@ -89,12 +89,13 @@ public class SensorView extends View {
           viewAt,
           elapsedMs,
           event.created(),
-          event.updated());
+          event.updated(),
+          region(updateContext()));
     }
 
     String region(UpdateContext updateContext) {
       var region = updateContext.selfRegion();
-      return region.isEmpty() ? "unknown" : region;
+      return region.isEmpty() ? "local-dev" : region;
     }
   }
 
@@ -110,7 +111,8 @@ public class SensorView extends View {
       Instant viewAt,
       int elapsedMs,
       String created,
-      String updated) {}
+      String updated,
+      String view) {}
 
   public record Sensors(List<SensorRow> sensors) {}
 

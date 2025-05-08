@@ -9,16 +9,19 @@ import java.util.concurrent.CompletionStage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import akka.Done;
 import akka.http.javadsl.model.HttpResponse;
+import akka.http.javadsl.model.StatusCodes;
 import akka.javasdk.annotations.Acl;
 import akka.javasdk.annotations.http.Get;
 import akka.javasdk.annotations.http.HttpEndpoint;
 import akka.javasdk.annotations.http.Put;
 import akka.javasdk.client.ComponentClient;
 import akka.javasdk.http.AbstractHttpEndpoint;
+import akka.javasdk.http.HttpException;
 import akka.javasdk.http.HttpResponses;
 import akka.stream.javadsl.Source;
 import io.example.application.SensorEntity;
@@ -30,9 +33,11 @@ import io.example.domain.Sensor;
 public class SensorEndpoint extends AbstractHttpEndpoint {
   private final Logger log = LoggerFactory.getLogger(SensorEndpoint.class);
   private final ComponentClient componentClient;
+  private final Config config;
 
-  public SensorEndpoint(ComponentClient componentClient) {
+  public SensorEndpoint(ComponentClient componentClient, Config config) {
     this.componentClient = componentClient;
+    this.config = config;
   }
 
   @Put("/update-status")
@@ -149,11 +154,13 @@ public class SensorEndpoint extends AbstractHttpEndpoint {
 
   @Get("/routes")
   public CompletionStage<List<String>> getRoutes() {
-    var config = ConfigFactory.load();
-    config.entrySet().stream()
-        .forEach(entry -> log.info("Routes: {} = {}", entry.getKey(), entry.getValue()));
-    var routes = config.getString("akka.multi-region.routes");
-    return CompletableFuture.completedFuture(List.of(routes.split(",")));
+    try {
+      var routes = config.getString("multi-region-routes");
+      return CompletableFuture.completedFuture(List.of(routes.split(",")));
+    } catch (Exception e) {
+      log.error("Failed to get routes from config", e);
+      throw HttpException.error(StatusCodes.INTERNAL_SERVER_ERROR, e.getMessage());
+    }
   }
 
   @Get("/current-time")

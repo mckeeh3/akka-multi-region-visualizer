@@ -1000,7 +1000,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Handle clear and erase commands
+    // Handle clear command
     if (event.key === 'c') {
       event.preventDefault(); // Prevent default browser action
       const cellElement = document.getElementById(hoveredCellId);
@@ -1025,6 +1025,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    // Handle erase command
     if (event.key === 'e') {
       event.preventDefault(); // Prevent default browser action
       const cellElement = document.getElementById(hoveredCellId);
@@ -1036,6 +1037,229 @@ document.addEventListener('DOMContentLoaded', () => {
         sendCellUpdate(id, '', command, 0);
       }
     }
+
+    // Handle timings command
+    if (event.key === 't') {
+      event.preventDefault(); // Prevent default browser action
+      const cellElement = document.getElementById(hoveredCellId);
+      const hasElapsedTime = cellElement.classList.contains('has-elapsed-time');
+
+      if (hasElapsedTime) {
+        const command = 'timings-status';
+        const id = hoveredCellId.substring(5); // Remove "cell-" prefix
+        fetch('/sensor/routes')
+          .then((resp) => resp.json())
+          .then((routes) => {
+            console.debug(routes);
+            const dataList = [];
+            let completed = 0;
+            const cellElement = document.getElementById(hoveredCellId);
+            routes.forEach((route, idx) => {
+              let routeUrl;
+              if (route.startsWith('localhost')) {
+                routeUrl = `http://${route}/sensor/view-row-by-id/${id}`;
+              } else {
+                routeUrl = `https://${route}/sensor/view-row-by-id/${id}`;
+              }
+              console.debug(`Timings for ${routeUrl}`);
+              fetch(routeUrl)
+                .then((resp) => resp.json())
+                .then((data) => {
+                  dataList[idx] = data;
+                })
+                .catch((error) => {
+                  console.warn(`${new Date().toISOString()} `, `Error fetching route data: ${error}`);
+                  dataList[idx] = null;
+                })
+                .finally(() => {
+                  completed++;
+                  if (completed === routes.length) {
+                    showTimingOverlay(dataList, cellElement);
+                  }
+                });
+            });
+          })
+          .catch((error) => {
+            console.warn(`${new Date().toISOString()} `, `Error fetching routes: ${error}`);
+          });
+      }
+    }
+  }
+
+  /**
+   * Displays the timing overlay for a cell.
+   * @param {Array} dataList - List of timing data objects from all routes
+   * @param {HTMLElement} cellElement - The cell element to show overlay for
+   */
+  function showTimingOverlay(dataList, cellElement) {
+    removeSensorOverlay();
+    // Defensive: filter nulls, parse dates, sort by viewAt ascending
+    const validData = dataList.filter((d) => d && d.viewAt && d.endpointAt && d.updatedAt);
+    if (!validData.length) return;
+
+    // Parse all relevant dates
+    const parsed = validData.map((d) => {
+      const obj = { ...d };
+      for (const k in obj) {
+        if (k.endsWith('At') && obj[k]) obj[k] = new Date(obj[k]);
+      }
+      return obj;
+    });
+    parsed.sort((a, b) => a.viewAt - b.viewAt); // oldest to youngest
+
+    const endpointAt = parsed[0].endpointAt; // all endpointAt should match
+    const updatedAt = parsed[0].updatedAt; // all updatedAt should match
+    const youngestViewAt = parsed[parsed.length - 1].viewAt;
+    const oldestViewAt = parsed[0].viewAt;
+    const msRange = youngestViewAt - endpointAt;
+    const pxWidth = 400;
+    const pxIndent = 10;
+    const pxHeight = Math.max(40, parsed.length * 28);
+    const overlay = document.createElement('div');
+    overlay.className = 'sensor-overlay';
+    overlay.style.position = 'fixed';
+    overlay.style.background = 'rgba(10,20,40,0.98)';
+    overlay.style.color = '#a7ecff';
+    overlay.style.zIndex = '10000';
+    overlay.style.display = 'flex';
+    overlay.style.flexDirection = 'column';
+    overlay.style.justifyContent = 'center';
+    overlay.style.alignItems = 'center';
+    overlay.style.padding = '16px 24px';
+    overlay.style.border = '2px solid #0ace83';
+    overlay.style.borderRadius = '7px';
+    overlay.style.boxShadow = '0 0 16px #0ace83';
+    overlay.style.minWidth = pxWidth + 40 + 'px';
+    overlay.style.minHeight = pxHeight + 20 + 'px';
+    overlay.style.maxWidth = '90vw';
+    overlay.style.maxHeight = '80vh';
+
+    // SVG setup
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', pxWidth);
+    svg.setAttribute('height', pxHeight);
+    svg.style.display = 'block';
+    svg.style.background = 'rgba(20,30,60,0.9)';
+    svg.style.borderRadius = '6px';
+    svg.style.marginBottom = '8px';
+
+    // Y spacing
+    const yStep = pxHeight / (parsed.length + 1);
+
+    // Helper: ms to px (with indent)
+    const msToX = (ms) => {
+      if (msRange === 0) return pxIndent;
+      return Math.round(((ms - endpointAt) / msRange) * (pxWidth - 2 * pxIndent)) + pxIndent;
+    };
+
+    // First line: endpointAt -> updatedAt -> oldestViewAt
+    const y0 = yStep;
+    const xEndpoint = msToX(endpointAt);
+    const xUpdated = msToX(updatedAt);
+    const xOldestView = msToX(oldestViewAt);
+    // Draw main line (endpointAt to updatedAt to oldestViewAt) as a polyline (straight segments)
+    const mainPath = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    mainPath.setAttribute('points', `${xEndpoint},${y0} ${xUpdated},${y0} ${xOldestView},${y0}`);
+    mainPath.setAttribute('stroke', '#a7ecff');
+    mainPath.setAttribute('stroke-width', '2');
+    mainPath.setAttribute('fill', 'none');
+    svg.appendChild(mainPath);
+    // Markers for the three points
+    const markerColors = ['#44ddff', '#ff4d6f', '#ffd24d'];
+    [xEndpoint, xUpdated, xOldestView].forEach((x, i) => {
+      const circ = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circ.setAttribute('cx', x);
+      circ.setAttribute('cy', y0);
+      circ.setAttribute('r', 5);
+      circ.setAttribute('fill', markerColors[i]);
+      circ.setAttribute('stroke', '#222');
+      circ.setAttribute('stroke-width', '1');
+      svg.appendChild(circ);
+    });
+
+    // Straight lines for each additional region
+    for (let i = 1; i < parsed.length; i++) {
+      const y = yStep * (i + 1);
+      const xStart = xUpdated;
+      const xEnd = msToX(parsed[i].viewAt);
+      // Draw a straight line from xUpdated (main line) to this region's viewAt at y
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', xStart);
+      line.setAttribute('y1', y);
+      line.setAttribute('x2', xEnd);
+      line.setAttribute('y2', y);
+      line.setAttribute('stroke', '#44ddff');
+      line.setAttribute('stroke-width', '2');
+      svg.appendChild(line);
+      // Marker at start
+      const circStart = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circStart.setAttribute('cx', xStart);
+      circStart.setAttribute('cy', y);
+      circStart.setAttribute('r', 5);
+      circStart.setAttribute('fill', '#ff4d6f');
+      circStart.setAttribute('stroke', '#222');
+      svg.appendChild(circStart);
+      // Marker at end
+      const circEnd = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circEnd.setAttribute('cx', xEnd);
+      circEnd.setAttribute('cy', y);
+      circEnd.setAttribute('r', 5);
+      circEnd.setAttribute('fill', '#ffd24d');
+      circEnd.setAttribute('stroke', '#222');
+      circEnd.setAttribute('stroke-width', '1');
+      svg.appendChild(circEnd);
+      // Marker at end
+      // const circ = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      // circ.setAttribute('cx', xEnd);
+      // circ.setAttribute('cy', y);
+      // circ.setAttribute('r', 5);
+      // circ.setAttribute('fill', '#ffd24d');
+      // circ.setAttribute('stroke', '#222');
+      // circ.setAttribute('stroke-width', '1');
+      // svg.appendChild(circ);
+    }
+
+    overlay.appendChild(svg);
+
+    // Position overlay near cell
+    document.body.appendChild(overlay);
+    const cellRect = cellElement.getBoundingClientRect();
+    overlay.style.left = cellRect.right + 12 + 'px';
+    overlay.style.top = cellRect.top - 8 + 'px';
+    // Clamp if offscreen
+    const overlayRect = overlay.getBoundingClientRect();
+    let left = overlayRect.left,
+      top = overlayRect.top;
+    if (left + overlayRect.width > window.innerWidth - 8) {
+      left = cellRect.left - overlayRect.width - 12;
+    }
+    if (left < 8) left = 8;
+    if (top + overlayRect.height > window.innerHeight - 8) {
+      top = window.innerHeight - overlayRect.height - 8;
+    }
+    if (top < 8) top = 8;
+    overlay.style.left = left + 'px';
+    overlay.style.top = top + 'px';
+    cellElement.classList.add('sensor-overlay-active');
+
+    // Dismiss overlay on click outside or Escape
+    function onDismiss(e) {
+      if (e.type === 'keydown' && e.key !== 'Escape') return;
+      if (e.type === 'mousedown' && !overlay.contains(e.target)) {
+        removeSensorOverlay();
+        document.removeEventListener('mousedown', onDismiss, true);
+        document.removeEventListener('keydown', onDismiss, true);
+      }
+      if (e.type === 'keydown' && e.key === 'Escape') {
+        removeSensorOverlay();
+        document.removeEventListener('mousedown', onDismiss, true);
+        document.removeEventListener('keydown', onDismiss, true);
+      }
+    }
+    setTimeout(() => {
+      document.addEventListener('mousedown', onDismiss, true);
+      document.addEventListener('keydown', onDismiss, true);
+    }, 0);
   }
 
   /**
