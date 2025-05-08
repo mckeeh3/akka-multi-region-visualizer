@@ -1114,7 +1114,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const msRange = youngestViewAt - endpointAt;
     const pxWidth = 400;
     const pxIndent = 10;
-    const pxHeight = Math.max(40, parsed.length * 28);
+    const pxHeight = Math.max(40, parsed.length * 40);
     const overlay = document.createElement('div');
     overlay.className = 'sensor-overlay';
     overlay.style.position = 'fixed';
@@ -1125,6 +1125,7 @@ document.addEventListener('DOMContentLoaded', () => {
     overlay.style.flexDirection = 'column';
     overlay.style.justifyContent = 'center';
     overlay.style.alignItems = 'center';
+    overlay.style.fontSize = '0.75em';
     overlay.style.padding = '16px 24px';
     overlay.style.border = '2px solid #0ace83';
     overlay.style.borderRadius = '7px';
@@ -1134,7 +1135,51 @@ document.addEventListener('DOMContentLoaded', () => {
     overlay.style.maxWidth = '90vw';
     overlay.style.maxHeight = '80vh';
 
-    // SVG setup
+    // function to create a key table cell
+    const createKeyValueRow = (idx, key, value, region) => {
+      const row = document.createElement('tr');
+      const i = document.createElement('td');
+      i.textContent = idx;
+      i.style.padding = '2px 6px';
+      i.style.textAlign = 'center';
+      i.style.color = '#ffffff';
+      const k = document.createElement('td');
+      k.textContent = key;
+      k.style.padding = '2px 6px';
+      k.style.fontWeight = 'bold';
+      k.style.textAlign = 'right';
+      k.style.color = '#6fffc8';
+      const v = document.createElement('td');
+      v.textContent = value;
+      v.style.padding = '2px 6px';
+      v.style.textAlign = 'left';
+      v.style.color = '#ffffff';
+      const r = document.createElement('td');
+      r.textContent = region;
+      r.style.padding = '2px 6px';
+      r.style.textAlign = 'left';
+      r.style.color = '#e7bf50';
+      row.appendChild(k);
+      row.appendChild(v);
+      row.appendChild(r);
+      row.appendChild(i);
+      return row;
+    };
+
+    const table = document.createElement('table');
+    table.style.marginBottom = '10px';
+    table.style.borderCollapse = 'collapse';
+    const p = parsed[0];
+    table.appendChild(createKeyValueRow('', 'ID', p.id, ''));
+    table.appendChild(createKeyValueRow('', 'Endpoint to entity', `${p.updatedAt - p.endpointAt} ms`, ''));
+    table.appendChild(createKeyValueRow('1', 'Entity to view', `${p.viewAt - p.updatedAt} ms`, p.view));
+    for (let i = 1; i < parsed.length; i++) {
+      const p = parsed[i];
+      table.appendChild(createKeyValueRow(`${i + 1}`, 'Entity to view', `${p.viewAt - p.updatedAt} ms`, p.view));
+    }
+    overlay.appendChild(table);
+
+    // Timings graph SVG setup
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', pxWidth);
     svg.setAttribute('height', pxHeight);
@@ -1177,6 +1222,19 @@ document.addEventListener('DOMContentLoaded', () => {
       svg.appendChild(circ);
     });
 
+    // Place "1" above the oldest view circle
+    const text1 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text1.setAttribute('x', xOldestView);
+    text1.setAttribute('y', y0 - 12);
+    text1.setAttribute('text-anchor', 'middle');
+    text1.setAttribute('dominant-baseline', 'middle');
+    text1.setAttribute('font-size', '15');
+    text1.setAttribute('font-family', 'Arial, sans-serif');
+    text1.setAttribute('font-weight', 'bold');
+    text1.setAttribute('fill', '#ffffff');
+    text1.textContent = '1';
+    svg.appendChild(text1);
+
     // Straight lines for each additional region
     for (let i = 1; i < parsed.length; i++) {
       const y = yStep * (i + 1);
@@ -1203,20 +1261,24 @@ document.addEventListener('DOMContentLoaded', () => {
       const circEnd = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       circEnd.setAttribute('cx', xEnd);
       circEnd.setAttribute('cy', y);
-      circEnd.setAttribute('r', 5);
+      circEnd.setAttribute('r', 5); // Enlarged radius
       circEnd.setAttribute('fill', '#ffd24d');
       circEnd.setAttribute('stroke', '#222');
       circEnd.setAttribute('stroke-width', '1');
       svg.appendChild(circEnd);
-      // Marker at end
-      // const circ = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      // circ.setAttribute('cx', xEnd);
-      // circ.setAttribute('cy', y);
-      // circ.setAttribute('r', 5);
-      // circ.setAttribute('fill', '#ffd24d');
-      // circ.setAttribute('stroke', '#222');
-      // circ.setAttribute('stroke-width', '1');
-      // svg.appendChild(circ);
+
+      // Add centered text with the loop index 'i'
+      const circText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      circText.setAttribute('x', xEnd);
+      circText.setAttribute('y', y - 12);
+      circText.setAttribute('text-anchor', 'middle');
+      circText.setAttribute('dominant-baseline', 'middle');
+      circText.setAttribute('font-size', '15');
+      circText.setAttribute('font-family', 'Arial, sans-serif');
+      circText.setAttribute('font-weight', 'bold');
+      circText.setAttribute('fill', '#ffffff');
+      circText.textContent = i + 1;
+      svg.appendChild(circText);
     }
 
     overlay.appendChild(svg);
