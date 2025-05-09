@@ -99,92 +99,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /**
-   * Shows a grid overlay with sensor data on the given cell.
-   * @param {HTMLElement} cell
-   * @param {Object} data
-   */
-  function showSensorOverlay(cell, data) {
-    removeSensorOverlay();
-    const overlay = document.createElement('div');
-    overlay.className = 'sensor-overlay';
-    overlay.style.position = 'fixed';
-    overlay.style.background = 'rgba(10,20,40,0.98)';
-    overlay.style.color = '#a7ecff';
-    overlay.style.zIndex = '10000';
-    overlay.style.display = 'flex';
-    overlay.style.flexDirection = 'column';
-    overlay.style.justifyContent = 'center';
-    overlay.style.alignItems = 'center';
-    overlay.style.fontSize = '0.75em';
-    overlay.style.border = '2px solid #0ace83';
-    overlay.style.borderRadius = '7px';
-    overlay.style.boxShadow = '0 0 16px #0ace83';
-    overlay.style.padding = '14px 18px';
-    overlay.style.pointerEvents = 'none';
-    overlay.style.maxWidth = '350px';
-    overlay.style.maxHeight = '70vh';
-    overlay.style.overflowY = 'auto';
-
-    // Format data as a table
-    const table = document.createElement('table');
-    table.style.borderCollapse = 'collapse';
-    Object.entries(data).forEach(([key, value]) => {
-      const row = document.createElement('tr');
-      const k = document.createElement('td');
-      k.textContent = key;
-      k.style.padding = '2px 6px';
-      k.style.fontWeight = 'bold';
-      k.style.textAlign = 'right';
-      k.style.color = '#6fffc8';
-      const v = document.createElement('td');
-      v.textContent = key == 'elapsedMs' ? `${value} ms (viewAt - updatedAt)` : value;
-      v.style.padding = '2px 6px';
-      v.style.textAlign = 'left';
-      v.style.color = '#fff';
-      row.appendChild(k);
-      row.appendChild(v);
-      table.appendChild(row);
-    });
-    overlay.appendChild(table);
-    document.body.appendChild(overlay);
-
-    // Position overlay near the cell, but within viewport
-    const cellRect = cell.getBoundingClientRect();
-    const overlayRect = overlay.getBoundingClientRect();
-    let left = cellRect.right + 12;
-    let top = cellRect.top;
-    // If overlay would go off right edge, move to left side
-    if (left + overlayRect.width > window.innerWidth - 8) {
-      left = cellRect.left - overlayRect.width - 12;
-    }
-    // If overlay would go off left edge, clamp to 8px
-    if (left < 8) left = 8;
-    // If overlay would go off bottom, clamp
-    if (top + overlayRect.height > window.innerHeight - 8) {
-      top = window.innerHeight - overlayRect.height - 8;
-    }
-    // If overlay would go off top, clamp
-    if (top < 8) top = 8;
-    overlay.style.left = `${left}px`;
-    overlay.style.top = `${top}px`;
-    cell.classList.add('sensor-overlay-active');
-  }
-
-  /**
-   * Removes any sensor overlay from the grid.
-   */
-  function removeSensorOverlay() {
-    document.querySelectorAll('.sensor-overlay').forEach((el) => {
-      if (el.parentNode) {
-        if (el.parentNode.classList) {
-          el.parentNode.classList.remove('sensor-overlay-active');
-        }
-        el.remove();
-      }
-    });
-  }
-
-  /**
    * Updates the grid summary display with current cell counts
    */
   function updateGridSummary() {
@@ -428,15 +342,8 @@ document.addEventListener('DOMContentLoaded', () => {
           hoverTimer = setTimeout(async () => {
             // Double-check class in case cell state changed during delay
             if (!cell.classList.contains('has-elapsed-time')) return;
-            try {
-              const resp = await fetch(`${origin}/sensor/view-row-by-id/${cellId}`);
-              if (resp.ok) {
-                const data = await resp.json();
-                showSensorOverlay(cell, data);
-              }
-            } catch (e) {
-              // Optionally log error
-            }
+            // fetchSensorOverlayData(cell);
+            fetchTimingOverlayData();
           }, 1500);
         });
         cell.addEventListener('mouseleave', () => {
@@ -1044,15 +951,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (hoveredCellId) {
         const cellElement = document.getElementById(hoveredCellId);
         if (cellElement && cellElement.classList.contains('has-elapsed-time')) {
-          // Fetch and show sensor data for the hovered cell
-          fetch(`${origin}/sensor/view-row-by-id/${hoveredCellId.substring(5)}`)
-            .then((resp) => resp.ok ? resp.json() : Promise.reject('Failed to fetch sensor data'))
-            .then((data) => {
-              showSensorOverlay(cellElement, data);
-            })
-            .catch((error) => {
-              console.error(`${new Date().toISOString()} `, `Error fetching sensor data: ${error}`);
-            });
+          fetchSensorOverlayData(cellElement);
         }
       }
     }
@@ -1064,45 +963,155 @@ document.addEventListener('DOMContentLoaded', () => {
       const hasElapsedTime = cellElement.classList.contains('has-elapsed-time');
 
       if (hasElapsedTime) {
-        const command = 'timings-status';
-        const id = hoveredCellId.substring(5); // Remove "cell-" prefix
-        fetch('/sensor/routes')
-          .then((resp) => resp.json())
-          .then((routes) => {
-            console.info(`${new Date().toISOString()} `, `Multi-region routes ${routes}`);
-            const dataList = [];
-            let completed = 0;
-            const cellElement = document.getElementById(hoveredCellId);
-            routes.forEach((route, idx) => {
-              let routeUrl;
-              if (route.startsWith('localhost') || route.startsWith('127.0.0.1')) {
-                routeUrl = `http://${route}/sensor/view-row-by-id/${id}`;
-              } else {
-                routeUrl = `https://${route}/sensor/view-row-by-id/${id}`;
-              }
-              console.info(`${new Date().toISOString()} `, `Timings for region ${routeUrl}`);
-              fetch(routeUrl)
-                .then((resp) => resp.json())
-                .then((data) => {
-                  dataList[idx] = data;
-                })
-                .catch((error) => {
-                  console.warn(`${new Date().toISOString()} `, `Error fetching route data: ${error}`);
-                  dataList[idx] = null;
-                })
-                .finally(() => {
-                  completed++;
-                  if (completed === routes.length) {
-                    showTimingOverlay(dataList, cellElement);
-                  }
-                });
-            });
-          })
-          .catch((error) => {
-            console.warn(`${new Date().toISOString()} `, `Error fetching routes: ${error}`);
-          });
+        fetchTimingOverlayData();
       }
     }
+  }
+
+  /**
+   * Fetches and shows sensor data for the hovered cell.
+   * @param {HTMLElement} cellElement - The cell element to show overlay for
+   */
+  function fetchSensorOverlayData(cellElement) {
+    // Fetch and show sensor data for the hovered cell
+    const id = hoveredCellId.substring(5); // Remove "cell-" prefix
+    fetch(`${origin}/sensor/view-row-by-id/${id}`)
+      .then((resp) => (resp.ok ? resp.json() : Promise.reject('Failed to fetch sensor data')))
+      .then((data) => {
+        showSensorOverlay(cellElement, data);
+      })
+      .catch((error) => {
+        console.error(`${new Date().toISOString()} `, `Error fetching sensor data: ${error}`);
+      });
+  }
+
+  /**
+   * Shows a grid overlay with sensor data on the given cell.
+   * @param {HTMLElement} cell
+   * @param {Object} data
+   */
+  function showSensorOverlay(cell, data) {
+    removeSensorOverlay();
+    const overlay = document.createElement('div');
+    overlay.className = 'sensor-overlay';
+    overlay.style.position = 'fixed';
+    overlay.style.background = 'rgba(10,20,40,0.98)';
+    overlay.style.color = '#a7ecff';
+    overlay.style.zIndex = '10000';
+    overlay.style.display = 'flex';
+    overlay.style.flexDirection = 'column';
+    overlay.style.justifyContent = 'center';
+    overlay.style.alignItems = 'center';
+    overlay.style.fontSize = '0.75em';
+    overlay.style.border = '2px solid #0ace83';
+    overlay.style.borderRadius = '7px';
+    overlay.style.boxShadow = '0 0 16px #0ace83';
+    overlay.style.padding = '14px 18px';
+    overlay.style.pointerEvents = 'none';
+    overlay.style.maxWidth = '350px';
+    overlay.style.maxHeight = '70vh';
+    overlay.style.overflowY = 'auto';
+
+    // Format data as a table
+    const table = document.createElement('table');
+    table.style.borderCollapse = 'collapse';
+    Object.entries(data).forEach(([key, value]) => {
+      const row = document.createElement('tr');
+      const k = document.createElement('td');
+      k.textContent = key;
+      k.style.padding = '2px 6px';
+      k.style.fontWeight = 'bold';
+      k.style.textAlign = 'right';
+      k.style.color = '#6fffc8';
+      const v = document.createElement('td');
+      v.textContent = key == 'elapsedMs' ? `${value} ms (viewAt - updatedAt)` : value;
+      v.style.padding = '2px 6px';
+      v.style.textAlign = 'left';
+      v.style.color = '#fff';
+      row.appendChild(k);
+      row.appendChild(v);
+      table.appendChild(row);
+    });
+    overlay.appendChild(table);
+    document.body.appendChild(overlay);
+
+    // Position overlay near the cell, but within viewport
+    const cellRect = cell.getBoundingClientRect();
+    const overlayRect = overlay.getBoundingClientRect();
+    let left = cellRect.right + 12;
+    let top = cellRect.top;
+    // If overlay would go off right edge, move to left side
+    if (left + overlayRect.width > window.innerWidth - 8) {
+      left = cellRect.left - overlayRect.width - 12;
+    }
+    // If overlay would go off left edge, clamp to 8px
+    if (left < 8) left = 8;
+    // If overlay would go off bottom, clamp
+    if (top + overlayRect.height > window.innerHeight - 8) {
+      top = window.innerHeight - overlayRect.height - 8;
+    }
+    // If overlay would go off top, clamp
+    if (top < 8) top = 8;
+    overlay.style.left = `${left}px`;
+    overlay.style.top = `${top}px`;
+    cell.classList.add('sensor-overlay-active');
+  }
+
+  /**
+   * Removes any sensor overlay from the grid.
+   */
+  function removeSensorOverlay() {
+    document.querySelectorAll('.sensor-overlay').forEach((el) => {
+      if (el.parentNode) {
+        if (el.parentNode.classList) {
+          el.parentNode.classList.remove('sensor-overlay-active');
+        }
+        el.remove();
+      }
+    });
+  }
+
+  /**
+   * Fetches and shows timing data for the hovered cell.
+   * @param {HTMLElement} cellElement - The cell element to show overlay for
+   */
+  function fetchTimingOverlayData() {
+    const id = hoveredCellId.substring(5); // Remove "cell-" prefix
+    fetch('/sensor/routes')
+      .then((resp) => resp.json())
+      .then((routes) => {
+        console.info(`${new Date().toISOString()} `, `Multi-region routes ${routes}`);
+        const dataList = [];
+        let completed = 0;
+        const cellElement = document.getElementById(hoveredCellId);
+        routes.forEach((route, idx) => {
+          let routeUrl;
+          if (route.startsWith('localhost') || route.startsWith('127.0.0.1')) {
+            routeUrl = `http://${route}/sensor/view-row-by-id/${id}`;
+          } else {
+            routeUrl = `https://${route}/sensor/view-row-by-id/${id}`;
+          }
+          console.info(`${new Date().toISOString()} `, `Timings for region ${routeUrl}`);
+          fetch(routeUrl)
+            .then((resp) => resp.json())
+            .then((data) => {
+              dataList[idx] = data;
+            })
+            .catch((error) => {
+              console.warn(`${new Date().toISOString()} `, `Error fetching route data: ${error}`);
+              dataList[idx] = null;
+            })
+            .finally(() => {
+              completed++;
+              if (completed === routes.length) {
+                showTimingOverlay(dataList, cellElement);
+              }
+            });
+        });
+      })
+      .catch((error) => {
+        console.warn(`${new Date().toISOString()} `, `Error fetching routes: ${error}`);
+      });
   }
 
   /**

@@ -268,6 +268,55 @@
           their own neighbors, allowing the action to spread efficiently across the grid.
         </p>
 
+        <h3>Grid Cell Information Overlays</h3>
+        <p>
+          Each cell in the grid displays a number representing the elapsed time in milliseconds (<code>elapsedMs</code>). This value provides a real-time measurement of entity state replication and
+          view update latency in the Akka SDK multi-region architecture.
+        </p>
+
+        <p>The visualizer provides two types of detailed information overlays for grid cells:</p>
+
+        <ul>
+          <li>
+            <strong>Timing Overlay (Press <span class="key">t</span> or hover):</strong> This overlay appears either when you press the <span class="key">t</span> key while hovering over a cell, or
+            automatically after hovering over a cell for a short period. It displays:
+            <ul>
+              <li>Cell ID</li>
+              <li>Processing times for each stage of the update pipeline:</li>
+              <li>Endpoint to entity processing time</li>
+              <li>Entity to view processing time for each region</li>
+              <li>A visual graph showing the relative timing differences between regions</li>
+            </ul>
+            This overlay is particularly useful for visualizing cross-region replication latency, as it shows how quickly updates propagate from the primary region (where the entity is hosted) to
+            other regions in the distributed system.
+
+            <div style="text-align: center">
+              <img src="/static/images/help-cell-timings-overlay.png" alt="Cell Timings Overlay" width="500px" />
+            </div>
+          </li>
+          <li>
+            <strong>Cell State Details Overlay (Press <span class="key">q</span>):</strong> When you hover over a cell and press the <span class="key">q</span> key, a detailed overlay appears showing
+            all state information for that cell, including:
+            <ul>
+              <li>Cell ID and coordinates (x, y)</li>
+              <li>Current status (color)</li>
+              <li>Timestamps for client request, endpoint processing, entity creation, updates, and view updates</li>
+              <li>Elapsed time between updates</li>
+              <li>Region information (where the entity was created, updated, and where the current view is located)</li>
+            </ul>
+            This overlay provides comprehensive information about the cell's current state.
+
+            <div style="text-align: center">
+              <img src="/static/images/help-cell-state-overlay.png" alt="Cell State Overlay" width="500px" />
+            </div>
+          </li>
+        </ul>
+
+        <p>
+          These overlays provide valuable insights into the performance and behavior of the Akka SDK multi-region architecture, allowing you to visualize exactly how state changes propagate through
+          the distributed system and measure the latency between different regions.
+        </p>
+
         <h3>Understanding Elapsed Time Display:</h3>
         <p>
           Each color state cell displays a number representing the elapsed time in milliseconds (<code>elapsedMs</code>). This value provides a real-time measurement of replication and view update
