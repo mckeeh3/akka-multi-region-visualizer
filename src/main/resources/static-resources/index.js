@@ -1038,6 +1038,25 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    // Handle cell data details command
+    if (event.key === 'q') {
+      event.preventDefault(); // Prevent default browser action
+      if (hoveredCellId) {
+        const cellElement = document.getElementById(hoveredCellId);
+        if (cellElement && cellElement.classList.contains('has-elapsed-time')) {
+          // Fetch and show sensor data for the hovered cell
+          fetch(`${origin}/sensor/view-row-by-id/${hoveredCellId.substring(5)}`)
+            .then((resp) => resp.ok ? resp.json() : Promise.reject('Failed to fetch sensor data'))
+            .then((data) => {
+              showSensorOverlay(cellElement, data);
+            })
+            .catch((error) => {
+              console.error(`${new Date().toISOString()} `, `Error fetching sensor data: ${error}`);
+            });
+        }
+      }
+    }
+
     // Handle timings command
     if (event.key === 't') {
       event.preventDefault(); // Prevent default browser action
@@ -1056,7 +1075,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const cellElement = document.getElementById(hoveredCellId);
             routes.forEach((route, idx) => {
               let routeUrl;
-              if (route.startsWith('localhost')) {
+              if (route.startsWith('localhost') || route.startsWith('127.0.0.1')) {
                 routeUrl = `http://${route}/sensor/view-row-by-id/${id}`;
               } else {
                 routeUrl = `https://${route}/sensor/view-row-by-id/${id}`;
