@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import akka.javasdk.annotations.TypeName;
+
 public interface Sensor {
 
   public enum Status {
@@ -33,21 +35,30 @@ public interface Sensor {
       return this.id.isEmpty();
     }
 
+    // ============================================================
+    // Command.UpdateStatus
+    // ============================================================
     public Optional<Sensor.Event> onCommand(Command.UpdateStatus command) {
       if (!isEmpty() && status.equals(command.status)) {
         return Optional.empty();
       }
+
+      var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
+      var newUpdatedAt = Instant.now();
       return Optional.of(new Event.StatusUpdated(
           command.id,
           command.status,
-          isEmpty() ? Instant.now() : createdAt,
-          Instant.now(),
+          newCreatedAt,
+          newUpdatedAt,
           command.clientAt,
           command.endpointAt,
           created.isEmpty() ? command.region : created,
           command.region));
     }
 
+    // ============================================================
+    // Command.SpanStatus
+    // ============================================================
     public List<Sensor.Event> onCommand(Command.SpanStatus command) {
       if (isEmpty() || status.equals(Status.inactive)) {
         return List.of();
@@ -58,15 +69,13 @@ public interface Sensor {
       if (!insideRadius(command.id, command.centerX, command.centerY, command.radius)) {
         return List.of();
       }
-      var newUpdatedAt = Instant.now(); // TODO remove this if the following not needed
-      // if (newUpdatedAt.toEpochMilli() - updatedAt.toEpochMilli() < 1_000) {
-      // return List.of(); // Skip if too recent since last update
-      // }
 
+      var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
+      var newUpdatedAt = Instant.now();
       var statusUpdatedEvent = new Event.StatusUpdated(
           command.id,
           command.status,
-          isEmpty() ? Instant.now() : createdAt,
+          newCreatedAt,
           newUpdatedAt,
           command.clientAt,
           command.endpointAt,
@@ -89,6 +98,9 @@ public interface Sensor {
       return Stream.<Event>concat(Stream.of(statusUpdatedEvent), neighborSpanStatusUpdatedEvents.stream()).toList();
     }
 
+    // ============================================================
+    // Command.FillStatus
+    // ============================================================
     public List<Sensor.Event> onCommand(Command.FillStatus command) {
       if (!isEmpty() && !status.equals(Status.inactive)) {
         return List.of();
@@ -99,15 +111,13 @@ public interface Sensor {
       if (!insideRadius(command.id, command.centerX, command.centerY, command.radius)) {
         return List.of();
       }
-      var newUpdatedAt = Instant.now(); // TODO remove this if the following is not needed
-      // if (newUpdatedAt.toEpochMilli() - updatedAt.toEpochMilli() < 1_000) {
-      // return List.of(); // Skip if too recent since last update
-      // }
 
+      var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
+      var newUpdatedAt = Instant.now();
       var updateStatusEvent = new Event.StatusUpdated(
           command.id,
           command.status,
-          isEmpty() ? Instant.now() : createdAt,
+          newCreatedAt,
           newUpdatedAt,
           command.clientAt,
           command.endpointAt,
@@ -130,6 +140,9 @@ public interface Sensor {
       return Stream.<Event>concat(Stream.of(updateStatusEvent), neighborFillEvents.stream()).toList();
     }
 
+    // ============================================================
+    // Command.ClearStatus
+    // ============================================================
     public List<Event> onCommand(Command.ClearStatus command) {
       if (isEmpty() || status.equals(Status.inactive)) {
         return List.of();
@@ -138,11 +151,12 @@ public interface Sensor {
         return List.of();
       }
 
+      var newUpdatedAt = Instant.now();
       var updateStatusEvent = new Event.StatusUpdated(
           command.id,
           Status.inactive,
           createdAt,
-          Instant.now(),
+          newUpdatedAt,
           clientAt,
           endpointAt,
           created,
@@ -155,15 +169,20 @@ public interface Sensor {
       return Stream.<Event>concat(Stream.of(updateStatusEvent), neighborClearEvents.stream()).toList();
     }
 
+    // ============================================================
+    // Command.EraseStatus
+    // ============================================================
     public List<Event> onCommand(Command.EraseStatus command) {
       if (isEmpty() || status.equals(Status.inactive)) {
         return List.of();
       }
+
+      var newUpdatedAt = Instant.now();
       var updateStatusEvent = new Event.StatusUpdated(
           command.id,
           Status.inactive,
           createdAt,
-          Instant.now(),
+          newUpdatedAt,
           clientAt,
           endpointAt,
           created,
@@ -176,6 +195,9 @@ public interface Sensor {
       return Stream.<Event>concat(Stream.of(updateStatusEvent), neighborEraseEvents.stream()).toList();
     }
 
+    // ============================================================
+    // Event handlers
+    // ============================================================
     public State onEvent(Event.StatusUpdated event) {
       return new State(
           event.id,
@@ -264,6 +286,7 @@ public interface Sensor {
   }
 
   public sealed interface Event {
+    @TypeName("status-updated")
     public record StatusUpdated(
         String id,
         Status status,
@@ -274,6 +297,7 @@ public interface Sensor {
         String created,
         String updated) implements Event {}
 
+    @TypeName("span-to-neighbor")
     public record SpanToNeighbor(
         String id,
         Status status,
@@ -285,6 +309,7 @@ public interface Sensor {
         String created,
         String updated) implements Event {}
 
+    @TypeName("fill-to-neighbor")
     public record FillToNeighbor(
         String id,
         Status status,
@@ -296,10 +321,12 @@ public interface Sensor {
         String created,
         String updated) implements Event {}
 
+    @TypeName("clear-to-neighbor")
     public record ClearToNeighbor(
         String id,
         Status status) implements Event {}
 
+    @TypeName("erase-to-neighbor")
     public record EraseToNeighbor(
         String id) implements Event {}
   }

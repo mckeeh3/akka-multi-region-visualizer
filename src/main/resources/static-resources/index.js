@@ -1050,7 +1050,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fetch('/sensor/routes')
           .then((resp) => resp.json())
           .then((routes) => {
-            console.debug(routes);
+            console.info(`${new Date().toISOString()} `, `Multi-region routes ${routes}`);
             const dataList = [];
             let completed = 0;
             const cellElement = document.getElementById(hoveredCellId);
@@ -1061,7 +1061,7 @@ document.addEventListener('DOMContentLoaded', () => {
               } else {
                 routeUrl = `https://${route}/sensor/view-row-by-id/${id}`;
               }
-              console.debug(`Timings for ${routeUrl}`);
+              console.info(`${new Date().toISOString()} `, `Timings for region ${routeUrl}`);
               fetch(routeUrl)
                 .then((resp) => resp.json())
                 .then((data) => {
@@ -1171,7 +1171,7 @@ document.addEventListener('DOMContentLoaded', () => {
     table.style.borderCollapse = 'collapse';
     const p = parsed[0];
     table.appendChild(createKeyValueRow('', 'ID', p.id, ''));
-    table.appendChild(createKeyValueRow('', 'Endpoint to entity', `${p.updatedAt - p.endpointAt} ms`, ''));
+    table.appendChild(createKeyValueRow('', 'Endpoint to entity', `${p.updatedAt - p.endpointAt} ms`, p.updated));
     table.appendChild(createKeyValueRow('1', 'Entity to view', `${p.viewAt - p.updatedAt} ms`, p.view));
     for (let i = 1; i < parsed.length; i++) {
       const p = parsed[i];
