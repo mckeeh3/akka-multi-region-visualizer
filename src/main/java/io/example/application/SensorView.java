@@ -95,7 +95,7 @@ public class SensorView extends View {
 
     String region(UpdateContext updateContext) {
       var region = updateContext.selfRegion();
-      return region.isEmpty() ? "local-dev" : region;
+      return region.isEmpty() ? "local-development" : region;
     }
   }
 

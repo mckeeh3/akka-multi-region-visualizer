@@ -1003,9 +1003,9 @@ document.addEventListener('DOMContentLoaded', () => {
     overlay.style.justifyContent = 'center';
     overlay.style.alignItems = 'center';
     overlay.style.fontSize = '0.75em';
-    overlay.style.border = '2px solid #0ace83';
+    overlay.style.border = '2px solid #be43a4';
     overlay.style.borderRadius = '7px';
-    overlay.style.boxShadow = '0 0 16px #0ace83';
+    overlay.style.boxShadow = '0 0 16px #be43a4';
     overlay.style.padding = '14px 18px';
     overlay.style.pointerEvents = 'none';
     overlay.style.maxWidth = '350px';
@@ -1155,9 +1155,9 @@ document.addEventListener('DOMContentLoaded', () => {
     overlay.style.alignItems = 'center';
     overlay.style.fontSize = '0.75em';
     overlay.style.padding = '16px 24px';
-    overlay.style.border = '2px solid #0ace83';
+    overlay.style.border = '2px solid #be43a4';
     overlay.style.borderRadius = '7px';
-    overlay.style.boxShadow = '0 0 16px #0ace83';
+    overlay.style.boxShadow = '0 0 16px #be43a4';
     overlay.style.minWidth = pxWidth + 40 + 'px';
     overlay.style.minHeight = pxHeight + 20 + 'px';
     overlay.style.maxWidth = '90vw';
@@ -1198,7 +1198,7 @@ document.addEventListener('DOMContentLoaded', () => {
     table.style.marginBottom = '10px';
     table.style.borderCollapse = 'collapse';
     const p = parsed[0];
-    table.appendChild(createKeyValueRow('', 'ID', p.id, ''));
+    table.appendChild(createKeyValueRow('', 'ID', p.id, p.updated));
     table.appendChild(createKeyValueRow('', 'Endpoint to entity', `${p.updatedAt - p.endpointAt} ms`, p.updated));
     table.appendChild(createKeyValueRow('1', 'Entity to view', `${p.viewAt - p.updatedAt} ms`, p.view));
     for (let i = 1; i < parsed.length; i++) {
@@ -1269,14 +1269,27 @@ document.addEventListener('DOMContentLoaded', () => {
       const xStart = xUpdated;
       const xEnd = msToX(parsed[i].viewAt);
       // Draw a straight line from xUpdated (main line) to this region's viewAt at y
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      line.setAttribute('x1', xStart);
-      line.setAttribute('y1', y);
-      line.setAttribute('x2', xEnd);
-      line.setAttribute('y2', y);
-      line.setAttribute('stroke', '#44ddff');
-      line.setAttribute('stroke-width', '2');
-      svg.appendChild(line);
+      {
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', xStart);
+        line.setAttribute('y1', y);
+        line.setAttribute('x2', xEnd);
+        line.setAttribute('y2', y);
+        line.setAttribute('stroke', '#44ddff');
+        line.setAttribute('stroke-width', '2');
+        svg.appendChild(line);
+      }
+      // Draw a vertical line from xUpdated to prior line start
+      {
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', xStart);
+        line.setAttribute('y1', y - yStep + 7);
+        line.setAttribute('x2', xStart);
+        line.setAttribute('y2', y);
+        line.setAttribute('stroke', '#44ddff');
+        line.setAttribute('stroke-width', '2');
+        svg.appendChild(line);
+      }
       // Marker at start
       const circStart = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       circStart.setAttribute('cx', xStart);
@@ -1500,7 +1513,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Update the URL display to show the viewport position
     // Fetch region name from backend and display
     fetch(`${origin}/sensor/region`)
-      .then((resp) => (resp.ok ? resp.text() : Promise.reject('Unknown')))
+      .then((resp) => (resp.ok ? resp.text() : Promise.reject('local-development')))
       .then((regionName) => {
         regionNameSpan.textContent = regionName.trim();
       })

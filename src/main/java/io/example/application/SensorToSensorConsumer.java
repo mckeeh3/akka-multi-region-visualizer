@@ -102,6 +102,6 @@ public class SensorToSensorConsumer extends Consumer {
 
   String region() {
     var region = messageContext().selfRegion();
-    return region.isEmpty() ? "unknown" : region;
+    return region.isEmpty() ? "local-development" : region;
   }
 }

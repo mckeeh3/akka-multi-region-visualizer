@@ -290,7 +290,7 @@
             This overlay is particularly useful for visualizing cross-region replication latency, as it shows how quickly updates propagate from the primary region (where the entity is hosted) to
             other regions in the distributed system.
 
-            <div style="text-align: center">
+            <div style="text-align: center; margin: 1em">
               <img src="/static/images/help-cell-timings-overlay.png" alt="Cell Timings Overlay" width="500px" />
             </div>
           </li>
@@ -306,7 +306,7 @@
             </ul>
             This overlay provides comprehensive information about the cell's current state.
 
-            <div style="text-align: center">
+            <div style="text-align: center; margin: 1em">
               <img src="/static/images/help-cell-state-overlay.png" alt="Cell State Overlay" width="500px" />
             </div>
           </li>
@@ -344,6 +344,10 @@
             view row in each region. This includes cross-region replication time and any processing delay in updating the view.
           </li>
         </ul>
+        <p>
+          <b>NOTE:</b> The elapsed time is calculated as the difference between the <code>viewAt</code> and <code>updatedAt</code> timestamps. These timestamps are recorded before the durable I/O
+          operations, so they represent the actual time taken to replicate the entity state change across regions and prior to updating the view row in each region.
+        </p>
         <p>
           This approach provides a real-time visualization of distributed system latency and cross-region replication performance. When you see a cell's elapsed time, it shows how long it took for an
           update in the primary region to be reflected in the current region's view.

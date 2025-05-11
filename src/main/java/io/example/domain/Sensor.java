@@ -255,7 +255,12 @@ public interface Sensor {
         Status status,
         Instant clientAt,
         Instant endpointAt,
-        String region) implements Command {}
+        String region) implements Command {
+
+      public UpdateStatus withRegion(String newRegion) {
+        return new UpdateStatus(id, status, clientAt, endpointAt, newRegion);
+      }
+    }
 
     public record SpanStatus(
         String id,
@@ -265,7 +270,12 @@ public interface Sensor {
         Integer centerX,
         Integer centerY,
         Integer radius,
-        String region) implements Command {}
+        String region) implements Command {
+
+      public SpanStatus withRegion(String newRegion) {
+        return new SpanStatus(id, status, clientAt, endpointAt, centerX, centerY, radius, newRegion);
+      }
+    }
 
     public record FillStatus(
         String id,
@@ -275,14 +285,29 @@ public interface Sensor {
         Integer centerX,
         Integer centerY,
         Integer radius,
-        String region) implements Command {}
+        String region) implements Command {
+
+      public FillStatus withRegion(String newRegion) {
+        return new FillStatus(id, status, clientAt, endpointAt, centerX, centerY, radius, newRegion);
+      }
+    }
 
     public record ClearStatus(
         String id,
-        Status status) implements Command {}
+        Status status) implements Command {
+
+      public ClearStatus withRegion(String newRegion) {
+        return new ClearStatus(id, status);
+      }
+    }
 
     public record EraseStatus(
-        String id) implements Command {}
+        String id) implements Command {
+
+      public EraseStatus withRegion(String newRegion) {
+        return new EraseStatus(id);
+      }
+    }
   }
 
   public sealed interface Event {

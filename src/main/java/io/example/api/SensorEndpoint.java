@@ -153,6 +153,10 @@ public class SensorEndpoint extends AbstractHttpEndpoint {
 
   @Get("/routes")
   public CompletionStage<List<String>> getRoutes() {
+    if (region().equals("local-development")) {
+      var port = config.getInt("akka.javasdk.dev-mode.http-port");
+      return CompletableFuture.completedFuture(List.of("localhost:" + port));
+    }
     try {
       var routes = config.getString("multi-region-routes");
       return CompletableFuture.completedFuture(List.of(routes.split(",")));
@@ -170,7 +174,7 @@ public class SensorEndpoint extends AbstractHttpEndpoint {
   }
 
   String region() {
-    return requestContext().selfRegion().isEmpty() ? "Local Dev" : requestContext().selfRegion();
+    return requestContext().selfRegion().isEmpty() ? "local-development" : requestContext().selfRegion();
   }
 
   public record UpdateSensorRequest(String id, String status, Instant updatedAt, Integer centerX, Integer centerY, Integer radius) {}
