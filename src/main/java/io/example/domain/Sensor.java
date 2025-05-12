@@ -226,11 +226,12 @@ public interface Sensor {
       return this;
     }
 
+    // Radius is limited to max(50, radius)
     boolean insideRadius(String id, int centerX, int centerY, int radius) {
       var rc = id.split("x"); // RxC / YxX
       var x = Integer.parseInt(rc[1]);
       var y = Integer.parseInt(rc[0]);
-      return Math.pow(centerX - x, 2) + Math.pow(centerY - y, 2) <= Math.pow(radius, 2);
+      return Math.pow(centerX - x, 2) + Math.pow(centerY - y, 2) <= Math.pow(Math.max(50, radius), 2);
     }
 
     List<String> neighborIds(String centerId) {

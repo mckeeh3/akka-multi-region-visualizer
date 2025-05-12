@@ -1230,38 +1230,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const xEndpoint = msToX(endpointAt);
     const xUpdated = msToX(updatedAt);
     const xOldestView = msToX(oldestViewAt);
-    // Draw main line (endpointAt to updatedAt to oldestViewAt) as a polyline (straight segments)
-    const mainPath = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-    mainPath.setAttribute('points', `${xEndpoint},${y0} ${xUpdated},${y0} ${xOldestView},${y0}`);
-    mainPath.setAttribute('stroke', '#a7ecff');
-    mainPath.setAttribute('stroke-width', '2');
-    mainPath.setAttribute('fill', 'none');
-    svg.appendChild(mainPath);
+    svg.appendChild(svgLine(xEndpoint, y0, xUpdated, y0, '#a7ecff'));
+    svg.appendChild(svgLine(xUpdated, y0, xOldestView, y0, '#a7ecff'));
+
     // Markers for the three points
     const markerColors = ['#44ddff', '#ff4d6f', '#ffd24d'];
     [xEndpoint, xUpdated, xOldestView].forEach((x, i) => {
-      const circ = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      circ.setAttribute('cx', x);
-      circ.setAttribute('cy', y0);
-      circ.setAttribute('r', 5);
-      circ.setAttribute('fill', markerColors[i]);
-      circ.setAttribute('stroke', '#222');
-      circ.setAttribute('stroke-width', '1');
-      svg.appendChild(circ);
+      svg.appendChild(svgCircle(x, y0, 5, markerColors[i], '#222', '1'));
     });
 
     // Place "1" above the oldest view circle
-    const text1 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    text1.setAttribute('x', xOldestView);
-    text1.setAttribute('y', y0 - 12);
-    text1.setAttribute('text-anchor', 'middle');
-    text1.setAttribute('dominant-baseline', 'middle');
-    text1.setAttribute('font-size', '15');
-    text1.setAttribute('font-family', 'Arial, sans-serif');
-    text1.setAttribute('font-weight', 'bold');
-    text1.setAttribute('fill', '#ffffff');
-    text1.textContent = '1';
-    svg.appendChild(text1);
+    svg.appendChild(svgText(xOldestView, y0 - 12, '1', '15', 'bold', '#ffffff'));
 
     // Straight lines for each additional region
     for (let i = 1; i < parsed.length; i++) {
@@ -1269,57 +1248,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const xStart = xUpdated;
       const xEnd = msToX(parsed[i].viewAt);
       // Draw a straight line from xUpdated (main line) to this region's viewAt at y
-      {
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('x1', xStart);
-        line.setAttribute('y1', y);
-        line.setAttribute('x2', xEnd);
-        line.setAttribute('y2', y);
-        line.setAttribute('stroke', '#44ddff');
-        line.setAttribute('stroke-width', '2');
-        svg.appendChild(line);
-      }
+      svg.appendChild(svgLine(xStart, y, xEnd, y, '#44ddff'));
       // Draw a vertical line from xUpdated to prior line start
-      {
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('x1', xStart);
-        line.setAttribute('y1', y - yStep + 7);
-        line.setAttribute('x2', xStart);
-        line.setAttribute('y2', y);
-        line.setAttribute('stroke', '#44ddff');
-        line.setAttribute('stroke-width', '2');
-        svg.appendChild(line);
-      }
+      svg.appendChild(svgLine(xStart, y - yStep + 7, xStart, y, '#44ddff'));
       // Marker at start
-      const circStart = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      circStart.setAttribute('cx', xStart);
-      circStart.setAttribute('cy', y);
-      circStart.setAttribute('r', 5);
-      circStart.setAttribute('fill', '#ff4d6f');
-      circStart.setAttribute('stroke', '#222');
-      svg.appendChild(circStart);
+      svg.appendChild(svgCircle(xStart, y, 5, '#ff4d6f', '#222', '1'));
       // Marker at end
-      const circEnd = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      circEnd.setAttribute('cx', xEnd);
-      circEnd.setAttribute('cy', y);
-      circEnd.setAttribute('r', 5); // Enlarged radius
-      circEnd.setAttribute('fill', '#ffd24d');
-      circEnd.setAttribute('stroke', '#222');
-      circEnd.setAttribute('stroke-width', '1');
-      svg.appendChild(circEnd);
-
+      svg.appendChild(svgCircle(xEnd, y, 5, '#ffd24d', '#222', '1'));
       // Add centered text with the loop index 'i'
-      const circText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      circText.setAttribute('x', xEnd);
-      circText.setAttribute('y', y - 12);
-      circText.setAttribute('text-anchor', 'middle');
-      circText.setAttribute('dominant-baseline', 'middle');
-      circText.setAttribute('font-size', '15');
-      circText.setAttribute('font-family', 'Arial, sans-serif');
-      circText.setAttribute('font-weight', 'bold');
-      circText.setAttribute('fill', '#ffffff');
-      circText.textContent = i + 1;
-      svg.appendChild(circText);
+      svg.appendChild(svgText(xEnd, y - 12, i + 1, '15', 'bold', '#ffffff'));
     }
 
     overlay.appendChild(svg);
@@ -1363,6 +1300,42 @@ document.addEventListener('DOMContentLoaded', () => {
       document.addEventListener('mousedown', onDismiss, true);
       document.addEventListener('keydown', onDismiss, true);
     }, 0);
+  }
+
+  function svgLine(x1, y1, x2, y2, color) {
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', x1);
+    line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2);
+    line.setAttribute('y2', y2);
+    line.setAttribute('stroke', color);
+    line.setAttribute('stroke-width', '2');
+    return line;
+  }
+
+  function svgCircle(x, y, r, fill, stroke, strokeWidth) {
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', x);
+    circle.setAttribute('cy', y);
+    circle.setAttribute('r', r);
+    circle.setAttribute('fill', fill);
+    circle.setAttribute('stroke', stroke);
+    circle.setAttribute('stroke-width', strokeWidth);
+    return circle;
+  }
+
+  function svgText(x, y, text, fontSize, fontWeight, fill) {
+    const textElement = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    textElement.setAttribute('x', x);
+    textElement.setAttribute('y', y);
+    textElement.setAttribute('text-anchor', 'middle');
+    textElement.setAttribute('dominant-baseline', 'middle');
+    textElement.setAttribute('font-size', fontSize);
+    textElement.setAttribute('font-family', 'Arial, sans-serif');
+    textElement.setAttribute('font-weight', fontWeight);
+    textElement.setAttribute('fill', fill);
+    textElement.textContent = text;
+    return textElement;
   }
 
   /**
