@@ -17,6 +17,9 @@ public interface Sensor {
     orange
   }
 
+  // ============================================================
+  // State
+  // ============================================================
   public record State(
       String id,
       Status status,
@@ -45,6 +48,7 @@ public interface Sensor {
 
       var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
       var newUpdatedAt = Instant.now();
+      var newCreated = isEmpty() ? command.region : created;
       return Optional.of(new Event.StatusUpdated(
           command.id,
           command.status,
@@ -52,7 +56,7 @@ public interface Sensor {
           newUpdatedAt,
           command.clientAt,
           command.endpointAt,
-          created.isEmpty() ? command.region : created,
+          newCreated,
           command.region));
     }
 
@@ -72,6 +76,7 @@ public interface Sensor {
 
       var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
       var newUpdatedAt = Instant.now();
+      var newCreated = isEmpty() ? command.region : created;
       var statusUpdatedEvent = new Event.StatusUpdated(
           command.id,
           command.status,
@@ -79,7 +84,7 @@ public interface Sensor {
           newUpdatedAt,
           command.clientAt,
           command.endpointAt,
-          created.isEmpty() ? command.region : created,
+          newCreated,
           command.region);
 
       var neighborSpanStatusUpdatedEvents = neighborIds(command.id).stream()
@@ -91,7 +96,7 @@ public interface Sensor {
               command.centerX,
               command.centerY,
               command.radius,
-              created.isEmpty() ? command.region : created,
+              newCreated,
               command.region))
           .toList();
 
@@ -114,6 +119,7 @@ public interface Sensor {
 
       var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
       var newUpdatedAt = Instant.now();
+      var newCreated = isEmpty() ? command.region : created;
       var updateStatusEvent = new Event.StatusUpdated(
           command.id,
           command.status,
@@ -121,7 +127,7 @@ public interface Sensor {
           newUpdatedAt,
           command.clientAt,
           command.endpointAt,
-          created.isEmpty() ? command.region : created,
+          newCreated,
           command.region);
 
       var neighborFillEvents = neighborIds(command.id).stream()
@@ -133,7 +139,7 @@ public interface Sensor {
               command.centerX,
               command.centerY,
               command.radius,
-              created.isEmpty() ? command.region : created,
+              newCreated,
               command.region))
           .toList();
 
@@ -226,12 +232,12 @@ public interface Sensor {
       return this;
     }
 
-    // Radius is limited to max(50, radius)
+    // Radius is limited to min(50, radius)
     boolean insideRadius(String id, int centerX, int centerY, int radius) {
       var rc = id.split("x"); // RxC / YxX
       var x = Integer.parseInt(rc[1]);
       var y = Integer.parseInt(rc[0]);
-      return Math.pow(centerX - x, 2) + Math.pow(centerY - y, 2) <= Math.pow(Math.max(50, radius), 2);
+      return Math.pow(centerX - x, 2) + Math.pow(centerY - y, 2) <= Math.pow(Math.min(50, radius), 2);
     }
 
     List<String> neighborIds(String centerId) {
@@ -250,6 +256,9 @@ public interface Sensor {
     }
   }
 
+  // ============================================================
+  // Commands
+  // ============================================================
   public sealed interface Command {
     public record UpdateStatus(
         String id,
@@ -311,6 +320,9 @@ public interface Sensor {
     }
   }
 
+  // ============================================================
+  // Events
+  // ============================================================
   public sealed interface Event {
     @TypeName("status-updated")
     public record StatusUpdated(

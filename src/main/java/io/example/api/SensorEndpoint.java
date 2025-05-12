@@ -65,7 +65,7 @@ public class SensorEndpoint extends AbstractHttpEndpoint {
         Instant.now(),
         request.centerX(),
         request.centerY(),
-        Math.max(50, request.radius()),
+        Math.min(50, request.radius()),
         region());
     return componentClient.forEventSourcedEntity(command.id())
         .method(SensorEntity::updateSpanStatus)
@@ -83,7 +83,7 @@ public class SensorEndpoint extends AbstractHttpEndpoint {
         Instant.now(),
         request.centerX(),
         request.centerY(),
-        Math.max(50, request.radius()),
+        Math.min(50, request.radius()),
         region());
     return componentClient.forEventSourcedEntity(command.id())
         .method(SensorEntity::updateFillStatus)
