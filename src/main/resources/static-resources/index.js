@@ -1135,10 +1135,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     parsed.sort((a, b) => a.viewAt - b.viewAt); // oldest to youngest
 
-    const endpointAt = parsed[0].endpointAt; // all endpointAt should match
+    const endpointAt0 = parsed[0].endpointAt; // all endpointAt should match
     const updatedAt = parsed[0].updatedAt; // all updatedAt should match
     const youngestViewAt = parsed[parsed.length - 1].viewAt;
     const oldestViewAt = parsed[0].viewAt;
+    const gap1 = updatedAt - endpointAt0;
+    const gap2 = youngestViewAt - updatedAt;
+    // Compensate for excess endpoint to entity elapsed time
+    const endpointAt = gap1 > gap2 ? new Date(updatedAt - gap2) : endpointAt0;
     const msRange = youngestViewAt - endpointAt;
     const pxWidth = 400;
     const pxIndent = 10;
@@ -1230,7 +1234,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const xEndpoint = msToX(endpointAt);
     const xUpdated = msToX(updatedAt);
     const xOldestView = msToX(oldestViewAt);
-    svg.appendChild(svgLine(xEndpoint, y0, xUpdated, y0, '#a7ecff'));
+    {
+      // Yellow line when length adjusted to compensate for excess endpoint to entity time
+      const color = endpointAt0 == endpointAt ? '#a7ecff' : '#f8f53f';
+      svg.appendChild(svgLine(xEndpoint, y0, xUpdated, y0, color));
+    }
     svg.appendChild(svgLine(xUpdated, y0, xOldestView, y0, '#a7ecff'));
 
     // Markers for the three points
