@@ -7,7 +7,7 @@ import java.util.stream.Stream;
 
 import akka.javasdk.annotations.TypeName;
 
-public interface Sensor {
+public interface GridCell {
 
   public enum Status {
     inactive,
@@ -41,7 +41,7 @@ public interface Sensor {
     // ============================================================
     // Command.UpdateStatus
     // ============================================================
-    public Optional<Sensor.Event> onCommand(Command.UpdateStatus command) {
+    public Optional<GridCell.Event> onCommand(Command.UpdateStatus command) {
       if (!isEmpty() && status.equals(command.status)) {
         return Optional.empty();
       }
@@ -63,7 +63,7 @@ public interface Sensor {
     // ============================================================
     // Command.SpanStatus
     // ============================================================
-    public List<Sensor.Event> onCommand(Command.SpanStatus command) {
+    public List<GridCell.Event> onCommand(Command.SpanStatus command) {
       if (isEmpty() || status.equals(Status.inactive)) {
         return List.of();
       }
@@ -106,7 +106,7 @@ public interface Sensor {
     // ============================================================
     // Command.FillStatus
     // ============================================================
-    public List<Sensor.Event> onCommand(Command.FillStatus command) {
+    public List<GridCell.Event> onCommand(Command.FillStatus command) {
       if (!isEmpty() && !status.equals(Status.inactive)) {
         return List.of();
       }

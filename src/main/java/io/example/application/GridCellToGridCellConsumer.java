@@ -7,19 +7,19 @@ import akka.javasdk.annotations.ComponentId;
 import akka.javasdk.annotations.Consume;
 import akka.javasdk.client.ComponentClient;
 import akka.javasdk.consumer.Consumer;
-import io.example.domain.Sensor;
+import io.example.domain.GridCell;
 
-@ComponentId("sensor-to-sensor-consumer")
-@Consume.FromEventSourcedEntity(SensorEntity.class)
-public class SensorToSensorConsumer extends Consumer {
+@ComponentId("grid-cell-to-grid-cell-consumer")
+@Consume.FromEventSourcedEntity(GridCellEntity.class)
+public class GridCellToGridCellConsumer extends Consumer {
   private final Logger log = LoggerFactory.getLogger(getClass());
   private final ComponentClient componentClient;
 
-  public SensorToSensorConsumer(ComponentClient componentClient) {
+  public GridCellToGridCellConsumer(ComponentClient componentClient) {
     this.componentClient = componentClient;
   }
 
-  public Effect onEvent(Sensor.Event event) {
+  public Effect onEvent(GridCell.Event event) {
     if (!messageContext().hasLocalOrigin()) {
       log.info("Ignore event: {}\n_HasLocalOrigin: {}, OriginRegion: {}, SelfRegion: {}",
           event,
@@ -30,18 +30,18 @@ public class SensorToSensorConsumer extends Consumer {
     }
 
     return switch (event) {
-      case Sensor.Event.SpanToNeighbor e -> onEvent(e);
-      case Sensor.Event.FillToNeighbor e -> onEvent(e);
-      case Sensor.Event.ClearToNeighbor e -> onEvent(e);
-      case Sensor.Event.EraseToNeighbor e -> onEvent(e);
+      case GridCell.Event.SpanToNeighbor e -> onEvent(e);
+      case GridCell.Event.FillToNeighbor e -> onEvent(e);
+      case GridCell.Event.ClearToNeighbor e -> onEvent(e);
+      case GridCell.Event.EraseToNeighbor e -> onEvent(e);
       default -> effects().ignore();
     };
   }
 
-  private Effect onEvent(Sensor.Event.SpanToNeighbor event) {
+  private Effect onEvent(GridCell.Event.SpanToNeighbor event) {
     log.info("Region: {}, Event: {}", region(), event);
 
-    var command = new Sensor.Command.SpanStatus(
+    var command = new GridCell.Command.SpanStatus(
         event.id(),
         event.status(),
         event.clientAt(),
@@ -51,16 +51,16 @@ public class SensorToSensorConsumer extends Consumer {
         event.radius(),
         region());
     componentClient.forEventSourcedEntity(event.id())
-        .method(SensorEntity::updateSpanStatus)
+        .method(GridCellEntity::updateSpanStatus)
         .invoke(command);
 
     return effects().done();
   }
 
-  private Effect onEvent(Sensor.Event.FillToNeighbor event) {
+  private Effect onEvent(GridCell.Event.FillToNeighbor event) {
     log.info("Region: {}, Event: {}", region(), event);
 
-    var command = new Sensor.Command.FillStatus(
+    var command = new GridCell.Command.FillStatus(
         event.id(),
         event.status(),
         event.clientAt(),
@@ -70,31 +70,31 @@ public class SensorToSensorConsumer extends Consumer {
         event.radius(),
         region());
     componentClient.forEventSourcedEntity(event.id())
-        .method(SensorEntity::updateFillStatus)
+        .method(GridCellEntity::updateFillStatus)
         .invoke(command);
 
     return effects().done();
   }
 
-  private Effect onEvent(Sensor.Event.ClearToNeighbor event) {
+  private Effect onEvent(GridCell.Event.ClearToNeighbor event) {
     log.info("Region: {}, Event: {}", region(), event);
 
-    var command = new Sensor.Command.ClearStatus(
+    var command = new GridCell.Command.ClearStatus(
         event.id(),
         event.status());
     componentClient.forEventSourcedEntity(event.id())
-        .method(SensorEntity::updateClearStatus)
+        .method(GridCellEntity::updateClearStatus)
         .invoke(command);
 
     return effects().done();
   }
 
-  private Effect onEvent(Sensor.Event.EraseToNeighbor event) {
+  private Effect onEvent(GridCell.Event.EraseToNeighbor event) {
     log.info("Region: {}, Event: {}", region(), event);
 
-    var command = new Sensor.Command.EraseStatus(event.id());
+    var command = new GridCell.Command.EraseStatus(event.id());
     componentClient.forEventSourcedEntity(event.id())
-        .method(SensorEntity::updateEraseStatus)
+        .method(GridCellEntity::updateEraseStatus)
         .invoke(command);
 
     return effects().done();

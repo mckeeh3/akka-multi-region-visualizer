@@ -13,13 +13,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Use the current origin for API calls and SSE stream
   const origin = window.location.origin; // Gets the protocol, hostname, and port
-  const viewStreamUrl = `${origin}/sensor/stream`; // SSE URL
-  const viewListUrl = `${origin}/sensor/list`; // SSE URL
+  const viewStreamUrl = `${origin}/grid-cell/stream`; // SSE URL
+  const viewListUrl = `${origin}/grid-cell/list`; // SSE URL
 
   // --- State ---
   let hoveredCellId = null; // ID of the currently hovered cell ('cell-R-C')
   let eventSource = null; // EventSource instance
-  let sensorListInterval = null; // Interval timer for fetching sensor list
+  let gridCellListInterval = null; // Interval timer for fetching grid cell list
 
   // Selection state
   let selectionMode = false;
@@ -312,7 +312,7 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   function createGrid() {
     // Remove any lingering overlay from previous grid
-    removeSensorOverlay();
+    removeGridCellOverlay();
     // Calculate grid dimensions based on current viewport
     calculateGridDimensions();
 
@@ -331,10 +331,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const cellId = `${actualRow}x${actualCol}`;
         cell.id = `cell-${cellId}`;
 
-        // Sensor overlay hover logic
+        // Grid cell overlay hover logic
         let hoverTimer = null;
         cell.addEventListener('mouseenter', () => {
-          removeSensorOverlay();
+          removeGridCellOverlay();
           // Only show overlay for cells with 'has-elapsed-time'
           if (!cell.classList.contains('has-elapsed-time')) {
             return;
@@ -342,13 +342,12 @@ document.addEventListener('DOMContentLoaded', () => {
           hoverTimer = setTimeout(async () => {
             // Double-check class in case cell state changed during delay
             if (!cell.classList.contains('has-elapsed-time')) return;
-            // fetchSensorOverlayData(cell);
             fetchTimingOverlayData();
           }, 1500);
         });
         cell.addEventListener('mouseleave', () => {
           clearTimeout(hoverTimer);
-          removeSensorOverlay();
+          removeGridCellOverlay();
         });
 
         // Add hover tracking for keyboard shortcuts
@@ -422,8 +421,8 @@ document.addEventListener('DOMContentLoaded', () => {
   async function sendCellUpdate(id, colorChar, command, radius) {
     // Use 'RxC' as the service ID format (no conversion needed)
     const serverFormatId = id;
-    const apiUrl = `${origin}/sensor/${command}`;
-    const statusMap = { r: 'red', g: 'green', b: 'blue', o: 'orange', d: 'inactive' };
+    const apiUrl = `${origin}/grid-cell/${command}`;
+    const statusMap = { r: 'red', g: 'green', b: 'blue', o: 'orange', p: 'predator', d: 'inactive' };
     const status = statusMap[colorChar];
     const centerX = parseInt(id.split('x')[1]);
     const centerY = parseInt(id.split('x')[0]);
@@ -478,6 +477,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (!success) {
       console.error(`${new Date().toISOString()} `, `Failed to update cell ${id} after ${maxRetries} attempts. Last error:`, lastError);
+    }
+  }
+
+  async function sendCreatePredator(id, radius) {
+    const apiUrl = `${origin}/grid-cell/create-predator`;
+    const response = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        id: id,
+        status: 'predator',
+        updatedAt: new Date().toISOString(),
+        centerX: parseInt(id.split('x')[1]),
+        centerY: parseInt(id.split('x')[0]),
+        radius: radius,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
     }
   }
 
@@ -539,25 +559,25 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /**
-   * Fetches the current list of sensors and processes each one
-   * Handles pagination for large sensor lists
+   * Fetches the current list of grid cells and processes each one
+   * Handles pagination for large grid cell lists
    */
-  async function fetchSensorList() {
-    await fetchSensorPage('start');
+  async function fetchGridCellList() {
+    await fetchGridCellPage('start');
   }
 
   /**
-   * Fetches a page of sensors and processes them
+   * Fetches a page of grid cells and processes them
    * @param {string} pageToken - The page token for pagination ('start' for first page)
    */
-  async function fetchSensorPage(pageToken) {
+  async function fetchGridCellPage(pageToken) {
     try {
       const x1 = viewportX; // Current viewport X offset
       const y1 = viewportY; // Current viewport Y offset
       const x2 = x1 + gridCols; // End of viewport X offset
       const y2 = y1 + gridRows; // End of viewport Y offset
-      const url = `${origin}/sensor/paginated-list/${x1}/${y1}/${x2}/${y2}/${pageToken}`;
-      // console.info(`Fetching sensor data from ${url}...`);
+      const url = `${origin}/grid-cell/paginated-list/${x1}/${y1}/${x2}/${y2}/${pageToken}`;
+      // console.info(`Fetching grid cell data from ${url}...`);
 
       const response = await fetch(url);
 
@@ -568,26 +588,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const data = await response.json();
 
-      if (data && data.sensors && Array.isArray(data.sensors)) {
-        // console.info(`Received ${data.sensors.length} sensors from page ${pageToken}`);
+      if (data && data.gridCells && Array.isArray(data.gridCells)) {
+        // console.info(`Received ${data.cells.length} cells from page ${pageToken}`);
 
-        // Process each sensor through the handleStreamMessage function
-        data.sensors.forEach((sensor) => {
-          // Convert the sensor object to a JSON string as handleStreamMessage expects
-          const sensorJson = JSON.stringify(sensor);
-          handleStreamMessage(sensorJson);
+        // Process each cell through the handleStreamMessage function
+        data.gridCells.forEach((cell) => {
+          // Convert the grid cell object to a JSON string as handleStreamMessage expects
+          const gridCellJson = JSON.stringify(cell);
+          handleStreamMessage(gridCellJson);
         });
 
         // Check if there are more pages to fetch
         if (data.hasMore && data.nextPageToken) {
           // Fetch the next page
-          await fetchSensorPage(data.nextPageToken);
+          await fetchGridCellPage(data.nextPageToken);
         }
       } else {
         console.error('Invalid response format:', data);
       }
     } catch (error) {
-      console.error(`Error fetching sensor page ${pageToken}:`, error);
+      console.error(`Error fetching grid cell page ${pageToken}:`, error);
     }
   }
 
@@ -604,10 +624,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /**
-   * Connects to the /sensor/current-time event stream and logs messages.
+   * Connects to the /grid-cell/current-time event stream and logs messages.
    */
   function connectToTimeStream() {
-    const url = `${origin}/sensor/current-time`;
+    const url = `${origin}/grid-cell/current-time`;
     const timeSource = new EventSource(url);
     console.log(`${new Date().toISOString()} `, `Connecting to time stream at ${url}`);
 
@@ -951,7 +971,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (hoveredCellId) {
         const cellElement = document.getElementById(hoveredCellId);
         if (cellElement && cellElement.classList.contains('has-elapsed-time')) {
-          fetchSensorOverlayData(cellElement);
+          fetchGridCellOverlayData(cellElement);
         }
       }
     }
@@ -966,34 +986,45 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchTimingOverlayData();
       }
     }
+
+    // Handle predator update command
+    if (event.key === 'p') {
+      event.preventDefault(); // Prevent default browser action
+      const cellElement = document.getElementById(hoveredCellId);
+
+      const id = hoveredCellId.substring(5); // Remove "cell-" prefix
+      const radius = commandBuffer.length == 0 ? 0 : parseInt(commandBuffer);
+
+      sendCreatePredator(id, radius);
+    }
   }
 
   /**
-   * Fetches and shows sensor data for the hovered cell.
+   * Fetches and shows grid cell data for the hovered cell.
    * @param {HTMLElement} cellElement - The cell element to show overlay for
    */
-  function fetchSensorOverlayData(cellElement) {
-    // Fetch and show sensor data for the hovered cell
+  function fetchGridCellOverlayData(cellElement) {
+    // Fetch and show grid cell data for the hovered cell
     const id = hoveredCellId.substring(5); // Remove "cell-" prefix
-    fetch(`${origin}/sensor/view-row-by-id/${id}`)
-      .then((resp) => (resp.ok ? resp.json() : Promise.reject('Failed to fetch sensor data')))
+    fetch(`${origin}/grid-cell/view-row-by-id/${id}`)
+      .then((resp) => (resp.ok ? resp.json() : Promise.reject('Failed to fetch grid cell data')))
       .then((data) => {
-        showSensorOverlay(cellElement, data);
+        showGridCellOverlay(cellElement, data);
       })
       .catch((error) => {
-        console.error(`${new Date().toISOString()} `, `Error fetching sensor data: ${error}`);
+        console.error(`${new Date().toISOString()} `, `Error fetching grid cell data: ${error}`);
       });
   }
 
   /**
-   * Shows a grid overlay with sensor data on the given cell.
+   * Shows a grid overlay with grid cell data on the given cell.
    * @param {HTMLElement} cell
    * @param {Object} data
    */
-  function showSensorOverlay(cell, data) {
-    removeSensorOverlay();
+  function showGridCellOverlay(cell, data) {
+    removeGridCellOverlay();
     const overlay = document.createElement('div');
-    overlay.className = 'sensor-overlay';
+    overlay.className = 'grid-cell-overlay';
     overlay.style.position = 'fixed';
     overlay.style.background = 'rgba(10,20,40,0.98)';
     overlay.style.color = '#a7ecff';
@@ -1054,17 +1085,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (top < 8) top = 8;
     overlay.style.left = `${left}px`;
     overlay.style.top = `${top}px`;
-    cell.classList.add('sensor-overlay-active');
+    cell.classList.add('grid-cell-overlay-active');
   }
 
   /**
-   * Removes any sensor overlay from the grid.
+   * Removes any grid cell overlay from the grid.
    */
-  function removeSensorOverlay() {
-    document.querySelectorAll('.sensor-overlay').forEach((el) => {
+  function removeGridCellOverlay() {
+    document.querySelectorAll('.grid-cell-overlay').forEach((el) => {
       if (el.parentNode) {
         if (el.parentNode.classList) {
-          el.parentNode.classList.remove('sensor-overlay-active');
+          el.parentNode.classList.remove('grid-cell-overlay-active');
         }
         el.remove();
       }
@@ -1077,7 +1108,7 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   function fetchTimingOverlayData() {
     const id = hoveredCellId.substring(5); // Remove "cell-" prefix
-    fetch('/sensor/routes')
+    fetch('/grid-cell/routes')
       .then((resp) => resp.json())
       .then((routes) => {
         console.info(`${new Date().toISOString()} `, `Multi-region routes ${routes}`);
@@ -1087,9 +1118,9 @@ document.addEventListener('DOMContentLoaded', () => {
         routes.forEach((route, idx) => {
           let routeUrl;
           if (route.startsWith('localhost') || route.startsWith('127.0.0.1')) {
-            routeUrl = `http://${route}/sensor/view-row-by-id/${id}`;
+            routeUrl = `http://${route}/grid-cell/view-row-by-id/${id}`;
           } else {
-            routeUrl = `https://${route}/sensor/view-row-by-id/${id}`;
+            routeUrl = `https://${route}/grid-cell/view-row-by-id/${id}`;
           }
           console.info(`${new Date().toISOString()} `, `Timings for region ${routeUrl}`);
           fetch(routeUrl)
@@ -1120,7 +1151,7 @@ document.addEventListener('DOMContentLoaded', () => {
    * @param {HTMLElement} cellElement - The cell element to show overlay for
    */
   function showTimingOverlay(dataList, cellElement) {
-    removeSensorOverlay();
+    removeGridCellOverlay();
     // Defensive: filter nulls, parse dates, sort by viewAt ascending
     const validData = dataList.filter((d) => d && d.viewAt && d.endpointAt && d.updatedAt);
     if (!validData.length) return;
@@ -1148,7 +1179,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pxIndent = 10;
     const pxHeight = Math.max(40, parsed.length * 40);
     const overlay = document.createElement('div');
-    overlay.className = 'sensor-overlay';
+    overlay.className = 'grid-cell-overlay';
     overlay.style.position = 'fixed';
     overlay.style.background = 'rgba(10,20,40,0.98)';
     overlay.style.color = '#a7ecff';
@@ -1288,18 +1319,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (top < 8) top = 8;
     overlay.style.left = left + 'px';
     overlay.style.top = top + 'px';
-    cellElement.classList.add('sensor-overlay-active');
+    cellElement.classList.add('grid-cell-overlay-active');
 
     // Dismiss overlay on click outside or Escape
     function onDismiss(e) {
       if (e.type === 'keydown' && e.key !== 'Escape') return;
       if (e.type === 'mousedown' && !overlay.contains(e.target)) {
-        removeSensorOverlay();
+        removeGridCellOverlay();
         document.removeEventListener('mousedown', onDismiss, true);
         document.removeEventListener('keydown', onDismiss, true);
       }
       if (e.type === 'keydown' && e.key === 'Escape') {
-        removeSensorOverlay();
+        removeGridCellOverlay();
         document.removeEventListener('mousedown', onDismiss, true);
         document.removeEventListener('keydown', onDismiss, true);
       }
@@ -1493,7 +1524,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update the URL display to show the viewport position
     // Fetch region name from backend and display
-    fetch(`${origin}/sensor/region`)
+    fetch(`${origin}/grid-cell/region`)
       .then((resp) => (resp.ok ? resp.text() : Promise.reject('local-development')))
       .then((regionName) => {
         regionNameSpan.textContent = regionName.trim();
@@ -1519,16 +1550,16 @@ document.addEventListener('DOMContentLoaded', () => {
   createCommandDisplay(); // Add command status display to the info panel
   updateGridPositionDisplay(); // Update grid position display
   createGrid();
-  fetchSensorList(); // Fetch initial state
+  fetchGridCellList(); // Fetch initial state
   connectToStream(); // Connect to stream for updates
   // connectToTimeStream(); // Connect to time stream for updates
   document.addEventListener('keydown', handleGlobalKeyDown);
   document.addEventListener('keyup', handleGlobalKeyUp);
 
-  // Set up interval to fetch sensor list every 250ms
+  // Set up interval to fetch grid cell list every 250ms
   const urlParams = new URLSearchParams(window.location.search);
   const interval = parseInt(urlParams.get('interval'), 10) || 5000;
-  sensorListInterval = setInterval(fetchSensorList, interval);
+  gridCellListInterval = setInterval(fetchGridCellList, interval);
 
   // Add window resize event listener to adjust grid when window size changes
   window.addEventListener('resize', () => {

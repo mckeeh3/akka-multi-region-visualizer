@@ -8,23 +8,23 @@ import java.time.Instant;
 import org.junit.jupiter.api.Test;
 
 import akka.javasdk.testkit.EventSourcedTestKit;
-import io.example.application.SensorEntity;
-import io.example.domain.Sensor;
+import io.example.application.GridCellEntity;
+import io.example.domain.GridCell;
 
-public class SensorEntityTest {
+public class GridCellEntityTest {
   @Test
   void testUpdateStatus() {
-    var testKit = EventSourcedTestKit.of(SensorEntity::new);
+    var testKit = EventSourcedTestKit.of(GridCellEntity::new);
     var id = "1x2";
-    var status = Sensor.Status.green;
+    var status = GridCell.Status.green;
     var now = Instant.now();
     var region = "test";
-    var command = new Sensor.Command.UpdateStatus(id, status, now, now, region);
-    var result = testKit.method(SensorEntity::updateStatus).invoke(command);
+    var command = new GridCell.Command.UpdateStatus(id, status, now, now, region);
+    var result = testKit.method(GridCellEntity::updateStatus).invoke(command);
 
     assertTrue(result.isReply());
     assertEquals(done(), result.getReply());
-    var event = result.getNextEventOfType(Sensor.Event.StatusUpdated.class);
+    var event = result.getNextEventOfType(GridCell.Event.StatusUpdated.class);
     assertEquals(id, event.id());
     assertEquals(status, event.status());
     var state = testKit.getState();
@@ -34,43 +34,43 @@ public class SensorEntityTest {
 
   @Test
   void testUpdateSpanStatus() {
-    var testKit = EventSourcedTestKit.of(SensorEntity::new);
+    var testKit = EventSourcedTestKit.of(GridCellEntity::new);
     var id = "2x3";
 
-    { // first, create a sensor with red status
-      var status = Sensor.Status.red;
+    { // first, create a grid cell with red status
+      var status = GridCell.Status.red;
       var now = Instant.now();
       var region = "test";
-      var command = new Sensor.Command.UpdateStatus(id, status, now, now, region);
-      var result = testKit.method(SensorEntity::updateStatus).invoke(command);
+      var command = new GridCell.Command.UpdateStatus(id, status, now, now, region);
+      var result = testKit.method(GridCellEntity::updateStatus).invoke(command);
 
       assertTrue(result.isReply());
       assertEquals(done(), result.getReply());
     }
 
     { // then, update span status
-      var status = Sensor.Status.green;
+      var status = GridCell.Status.green;
       var centerX = 2;
       var centerY = 3;
       var radius = 5;
       var clientAt = Instant.now();
       var endpointAt = Instant.now();
       var region = "test";
-      var command = new Sensor.Command.SpanStatus(id, status, clientAt, endpointAt, centerX, centerY, radius, region);
-      var result = testKit.method(SensorEntity::updateSpanStatus).invoke(command);
+      var command = new GridCell.Command.SpanStatus(id, status, clientAt, endpointAt, centerX, centerY, radius, region);
+      var result = testKit.method(GridCellEntity::updateSpanStatus).invoke(command);
 
       assertTrue(result.isReply());
       assertEquals(done(), result.getReply());
       assertEquals(9, result.getAllEvents().size()); // expects update event for this entity and 8 neighbor entities
 
       {
-        var event = result.getNextEventOfType(Sensor.Event.StatusUpdated.class);
+        var event = result.getNextEventOfType(GridCell.Event.StatusUpdated.class);
         assertEquals(id, event.id());
         assertEquals(status, event.status());
       }
 
       {
-        var event = result.getNextEventOfType(Sensor.Event.SpanToNeighbor.class);
+        var event = result.getNextEventOfType(GridCell.Event.SpanToNeighbor.class);
         assertNotEquals(id, event.id());
         assertEquals(status, event.status());
         assertEquals(centerX, event.centerX());
@@ -87,23 +87,23 @@ public class SensorEntityTest {
 
   @Test
   void testSpanWhenSersorStatusMatchesSpanStatus() {
-    var testKit = EventSourcedTestKit.of(SensorEntity::new);
+    var testKit = EventSourcedTestKit.of(GridCellEntity::new);
     var id = "2x3";
-    var status = Sensor.Status.green;
+    var status = GridCell.Status.green;
     var now = Instant.now();
     var region = "test";
 
     {
-      var command = new Sensor.Command.UpdateStatus(id, status, now, now, region);
-      var result = testKit.method(SensorEntity::updateStatus).invoke(command);
+      var command = new GridCell.Command.UpdateStatus(id, status, now, now, region);
+      var result = testKit.method(GridCellEntity::updateStatus).invoke(command);
 
       assertTrue(result.isReply());
       assertEquals(done(), result.getReply());
     }
 
     { // then, attempt to span with the same status
-      var command = new Sensor.Command.SpanStatus(id, status, now, now, 2, 3, 5, region);
-      var result = testKit.method(SensorEntity::updateSpanStatus).invoke(command);
+      var command = new GridCell.Command.SpanStatus(id, status, now, now, 2, 3, 5, region);
+      var result = testKit.method(GridCellEntity::updateSpanStatus).invoke(command);
 
       assertTrue(result.isReply());
       assertEquals(done(), result.getReply());
@@ -113,34 +113,34 @@ public class SensorEntityTest {
 
   @Test
   void testUpdateFillStatus() {
-    var testKit = EventSourcedTestKit.of(SensorEntity::new);
+    var testKit = EventSourcedTestKit.of(GridCellEntity::new);
     var id = "3x4";
     var now = Instant.now();
     var region = "test";
 
-    { // first, create a sensor with default status
-      var status = Sensor.Status.inactive;
-      var command = new Sensor.Command.UpdateStatus(id, status, now, now, region);
-      var result = testKit.method(SensorEntity::updateStatus).invoke(command);
+    { // first, create a grid cell with default status
+      var status = GridCell.Status.inactive;
+      var command = new GridCell.Command.UpdateStatus(id, status, now, now, region);
+      var result = testKit.method(GridCellEntity::updateStatus).invoke(command);
 
       assertTrue(result.isReply());
       assertEquals(done(), result.getReply());
     }
 
     { // then, update fill status
-      var status = Sensor.Status.green;
+      var status = GridCell.Status.green;
       var centerX = 3;
       var centerY = 4;
       var radius = 2;
       var clientAt = Instant.now();
       var endpointAt = Instant.now();
-      var command = new Sensor.Command.FillStatus(id, status, clientAt, endpointAt, centerX, centerY, radius, region);
-      var result = testKit.method(SensorEntity::updateFillStatus).invoke(command);
+      var command = new GridCell.Command.FillStatus(id, status, clientAt, endpointAt, centerX, centerY, radius, region);
+      var result = testKit.method(GridCellEntity::updateFillStatus).invoke(command);
 
       assertTrue(result.isReply());
       assertEquals(done(), result.getReply());
 
-      var event = result.getNextEventOfType(Sensor.Event.StatusUpdated.class);
+      var event = result.getNextEventOfType(GridCell.Event.StatusUpdated.class);
       assertEquals(id, event.id());
       assertEquals(status, event.status());
 
@@ -151,30 +151,30 @@ public class SensorEntityTest {
   }
 
   @Test
-  void testFillStatusWhenSensorStatusIsNotDefault() {
-    var testKit = EventSourcedTestKit.of(SensorEntity::new);
+  void testFillStatusWhenGridCellStatusIsNotDefault() {
+    var testKit = EventSourcedTestKit.of(GridCellEntity::new);
     var id = "5x6";
     var now = Instant.now();
     var region = "test";
 
     {
-      var status = Sensor.Status.green;
-      var command = new Sensor.Command.UpdateStatus(id, status, now, now, region);
-      var result = testKit.method(SensorEntity::updateStatus).invoke(command);
+      var status = GridCell.Status.green;
+      var command = new GridCell.Command.UpdateStatus(id, status, now, now, region);
+      var result = testKit.method(GridCellEntity::updateStatus).invoke(command);
 
       assertTrue(result.isReply());
       assertEquals(done(), result.getReply());
     }
 
     { // then, attempt to update fill status
-      var status = Sensor.Status.red;
+      var status = GridCell.Status.red;
       var centerX = 3;
       var centerY = 4;
       var radius = 2;
       var clientAt = Instant.now();
       var endpointAt = Instant.now();
-      var command = new Sensor.Command.FillStatus(id, status, clientAt, endpointAt, centerX, centerY, radius, region);
-      var result = testKit.method(SensorEntity::updateFillStatus).invoke(command);
+      var command = new GridCell.Command.FillStatus(id, status, clientAt, endpointAt, centerX, centerY, radius, region);
+      var result = testKit.method(GridCellEntity::updateFillStatus).invoke(command);
 
       assertTrue(result.isReply());
       assertEquals(done(), result.getReply());
@@ -184,24 +184,24 @@ public class SensorEntityTest {
 
   @Test
   void testGetOnEmptyState() {
-    var testKit = EventSourcedTestKit.of(SensorEntity::new);
-    var result = testKit.method(SensorEntity::get).invoke();
+    var testKit = EventSourcedTestKit.of(GridCellEntity::new);
+    var result = testKit.method(GridCellEntity::get).invoke();
     assertTrue(result.isError());
-    assertEquals("Sensor not found", result.getError());
+    assertEquals("GridCell not found", result.getError());
   }
 
   @Test
   void testGetOnNonEmptyState() {
-    var testKit = EventSourcedTestKit.of(SensorEntity::new);
+    var testKit = EventSourcedTestKit.of(GridCellEntity::new);
     var id = "5x6";
-    var status = Sensor.Status.green;
+    var status = GridCell.Status.green;
     var now = Instant.now();
     var region = "test";
 
-    var command = new Sensor.Command.UpdateStatus(id, status, now, now, region);
-    testKit.method(SensorEntity::updateStatus).invoke(command);
+    var command = new GridCell.Command.UpdateStatus(id, status, now, now, region);
+    testKit.method(GridCellEntity::updateStatus).invoke(command);
 
-    var result = testKit.method(SensorEntity::get).invoke();
+    var result = testKit.method(GridCellEntity::get).invoke();
     assertTrue(result.isReply());
 
     var state = result.getReply();

@@ -2,9 +2,9 @@
 
 ## Overview
 
-This app is a distributed, interactive grid visualizer for sensors, built using:
+This app is a distributed, interactive grid visualizer for grid cells, built using:
 
-- **Java backend** (Akka SDK): Handles sensor state, updates, and streaming via event-sourced entities and views.
+- **Java backend** (Akka SDK): Handles cell state, updates, and streaming via event-sourced entities and views.
 - **HTML/CSS/JS frontend**: Renders a large grid UI, allows user interaction (cell selection, coloring, navigation), and live-updates the grid using HTTP and Server-Sent Events (SSE).
 
 ---
@@ -42,18 +42,25 @@ This latency visualization is one of the main features of this demo app, providi
 ## Backend (Java, Akka SDK)
 
 - **Domain Model:**
-  - `Sensor` entity with fields like `id`, `status` (red, green, blue, yellow, default), and timestamps.
+  - `GridCell` entity with fields like `id`, `status` (red, green, blue, yellow, default), and timestamps.
   - Event-sourced: state changes are tracked as events (e.g., `StatusUpdated`).
 
 - **API Endpoints:**
-  - `PUT /sensor/update-status`: Update a sensor’s status.
-  - `GET /sensor/list`: Get a list of sensors.
-  - `GET /sensor/paginated-list/...`: Get a page of sensors for a viewport.
-  - `GET /sensor/stream`: SSE endpoint for streaming sensor updates.
-  - `GET /sensor/current-time`: Streams current time (for UI sync).
+  - `PUT /grid-cell/update-status`: Update a grid cell’s status.
+  - `PUT /grid-cell/span-status`: Update a grid cell’s span status.
+  - `PUT /grid-cell/fill-status`: Update a grid cell’s fill status.
+  - `PUT /grid-cell/clear-status`: Update a grid cell’s clear status.
+  - `PUT /grid-cell/erase-status`: Update a grid cell’s erase status.
+  - `PUT /grid-cell/create-predator`: Create a predator grid cell.
+  - `GET /grid-cell/list`: Get a list of grid cells.
+  - `GET /grid-cell/paginated-list/...`: Get a page of grid cells for a viewport.
+  - `GET /grid-cell/stream`: SSE endpoint for streaming grid cell updates.
+  - `GET /grid-cell/current-time`: Streams current time (for UI sync).
+  - `GET /grid-cell/region`: Get the region of the grid cell.
+  - `GET /grid-cell/routes`: Get the routes of the grid cell.
 
 - **Persistence & Query:**
-  - Uses Akka’s event sourcing and views to materialize sensor state and allow efficient queries.
+  - Uses Akka’s event sourcing and views to materialize grid cell state and allow efficient queries.
   - Supports paginated and streaming queries for efficient UI updates.
 
 ---
@@ -61,7 +68,7 @@ This latency visualization is one of the main features of this demo app, providi
 ## Frontend (HTML/CSS/JS)
 
 - **Grid UI:**
-  - Dynamically creates a grid of cells representing sensors.
+  - Dynamically creates a grid of cells representing grid cells.
   - Each cell can be colored (red, green, blue, yellow) or set to default.
   - Info panel shows region, connection status, and grid summary.
 
@@ -72,7 +79,7 @@ This latency visualization is one of the main features of this demo app, providi
 
 - **Live Updates:**
   - Uses SSE (EventSource) to receive real-time updates from the backend and update the grid instantly.
-  - Periodically fetches sensor state for the current viewport.
+  - Periodically fetches grid cell state for the current viewport.
 
 - **Styling:**
   - Modern, dark-themed CSS with responsive layout and subtle animations.
@@ -85,7 +92,7 @@ This latency visualization is one of the main features of this demo app, providi
 ## Summary
 
 **Purpose:**
-This app visualizes a massive, distributed grid of sensors, allowing users to interactively update and monitor sensor states in real time. It demonstrates multi-region, event-driven architecture using Akka, and provides a highly interactive and responsive UI for managing sensor data.
+This app visualizes a massive, distributed grid of cells, allowing users to interactively update and monitor cell states in real time. It demonstrates multi-region, event-driven architecture using Akka, and provides a highly interactive and responsive UI for managing cell data.
 
 ---
 

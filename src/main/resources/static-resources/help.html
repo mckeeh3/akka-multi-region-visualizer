@@ -381,12 +381,12 @@
           │                   │                 │
           ▼                   ▼                 ▼
 ┌─────────────────────────────────────────────────────────┐
-│                    Akka Component System                │
+│                  Akka Component System                  │
 │                                                         │
-│  ┌─────────────┐                        ┌────────────┐  │
-│  │ SensorView  │◄───────────────────────┤SensorEntity│  │
-│  │  (View)     │                        │ (Entity)   │  │
-│  └─────────────┘                        └────────────┘  │
+│  ┌───────────────┐                    ┌──────────────┐  │
+│  │ GridCellView  │◄───────────────────┤GridCellEntity│  │
+│  │    (View)     │                    │ (Entity)     │  │
+│  └───────────────┘                    └──────────────┘  │
 │                                                         │
 └─────────────────────────────────────────────────────────┘
           </pre>
@@ -394,20 +394,20 @@
 
         <h3>Key Components:</h3>
         <ul>
-          <li><strong>Event Sourcing</strong>: Each cell is an Event Sourced Entity (<code>SensorEntity</code>) that maintains its state through events.</li>
+          <li><strong>Event Sourcing</strong>: Each cell is an Event Sourced Entity (<code>GridCellEntity</code>) that maintains its state through events.</li>
           <li>
-            <strong>Views</strong>: The <code>SensorView</code> component provides two ways to access the data:
+            <strong>Views</strong>: The <code>GridCellView</code> component provides two ways to access the data:
             <ul>
-              <li><code>getViewList</code>: Returns a snapshot of all sensors as a list</li>
-              <li><code>getViewStream</code>: Provides a real-time stream of sensor updates</li>
+              <li><code>getViewList</code>: Returns a snapshot of all cells as a list</li>
+              <li><code>getViewStream</code>: Provides a real-time stream of cell updates</li>
             </ul>
           </li>
           <li>
-            <strong>HTTP API</strong>: The <code>SensorEndpoint</code> exposes these capabilities through HTTP:
+            <strong>HTTP API</strong>: The <code>GridCellEndpoint</code> exposes these capabilities through HTTP:
             <ul>
-              <li><code>/sensor/view/list</code>: HTTP endpoint to get all sensors</li>
-              <li><code>/sensor/view/stream</code>: Server-Sent Events (SSE) endpoint for real-time updates</li>
-              <li><code>/sensor/update-status</code>: HTTP PUT endpoint to update a sensor's status</li>
+              <li><code>/grid-cell/view/list</code>: HTTP endpoint to get all cells</li>
+              <li><code>/grid-cell/view/stream</code>: Server-Sent Events (SSE) endpoint for real-time updates</li>
+              <li><code>/grid-cell/update-status</code>: HTTP PUT endpoint to update a cell's status</li>
             </ul>
           </li>
           <li>

@@ -8,7 +8,7 @@
 <!-- ====================================================================== -->
 <!--                                                                        -->
 <!-- Effective POM for project                                              -->
-<!-- 'io.example:akka-multi-region-visualizer:jar:1.0.1'                    -->
+<!-- 'io.example:akka-multi-region-visualizer:jar:1.0.0'                    -->
 <!--                                                                        -->
 <!-- ====================================================================== -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -20,7 +20,7 @@
   </parent>
   <groupId>io.example</groupId>
   <artifactId>akka-multi-region-visualizer</artifactId>
-  <version>1.0.1</version>
+  <version>1.0.0</version>
   <name>akka-multi-region-visualizer</name>
   <description>This is the parent pom for Akka services.
         It contains all dependencies and plugins to build an Akka service using the Akka SDK for Java.</description>
@@ -52,7 +52,7 @@
     <docker.base.image>alpine:3.14</docker.base.image>
     <docker.image>akka-multi-region-visualizer</docker.image>
     <docker.platform>linux/amd64</docker.platform>
-    <docker.tag>1.0.1-20250513191655</docker.tag>
+    <docker.tag>1.0.0-20250514101843</docker.tag>
     <logback.configurationFile>logback-runtime-dev-mode.xml</logback.configurationFile>
     <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
     <maven-deploy-plugin.version>3.1.1</maven-deploy-plugin.version>
@@ -166,7 +166,7 @@
       </testResource>
     </testResources>
     <directory>/home/hxmc/akka/akka-sdk/akka-multi-region-visualizer/target</directory>
-    <finalName>akka-multi-region-visualizer-1.0.1</finalName>
+    <finalName>akka-multi-region-visualizer-1.0.0</finalName>
     <pluginManagement>
       <plugins>
         <plugin>
@@ -227,7 +227,7 @@
                         <platform>linux/amd64</platform>
                       </buildOptions>
                       <tags>
-                        <tag>1.0.1-20250513191655</tag>
+                        <tag>1.0.0-20250514101843</tag>
                       </tags>
                       <assembly>
                         <inline>
@@ -315,7 +315,7 @@
                     <platform>linux/amd64</platform>
                   </buildOptions>
                   <tags>
-                    <tag>1.0.1-20250513191655</tag>
+                    <tag>1.0.0-20250514101843</tag>
                   </tags>
                   <assembly>
                     <inline>
@@ -710,7 +710,7 @@
                       <platform>linux/amd64</platform>
                     </buildOptions>
                     <tags>
-                      <tag>1.0.1-20250513191655</tag>
+                      <tag>1.0.0-20250514101843</tag>
                     </tags>
                     <assembly>
                       <inline>
@@ -798,7 +798,7 @@
                   <platform>linux/amd64</platform>
                 </buildOptions>
                 <tags>
-                  <tag>1.0.1-20250513191655</tag>
+                  <tag>1.0.0-20250514101843</tag>
                 </tags>
                 <assembly>
                   <inline>
@@ -876,18 +876,11 @@
       </plugin>
       <plugin>
         <artifactId>maven-clean-plugin</artifactId>
-        <version>3.4.0</version>
+        <version>3.2.0</version>
         <executions>
           <execution>
             <id>default-clean</id>
             <phase>clean</phase>
-            <goals>
-              <goal>clean</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>clean-on-missing-descriptor</id>
-            <phase>initialize</phase>
             <goals>
               <goal>clean</goal>
             </goals>

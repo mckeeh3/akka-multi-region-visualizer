@@ -12,72 +12,72 @@ import akka.javasdk.annotations.Query;
 import akka.javasdk.view.TableUpdater;
 import akka.javasdk.view.UpdateContext;
 import akka.javasdk.view.View;
-import io.example.domain.Sensor;
+import io.example.domain.GridCell;
 
-@ComponentId("sensor_view")
-public class SensorView extends View {
-  private static final Logger log = LoggerFactory.getLogger(SensorView.class);
+@ComponentId("grid_cell_view")
+public class GridCellView extends View {
+  private static final Logger log = LoggerFactory.getLogger(GridCellView.class);
 
   @Query("""
       SELECT *
-        FROM sensor_view
+        FROM grid_cell_view
         WHERE id = :id
           """)
-  public QueryEffect<SensorRow> getSensor(String id) {
-    log.info("Getting sensor {}", id);
+  public QueryEffect<GridCellRow> getGridCell(String id) {
+    log.info("Getting grid cell {}", id);
     return queryResult();
   }
 
   @Query(value = """
       SELECT *
-        FROM sensor_view
+        FROM grid_cell_view
         WHERE x >= :x1 AND x <= :x2 AND y >= :y1 AND y <= :y2
           """, streamUpdates = true)
-  public QueryStreamEffect<SensorRow> getSensorsStream(StreamedSensorsRequest request) {
-    log.info("Getting all sensors");
+  public QueryStreamEffect<GridCellRow> getGridCellsStream(StreamedGridCellsRequest request) {
+    log.info("Getting all grid cells");
     return queryStreamResult();
   }
 
   @Query("""
-      SELECT * as sensors
-        FROM sensor_view
+      SELECT * as gridCells
+        FROM grid_cell_view
         LIMIT 1000
           """)
-  public QueryEffect<Sensors> getSensorsList() {
-    log.info("Getting sensors by status");
+  public QueryEffect<GridCells> getGridCellsList() {
+    log.info("Getting grid cells by status");
     return queryResult();
   }
 
   @Query("""
-      SELECT * as sensors, next_page_token() AS nextPageToken, has_more() AS hasMore
-        FROM sensor_view
+      SELECT * as gridCells, next_page_token() AS nextPageToken, has_more() AS hasMore
+        FROM grid_cell_view
         WHERE x >= :x1 AND x <= :x2 AND y >= :y1 AND y <= :y2
         LIMIT 1000
         OFFSET page_token_offset(:pageTokenOffset)
           """)
-  public QueryEffect<PagedSensors> getSensorsPagedList(PagedSensorsRequest request) {
-    log.info("Getting sensors by status");
+  public QueryEffect<PagedGridCells> getGridCellsPagedList(PagedGridCellsRequest request) {
+    log.info("Getting grid cells by status");
     return queryResult();
   }
 
-  @Consume.FromEventSourcedEntity(SensorEntity.class)
-  public static class SensorsByStatus extends TableUpdater<SensorRow> {
+  @Consume.FromEventSourcedEntity(GridCellEntity.class)
+  public static class GridCellsByStatus extends TableUpdater<GridCellRow> {
 
-    public Effect<SensorRow> onEvent(Sensor.Event event) {
+    public Effect<GridCellRow> onEvent(GridCell.Event event) {
       return switch (event) {
-        case Sensor.Event.StatusUpdated e -> effects().updateRow(onEvent(e));
+        case GridCell.Event.StatusUpdated e -> effects().updateRow(onEvent(e));
         default -> effects().ignore();
       };
     }
 
-    private SensorRow onEvent(Sensor.Event.StatusUpdated event) {
+    private GridCellRow onEvent(GridCell.Event.StatusUpdated event) {
       log.info("Region: {}, Event: {}\n_State: {}", region(updateContext()), event, rowState());
 
       var rc = event.id().split("x"); // RxC / YxX
       var viewAt = Instant.now();
       var elapsedMs = (int) (viewAt.toEpochMilli() - event.updatedAt().toEpochMilli());
 
-      return new SensorRow(
+      return new GridCellRow(
           event.id(),
           event.status().toString(),
           Integer.parseInt(rc[1]),
@@ -99,7 +99,7 @@ public class SensorView extends View {
     }
   }
 
-  public record SensorRow(
+  public record GridCellRow(
       String id,
       String status,
       Integer x,
@@ -114,11 +114,11 @@ public class SensorView extends View {
       String updated,
       String view) {}
 
-  public record Sensors(List<SensorRow> sensors) {}
+  public record GridCells(List<GridCellRow> gridCells) {}
 
-  public record StreamedSensorsRequest(Integer x1, Integer y1, Integer x2, Integer y2) {}
+  public record StreamedGridCellsRequest(Integer x1, Integer y1, Integer x2, Integer y2) {}
 
-  public record PagedSensorsRequest(Integer x1, Integer y1, Integer x2, Integer y2, String pageTokenOffset) {}
+  public record PagedGridCellsRequest(Integer x1, Integer y1, Integer x2, Integer y2, String pageTokenOffset) {}
 
-  public record PagedSensors(List<SensorRow> sensors, String nextPageToken, boolean hasMore) {}
+  public record PagedGridCells(List<GridCellRow> gridCells, String nextPageToken, boolean hasMore) {}
 }
