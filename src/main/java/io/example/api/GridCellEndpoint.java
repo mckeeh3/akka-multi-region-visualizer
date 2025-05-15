@@ -27,7 +27,9 @@ import akka.javasdk.http.HttpResponses;
 import akka.stream.javadsl.Source;
 import io.example.application.GridCellEntity;
 import io.example.application.GridCellView;
+import io.example.application.GridCellView.GridCellRow;
 import io.example.domain.GridCell;
+import io.example.domain.Predator;
 
 @Acl(allow = @Acl.Matcher(principal = Acl.Principal.INTERNET))
 @HttpEndpoint("/grid-cell")
@@ -189,9 +191,35 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
     var y2 = request.centerY() + request.radius();
     var pageTokenOffset = "";
 
-    var allGridCells = Stream.generate(new Supplier<GridCellView.PagedGridCells>() {
-      private String currentPageToken = pageTokenOffset;
-      private boolean hasMore = true;
+    var allGridCells = queryGridCellsInArea(x1, y1, x2, y2, pageTokenOffset);
+    log.info("Found {} grid cells in the rectangle area", allGridCells.size());
+
+    String nextGridCellId = Predator.nextCell(request.id(), allGridCells, request.centerX(), request.centerY(), request.radius());
+    log.info("Current cell: {}, Next cell: {}", request.id(), nextGridCellId);
+
+    var range = request.radius();
+    var linger = Math.max(2, range / 10);
+    var command = new GridCell.Command.CreatePredator(
+        request.id(),
+        GridCell.Status.predator,
+        request.updatedAt(),
+        Instant.now(),
+        range,
+        linger,
+        nextGridCellId,
+        region());
+
+    componentClient.forEventSourcedEntity(request.id())
+        .method(GridCellEntity::createPredator)
+        .invoke(command);
+
+    return Done.done();
+  }
+
+  List<GridCellRow> queryGridCellsInArea(int x1, int y1, int x2, int y2, String pageTokenOffset) {
+    return Stream.generate(new Supplier<GridCellView.PagedGridCells>() {
+      String currentPageToken = pageTokenOffset;
+      boolean hasMore = true;
 
       @Override
       public GridCellView.PagedGridCells get() {
@@ -212,10 +240,6 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
         .takeWhile(pagedGridCells -> pagedGridCells != null)
         .flatMap(pagedGridCells -> pagedGridCells.gridCells().stream())
         .toList();
-
-    log.info("Found {} grid cells in the rectangle area", allGridCells.size());
-
-    return Done.done();
   }
 
   @Get("/current-time")
@@ -229,5 +253,24 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
     return requestContext().selfRegion().isEmpty() ? "local-development" : requestContext().selfRegion();
   }
 
-  public record UpdateGridCellRequest(String id, String status, Instant updatedAt, Integer centerX, Integer centerY, Integer radius) {}
+  record UpdateGridCellRequest(String id, String status, Instant updatedAt, Integer centerX, Integer centerY, Integer radius) {}
+
+  record ScentCell(int x, int y, int maxIntensity) {}
+
+  record ScentVector(double x, double y, double intensity) {}
+
+  record DirectionVector(double x, double y) {
+    DirectionVector normalized() {
+      double length = Math.sqrt(x * x + y * y);
+      return new DirectionVector(x / length, y / length);
+    }
+
+    double radians() {
+      return Math.atan2(y, x);
+    }
+
+    double degrees() {
+      return Math.toDegrees(radians());
+    }
+  }
 }

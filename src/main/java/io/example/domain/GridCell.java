@@ -14,7 +14,8 @@ public interface GridCell {
     red,
     green,
     blue,
-    orange
+    orange,
+    predator
   }
 
   // ============================================================
@@ -58,6 +59,197 @@ public interface GridCell {
           command.endpointAt,
           newCreated,
           command.region));
+    }
+
+    // ============================================================
+    // Command.CreatePredator
+    // ============================================================
+    public List<GridCell.Event> onCommand(Command.CreatePredator command) {
+      if (!isEmpty() && status.equals(command.status)) {
+        return List.of();
+      }
+
+      var newLinger = command.linger - 1;
+      var newRange = switch (status) {
+        case red -> command.range + 1;
+        case orange -> command.range + 2;
+        case green -> command.range + 3;
+        case blue -> command.range + 4;
+        default -> command.range - 1;
+      };
+
+      // Predator is dead
+      if (command.nextCellId.isEmpty() || newRange <= 0 || newLinger <= 0) {
+        var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
+        var newUpdatedAt = Instant.now();
+        var newCreated = isEmpty() ? command.region : created;
+        return List.of(new Event.StatusUpdated(
+            command.id,
+            Status.inactive,
+            newCreatedAt,
+            newUpdatedAt,
+            command.clientAt,
+            command.endpointAt,
+            newCreated,
+            command.region));
+      }
+
+      var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
+      var newUpdatedAt = Instant.now();
+      var newCreated = isEmpty() ? command.region : created;
+      var movedCellId = command.nextCellId;
+      var newNextCellId = "";
+      return List.of(
+          new Event.StatusUpdated(
+              command.id,
+              Status.predator,
+              newCreatedAt,
+              newUpdatedAt,
+              command.clientAt,
+              command.endpointAt,
+              newCreated,
+              command.region),
+          new Event.PredatorMoved(
+              movedCellId,
+              command.status,
+              newCreatedAt,
+              newUpdatedAt,
+              command.clientAt,
+              command.endpointAt,
+              newCreated,
+              command.range,
+              command.linger,
+              newNextCellId,
+              command.region),
+          new Event.PredatorLingered(
+              command.id,
+              command.status,
+              newCreatedAt,
+              newUpdatedAt,
+              command.clientAt,
+              command.endpointAt,
+              newCreated,
+              command.linger,
+              command.region));
+    }
+
+    // ============================================================
+    // Command.MovePredator
+    // ============================================================
+    public List<GridCell.Event> onCommand(Command.MovePredator command) {
+      var newLinger = command.linger - 1;
+      var newRange = switch (status) {
+        case red -> command.range + 1;
+        case orange -> command.range + 2;
+        case green -> command.range + 3;
+        case blue -> command.range + 4;
+        default -> command.range - 1;
+      };
+
+      // Predator is dead
+      if (command.nextCellId.isEmpty() || newRange <= 0 || newLinger <= 0) {
+        var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
+        var newUpdatedAt = Instant.now();
+        var newCreated = isEmpty() ? command.region : created;
+        return List.of(new Event.StatusUpdated(
+            command.id,
+            Status.inactive,
+            newCreatedAt,
+            newUpdatedAt,
+            command.clientAt,
+            command.endpointAt,
+            newCreated,
+            command.region));
+      }
+
+      var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
+      var newUpdatedAt = Instant.now();
+      var newCreated = isEmpty() ? command.region : created;
+      var movedCellId = command.nextCellId;
+      var newNextCellId = "";
+      return List.of(
+          new Event.StatusUpdated(
+              command.id,
+              Status.predator,
+              newCreatedAt,
+              newUpdatedAt,
+              command.clientAt,
+              command.endpointAt,
+              newCreated,
+              command.region),
+          new Event.PredatorMoved(
+              movedCellId,
+              command.status,
+              newCreatedAt,
+              newUpdatedAt,
+              command.clientAt,
+              command.endpointAt,
+              newCreated,
+              newRange,
+              command.linger,
+              newNextCellId,
+              command.region),
+          new Event.PredatorLingered(
+              command.id,
+              command.status,
+              newCreatedAt,
+              newUpdatedAt,
+              command.clientAt,
+              command.endpointAt,
+              newCreated,
+              command.linger,
+              command.region));
+    }
+
+    // ============================================================
+    // Command.LingerPredator
+    // ============================================================
+    public List<GridCell.Event> onCommand(Command.LingerPredator command) {
+      if (isEmpty() || !status.equals(Status.predator)) {
+        return List.of();
+      }
+
+      var newLinger = command.linger - 1;
+
+      // Predator is dead
+      if (newLinger <= 0) {
+        var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
+        var newUpdatedAt = Instant.now();
+        var newCreated = isEmpty() ? command.region : created;
+        return List.of(new Event.StatusUpdated(
+            command.id,
+            Status.inactive,
+            newCreatedAt,
+            newUpdatedAt,
+            command.clientAt,
+            command.endpointAt,
+            newCreated,
+            command.region));
+      }
+
+      var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
+      var newUpdatedAt = Instant.now();
+      var newCreated = isEmpty() ? command.region : created;
+      return List.of(
+          new Event.StatusUpdated(
+              command.id,
+              Status.predator,
+              newCreatedAt,
+              newUpdatedAt,
+              command.clientAt,
+              command.endpointAt,
+              newCreated,
+              command.region),
+          new Event.PredatorLingered(
+              command.id,
+              command.status,
+              newCreatedAt,
+              newUpdatedAt,
+              command.clientAt,
+              command.endpointAt,
+              newCreated,
+              newLinger,
+              command.region));
     }
 
     // ============================================================
@@ -216,6 +408,18 @@ public interface GridCell {
           event.updated);
     }
 
+    public State onEvent(Event.PredatorCreated event) {
+      return this;
+    }
+
+    public State onEvent(Event.PredatorMoved event) {
+      return this;
+    }
+
+    public State onEvent(Event.PredatorLingered event) {
+      return this;
+    }
+
     public State onEvent(Event.SpanToNeighbor event) {
       return this;
     }
@@ -233,14 +437,14 @@ public interface GridCell {
     }
 
     // Radius is limited to min(50, radius)
-    boolean insideRadius(String id, int centerX, int centerY, int radius) {
+    static boolean insideRadius(String id, int centerX, int centerY, int radius) {
       var rc = id.split("x"); // RxC / YxX
       var x = Integer.parseInt(rc[1]);
       var y = Integer.parseInt(rc[0]);
       return Math.pow(centerX - x, 2) + Math.pow(centerY - y, 2) <= Math.pow(Math.min(50, radius), 2);
     }
 
-    List<String> neighborIds(String centerId) {
+    static List<String> neighborIds(String centerId) {
       var rc = centerId.split("x"); // RxC / YxX
       var x = Integer.parseInt(rc[1]);
       var y = Integer.parseInt(rc[0]);
@@ -269,6 +473,49 @@ public interface GridCell {
 
       public UpdateStatus withRegion(String newRegion) {
         return new UpdateStatus(id, status, clientAt, endpointAt, newRegion);
+      }
+    }
+
+    public record CreatePredator(
+        String id,
+        Status status,
+        Instant clientAt,
+        Instant endpointAt,
+        Integer range,
+        Integer linger,
+        String nextCellId,
+        String region) implements Command {
+
+      public CreatePredator withRegion(String newRegion) {
+        return new CreatePredator(id, status, clientAt, endpointAt, range, linger, nextCellId, newRegion);
+      }
+    }
+
+    public record MovePredator(
+        String id,
+        Status status,
+        Instant clientAt,
+        Instant endpointAt,
+        Integer range,
+        Integer linger,
+        String nextCellId,
+        String region) implements Command {
+
+      public MovePredator withRegion(String newRegion) {
+        return new MovePredator(id, status, clientAt, endpointAt, range, linger, nextCellId, newRegion);
+      }
+    }
+
+    public record LingerPredator(
+        String id,
+        Status status,
+        Instant clientAt,
+        Instant endpointAt,
+        Integer linger,
+        String region) implements Command {
+
+      public LingerPredator withRegion(String newRegion) {
+        return new LingerPredator(id, status, clientAt, endpointAt, linger, newRegion);
       }
     }
 
@@ -333,6 +580,46 @@ public interface GridCell {
         Instant clientAt,
         Instant endpointAt,
         String created,
+        String updated) implements Event {}
+
+    @TypeName("predator-created")
+    public record PredatorCreated(
+        String id,
+        Status status,
+        Instant createdAt,
+        Instant updatedAt,
+        Instant clientAt,
+        Instant endpointAt,
+        String created,
+        Integer range,
+        Integer linger,
+        String nextCell,
+        String updated) implements Event {}
+
+    @TypeName("predator-moved")
+    public record PredatorMoved(
+        String id,
+        Status status,
+        Instant createdAt,
+        Instant updatedAt,
+        Instant clientAt,
+        Instant endpointAt,
+        String created,
+        Integer range,
+        Integer linger, // Number of update cycles before predator's tail leaves the cell
+        String nextCell,
+        String updated) implements Event {}
+
+    @TypeName("predator-lingered")
+    public record PredatorLingered(
+        String id,
+        Status status,
+        Instant createdAt,
+        Instant updatedAt,
+        Instant clientAt,
+        Instant endpointAt,
+        String created,
+        Integer linger, // Number of update cycles before predator's tail leaves the cell
         String updated) implements Event {}
 
     @TypeName("span-to-neighbor")

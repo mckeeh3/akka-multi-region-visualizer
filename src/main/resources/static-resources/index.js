@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     green: 0,
     blue: 0,
     orange: 0,
+    predator: 0,
   };
 
   // --- DOM References ---
@@ -102,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
    * Updates the grid summary display with current cell counts
    */
   function updateGridSummary() {
-    gridSummary.textContent = `Total: ${cellCounts.total}, R: ${cellCounts.red}, G: ${cellCounts.green}, B: ${cellCounts.blue}, O: ${cellCounts.orange}`;
+    gridSummary.textContent = `Total: ${cellCounts.total}, R: ${cellCounts.red}, G: ${cellCounts.green}, B: ${cellCounts.blue}, O: ${cellCounts.orange}, P: ${cellCounts.predator}`;
   }
 
   /**
@@ -127,13 +128,14 @@ document.addEventListener('DOMContentLoaded', () => {
   /**
    * Gets the current status of a cell from its classes
    * @param {HTMLElement} cellElement The cell element
-   * @returns {string} The cell status ('red', 'green', 'blue', 'orange', or 'inactive')
+   * @returns {string} The cell status ('red', 'green', 'blue', 'orange', 'predator', or 'inactive')
    */
   function getCellStatus(cellElement) {
     if (cellElement.classList.contains('cell-red')) return 'red';
     if (cellElement.classList.contains('cell-green')) return 'green';
     if (cellElement.classList.contains('cell-blue')) return 'blue';
     if (cellElement.classList.contains('cell-orange')) return 'orange';
+    if (cellElement.classList.contains('cell-predator')) return 'predator';
     return 'inactive';
   }
 
@@ -398,6 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
       green: 0,
       blue: 0,
       orange: 0,
+      predator: 0,
     };
 
     // Update the grid summary display
@@ -480,7 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  async function sendCreatePredator(id, radius) {
+  async function sendCreatePredator(id, range) {
     const apiUrl = `${origin}/grid-cell/create-predator`;
     const response = await fetch(apiUrl, {
       method: 'PUT',
@@ -493,7 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updatedAt: new Date().toISOString(),
         centerX: parseInt(id.split('x')[1]),
         centerY: parseInt(id.split('x')[0]),
-        radius: radius,
+        radius: range,
       }),
     });
     if (!response.ok) {
@@ -521,7 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
           // Only update if the status has changed
           if (previousStatus !== update.status) {
             // Remove existing status classes first
-            cellElement.classList.remove('cell-red', 'cell-green', 'cell-blue', 'cell-orange');
+            cellElement.classList.remove('cell-red', 'cell-green', 'cell-blue', 'cell-orange', 'cell-predator');
 
             // Update cell counts
             updateCellCounts(previousStatus, update.status);
@@ -944,6 +947,8 @@ document.addEventListener('DOMContentLoaded', () => {
           ? 'b'
           : cellElement.classList.contains('cell-orange')
           ? 'o'
+          : cellElement.classList.contains('cell-predator')
+          ? 'p'
           : '';
         const radius = 0;
         if (colorChar.length > 0) {
@@ -993,9 +998,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const cellElement = document.getElementById(hoveredCellId);
 
       const id = hoveredCellId.substring(5); // Remove "cell-" prefix
-      const radius = commandBuffer.length == 0 ? 0 : parseInt(commandBuffer);
+      const range = commandBuffer.length == 0 ? 0 : parseInt(commandBuffer);
 
-      sendCreatePredator(id, radius);
+      sendCreatePredator(id, range);
     }
   }
 

@@ -1,7 +1,9 @@
-package io.example;
+package io.example.domain;
 
 import static akka.Done.done;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
 
@@ -9,7 +11,6 @@ import org.junit.jupiter.api.Test;
 
 import akka.javasdk.testkit.EventSourcedTestKit;
 import io.example.application.GridCellEntity;
-import io.example.domain.GridCell;
 
 public class GridCellEntityTest {
   @Test
@@ -187,7 +188,7 @@ public class GridCellEntityTest {
     var testKit = EventSourcedTestKit.of(GridCellEntity::new);
     var result = testKit.method(GridCellEntity::get).invoke();
     assertTrue(result.isError());
-    assertEquals("GridCell not found", result.getError());
+    assertEquals("GridCell 'testkit-entity-id' not found", result.getError());
   }
 
   @Test
@@ -207,5 +208,135 @@ public class GridCellEntityTest {
     var state = result.getReply();
     assertEquals(id, state.id());
     assertEquals(status, state.status());
+  }
+
+  @Test
+  void testCreatePredator() {
+    var testKit = EventSourcedTestKit.of(GridCellEntity::new);
+    var id = "7x8";
+    var status = GridCell.Status.predator;
+    var range = 5;
+    var linger = 2;
+    var now = Instant.now();
+    var nextCellId = "7x9";
+    var region = "test";
+
+    var command = new GridCell.Command.CreatePredator(id, status, now, now, range, linger, nextCellId, region);
+    var result = testKit.method(GridCellEntity::createPredator).invoke(command);
+
+    assertTrue(result.isReply());
+    assertEquals(done(), result.getReply());
+    assertEquals(3, result.getAllEvents().size());
+
+    {
+      var event = result.getNextEventOfType(GridCell.Event.StatusUpdated.class);
+      assertEquals(id, event.id());
+      assertEquals(GridCell.Status.predator, event.status());
+    }
+
+    {
+      var event = result.getNextEventOfType(GridCell.Event.PredatorMoved.class);
+      assertEquals(nextCellId, event.id());
+      assertEquals(GridCell.Status.predator, event.status());
+    }
+
+    {
+      var event = result.getNextEventOfType(GridCell.Event.PredatorLingered.class);
+      assertEquals(id, event.id());
+      assertEquals(GridCell.Status.predator, event.status());
+      assertEquals(linger, event.linger());
+    }
+
+    var state = testKit.getState();
+    assertEquals(id, state.id());
+    assertEquals(GridCell.Status.predator, state.status());
+  }
+
+  @Test
+  void testMovePredator() {
+    var testKit = EventSourcedTestKit.of(GridCellEntity::new);
+    var id = "7x8";
+    var status = GridCell.Status.predator;
+    var range = 5;
+    var linger = 2;
+    var now = Instant.now();
+    var nextCellId = "7x9";
+    var region = "test";
+
+    {
+      var command = new GridCell.Command.MovePredator(id, status, now, now, range, linger, nextCellId, region);
+      var result = testKit.method(GridCellEntity::movePredator).invoke(command);
+      assertTrue(result.isReply());
+      assertEquals(done(), result.getReply());
+      assertEquals(3, result.getAllEvents().size());
+
+      {
+        var event = result.getNextEventOfType(GridCell.Event.StatusUpdated.class);
+        assertEquals(id, event.id());
+        assertEquals(GridCell.Status.predator, event.status());
+      }
+
+      {
+        var event = result.getNextEventOfType(GridCell.Event.PredatorMoved.class);
+        assertEquals(nextCellId, event.id());
+        assertEquals(GridCell.Status.predator, event.status());
+      }
+
+      {
+        var event = result.getNextEventOfType(GridCell.Event.PredatorLingered.class);
+        assertEquals(id, event.id());
+        assertEquals(GridCell.Status.predator, event.status());
+        assertEquals(linger, event.linger());
+      }
+    }
+
+    var state = testKit.getState();
+    assertEquals(id, state.id());
+    assertEquals(GridCell.Status.predator, state.status());
+  }
+
+  @Test
+  void testLingerPredator() {
+    var testKit = EventSourcedTestKit.of(GridCellEntity::new);
+    var id = "7x8";
+    var status = GridCell.Status.predator;
+    var range = 5;
+    var linger = 2;
+    var now = Instant.now();
+    var nextCellId = "7x9";
+    var region = "test";
+
+    {
+      var command = new GridCell.Command.MovePredator(id, status, now, now, range, linger, nextCellId, region);
+      var result = testKit.method(GridCellEntity::movePredator).invoke(command);
+      assertTrue(result.isReply());
+      assertEquals(done(), result.getReply());
+      assertEquals(3, result.getAllEvents().size());
+    }
+
+    {
+      var command = new GridCell.Command.LingerPredator(id, status, now, now, linger, region);
+      var result = testKit.method(GridCellEntity::lingerPredator).invoke(command);
+      assertTrue(result.isReply());
+      assertEquals(done(), result.getReply());
+      assertEquals(2, result.getAllEvents().size());
+
+      {
+        var event = result.getNextEventOfType(GridCell.Event.StatusUpdated.class);
+        assertEquals(id, event.id());
+        assertEquals(GridCell.Status.predator, event.status());
+      }
+
+      {
+        var event = result.getNextEventOfType(GridCell.Event.PredatorLingered.class);
+        assertEquals(id, event.id());
+        assertEquals(GridCell.Status.predator, event.status());
+        assertEquals(linger - 1, event.linger());
+      }
+    }
+
+    var state = testKit.getState();
+    assertEquals(id, state.id());
+    assertEquals(GridCell.Status.predator, state.status());
   }
 }

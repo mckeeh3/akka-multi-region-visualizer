@@ -14,8 +14,8 @@ import io.example.domain.GridCell;
 @ComponentId("grid-cell")
 public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.Event> {
   private final Logger log = LoggerFactory.getLogger(getClass());
-  private final String selfRegion;
   private final String entityId;
+  private final String selfRegion;
 
   public GridCellEntity(EventSourcedEntityContext context) {
     this.entityId = context.entityId();
@@ -28,6 +28,30 @@ public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.
   }
 
   public Effect<Done> updateStatus(GridCell.Command.UpdateStatus command) {
+    log.info("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
+
+    return effects()
+        .persistAll(currentState().onCommand(command.withRegion(selfRegion)).stream().toList())
+        .thenReply(newState -> done());
+  }
+
+  public Effect<Done> createPredator(GridCell.Command.CreatePredator command) {
+    log.info("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
+
+    return effects()
+        .persistAll(currentState().onCommand(command.withRegion(selfRegion)).stream().toList())
+        .thenReply(newState -> done());
+  }
+
+  public Effect<Done> movePredator(GridCell.Command.MovePredator command) {
+    log.info("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
+
+    return effects()
+        .persistAll(currentState().onCommand(command.withRegion(selfRegion)).stream().toList())
+        .thenReply(newState -> done());
+  }
+
+  public Effect<Done> lingerPredator(GridCell.Command.LingerPredator command) {
     log.info("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
 
     return effects()
@@ -82,6 +106,9 @@ public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.
 
     return switch (event) {
       case GridCell.Event.StatusUpdated e -> currentState().onEvent(e);
+      case GridCell.Event.PredatorCreated e -> currentState().onEvent(e);
+      case GridCell.Event.PredatorMoved e -> currentState().onEvent(e);
+      case GridCell.Event.PredatorLingered e -> currentState().onEvent(e);
       case GridCell.Event.SpanToNeighbor e -> currentState().onEvent(e);
       case GridCell.Event.FillToNeighbor e -> currentState().onEvent(e);
       case GridCell.Event.ClearToNeighbor e -> currentState().onEvent(e);
