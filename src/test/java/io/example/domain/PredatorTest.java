@@ -15,7 +15,7 @@ import io.example.application.GridCellView;
 public class PredatorTest {
 
   @Test
-  @Disabled
+  // @Disabled
   void testNextCellNorth() {
     var xyTopLeft = 8;
     var color = "blue";
@@ -30,7 +30,7 @@ public class PredatorTest {
   }
 
   @Test
-  @Disabled
+  // @Disabled
   void testNextCellNorthEast() {
     var xyTopLeft = 8;
     var color = "blue";
@@ -45,7 +45,7 @@ public class PredatorTest {
   }
 
   @Test
-  @Disabled
+  // @Disabled
   void testNextCellEast() {
     var xyTopLeft = 8;
     var color = "blue";
@@ -60,7 +60,7 @@ public class PredatorTest {
   }
 
   @Test
-  @Disabled
+  // @Disabled
   void testNextCellSouthEast() {
     var xyTopLeft = 8;
     var color = "blue";
@@ -75,7 +75,7 @@ public class PredatorTest {
   }
 
   @Test
-  @Disabled
+  // @Disabled
   void testNextCellSouth() {
     var xyTopLeft = 8;
     var color = "blue";
@@ -90,7 +90,7 @@ public class PredatorTest {
   }
 
   @Test
-  @Disabled
+  // @Disabled
   void testNextCellSouthWest() {
     var xyTopLeft = 8;
     var color = "blue";
@@ -105,7 +105,7 @@ public class PredatorTest {
   }
 
   @Test
-  @Disabled
+  // @Disabled
   void testNextCellWest() {
     var xyTopLeft = 8;
     var color = "blue";
@@ -120,7 +120,7 @@ public class PredatorTest {
   }
 
   @Test
-  @Disabled
+  // @Disabled
   void testNextCellNorthWest() {
     var xyTopLeft = 8;
     var color = "blue";
@@ -135,7 +135,7 @@ public class PredatorTest {
   }
 
   @Test
-  @Disabled
+  // @Disabled
   void testOneColumnAboveVertical() {
     var xyTopLeft = 100;
     var color = "blue";
@@ -150,7 +150,7 @@ public class PredatorTest {
   }
 
   @Test
-  @Disabled
+  // @Disabled
   void testOneRowRightHorizontal() {
     var xyTopLeft = 100;
     var color = "blue";
@@ -162,26 +162,6 @@ public class PredatorTest {
     var predatorRange = 50;
     var nextGridCellId = Predator.nextGridCellId(predatorId, createGridCells(xyTopLeft, color, rows, cols), predatorRange);
     assertEquals("%dx%d".formatted(predatorY, predatorX + 1), nextGridCellId);
-  }
-
-  @Test
-  @Disabled
-  void testNextCellCenter() {
-    var xyTopLeft = 8;
-    var color = "blue";
-    var rows = 5;
-    var cols = 5;
-    var predatorX = 10;
-    var predatorY = 10;
-    var predatorId = "%sx%s".formatted(predatorY, predatorX); // RxC, YxX
-    var predatorRange = 50;
-    var neighborIds = GridCell.State.neighborIds(predatorId);
-    var removeIds = neighborIds.subList(1, neighborIds.size());
-    var preyCells = createGridCells(xyTopLeft, color, rows, cols).stream()
-        .filter(cell -> !removeIds.contains(cell.id()))
-        .toList();
-    var nextGridCellId = Predator.nextGridCellId(predatorId, preyCells, predatorRange);
-    assertEquals(neighborIds.get(0), nextGridCellId);
   }
 
   @Test

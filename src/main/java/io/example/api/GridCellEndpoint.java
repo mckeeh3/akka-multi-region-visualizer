@@ -198,7 +198,7 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
     log.info("Current cell: {}, Next cell: {}", request.id(), nextGridCellId);
 
     var range = request.radius();
-    var linger = Math.max(2, range / 10);
+    var linger = 3; // Math.max(2, range / 10);
     var command = new GridCell.Command.CreatePredator(
         request.id(),
         GridCell.Status.predator,
