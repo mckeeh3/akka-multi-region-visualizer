@@ -194,7 +194,7 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
     var allGridCells = queryGridCellsInArea(x1, y1, x2, y2, pageTokenOffset);
     log.info("Found {} grid cells in the rectangle area", allGridCells.size());
 
-    String nextGridCellId = Predator.nextCell(request.id(), allGridCells, request.centerX(), request.centerY(), request.radius());
+    String nextGridCellId = Predator.nextGridCellId(request.id(), allGridCells, request.radius());
     log.info("Current cell: {}, Next cell: {}", request.id(), nextGridCellId);
 
     var range = request.radius();
@@ -259,18 +259,5 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
 
   record ScentVector(double x, double y, double intensity) {}
 
-  record DirectionVector(double x, double y) {
-    DirectionVector normalized() {
-      double length = Math.sqrt(x * x + y * y);
-      return new DirectionVector(x / length, y / length);
-    }
-
-    double radians() {
-      return Math.atan2(y, x);
-    }
-
-    double degrees() {
-      return Math.toDegrees(radians());
-    }
-  }
+  record DirectionVector(double x, double y) {}
 }

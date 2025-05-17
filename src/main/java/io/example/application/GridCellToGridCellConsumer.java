@@ -50,7 +50,7 @@ public class GridCellToGridCellConsumer extends Consumer {
   Effect onEvent(GridCell.Event.PredatorMoved event) {
     log.info("Region: {}, Event: {}", region(), event);
 
-    var s = event.id().split("x");
+    var s = event.id().split("x"); // RxC, YxX
     var x = Integer.parseInt(s[1]);
     var y = Integer.parseInt(s[0]);
     var x1 = x - event.range();
@@ -59,7 +59,7 @@ public class GridCellToGridCellConsumer extends Consumer {
     var y2 = y + event.range();
     var pageTokenOffset = "";
     var allGridCells = queryGridCellsInArea(x1, y1, x2, y2, pageTokenOffset);
-    String nextGridCellId = Predator.nextCell(event.id(), allGridCells, x, y, event.range());
+    String nextGridCellId = Predator.nextGridCellId(event.id(), allGridCells, event.range());
 
     var command = new GridCell.Command.MovePredator(
         event.id(),

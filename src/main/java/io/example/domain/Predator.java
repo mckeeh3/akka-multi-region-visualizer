@@ -1,6 +1,7 @@
 package io.example.domain;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,40 +13,56 @@ import io.grpc.netty.shaded.io.netty.util.internal.ThreadLocalRandom;
 public class Predator {
   static final Logger log = LoggerFactory.getLogger(Predator.class);
 
-  static public String nextCell(String predatorId, List<GridCellView.GridCellRow> allGridCells, int centerX, int centerY, int range) {
+  // Try to find the next grid cell nearby, progressively increasing the range
+  static public String nextGridCellId(String predatorId, List<GridCellView.GridCellRow> allGridCells, int predatorRange) {
+    return Stream.concat(List.of(2, 4, 8, 16, 32).stream()
+        .filter(r -> r < predatorRange), List.of(predatorRange).stream())
+        .toList()
+        .stream()
+        .map(r -> nextGridCellId2(predatorId, allGridCells, r))
+        .filter(id -> !id.isEmpty())
+        .findFirst()
+        .orElse("");
+  }
+
+  static public String nextGridCellId2(String predatorId, List<GridCellView.GridCellRow> allGridCells, int predatorRange) {
+    var sigma = 10.0; // Adjust this parameter as needed
+    var xy = predatorId.split("x");
+    var predatorX = Integer.parseInt(xy[1]);
+    var predatorY = Integer.parseInt(xy[0]);
+
+    log.info("Hunting prey: predator: {}, predatorRange: {}, predatorX: {}, predatorY: {}", predatorId, predatorRange, predatorX, predatorY);
+
     if (allGridCells.isEmpty()) {
-      log.info("Next cell: (empty), predator: {}, No prey cells in range", predatorId);
+      log.info("Next cell: (empty), predator: {}, No prey cells in predatorRange {}", predatorId, predatorRange);
       return "";
     }
 
-    var gridCellsInCircle = getGridCellsInCircle(allGridCells, centerX, centerY, range);
-    log.info("Found {} grid cells in the circle area (filtered from {} in rectangle)",
-        gridCellsInCircle.size(), allGridCells.size());
+    var gridCellsInCircle = getGridCellsInCircle(allGridCells, predatorX, predatorY, predatorRange);
+    log.info("Found {} grid cells in the circle area (filtered from {} in rectangle)", gridCellsInCircle.size(), allGridCells.size());
 
-    var preyCells = getScentCells(gridCellsInCircle);
-    log.info("Found {} prey cells in range", preyCells.size());
+    var preyCells = getPreyCells(gridCellsInCircle);
     // preyCells.forEach(cell -> log.debug("Prey cell: {}", cell));
+    log.info("Found {} prey cells in predatorRange {}", preyCells.size(), predatorRange);
 
     if (preyCells.isEmpty()) {
-      log.info("Next cell: (empty), predator: {}, No prey cells in range", predatorId);
+      log.info("Next cell: (empty), predator: {}, No prey cells in predatorRange {}", predatorId, predatorRange);
       return "";
     }
 
-    var vectors = getVectors(centerX, centerY, range, preyCells);
-    log.info("Created {} vectors with Gaussian decay", vectors.size());
-    // vectors.forEach(vector -> log.debug("Vector: {}", vector));
+    var preyVectors = getPreyVectors(sigma, predatorX, predatorY, predatorRange, preyCells);
+    preyVectors.forEach(vector -> log.debug("Vector: {}", vector));
+    log.info("Computed Gaussian decay vectors (sigma: {}) for {} prey cells", sigma, preyVectors.size());
 
     // Calculate the sum of all vectors
-    var sumX = vectors.stream().mapToDouble(ScentVector::x).sum();
-    var sumY = vectors.stream().mapToDouble(ScentVector::y).sum();
-    var sumIntensity = vectors.stream().mapToDouble(ScentVector::intensity).sum();
-
-    // Create a new vector with the sum of all vectors
+    var sumX = preyVectors.stream().mapToDouble(PreyVector::x).sum();
+    var sumY = preyVectors.stream().mapToDouble(PreyVector::y).sum();
     var directionVector = new DirectionVector(sumX, sumY);
-    var totalIntensity = sumIntensity;
-
-    log.info("Total intensity: {}", totalIntensity);
     log.info("Direction vector: {}", directionVector);
+
+    var totalIntensity = preyVectors.stream().mapToDouble(PreyVector::intensity).sum();
+    log.info("Total intensity: {}", totalIntensity);
+
     log.info("Direction vector normalized: {}", directionVector.normalized());
     log.info("Direction vector radians: {}", directionVector.normalized().radians());
     log.info("Direction vector degrees: {}", directionVector.normalized().degrees());
@@ -103,12 +120,12 @@ public class Predator {
     // Format the next grid cell ID as "RxC"
     var nextGridCell = nextRow + "x" + nextCol;
 
-    // Search for any scent cells in the neighbors of the current cell
+    // Search for any prey cells in the neighbors of the current cell
     var neighborIds = GridCell.State.neighborIds(predatorId);
     var neighborPreyCells = preyCells.stream()
         .filter(cell -> neighborIds.contains(cell.id()))
         .toList();
-    log.info("Found {} prey cells in the neighbors of predator cell {}", neighborPreyCells.size(), predatorId);
+    log.info("Found {} neighbor prey cells of predator cell {}", neighborPreyCells.size(), predatorId);
     // neighborPreyCells.forEach(cell -> log.debug("Neighbor prey cell: {}", cell));
 
     if (neighborPreyCells.isEmpty()) {
@@ -133,12 +150,12 @@ public class Predator {
   }
 
   // Create vectors with intensity that decreases with distance using Gaussian decay
-  static List<ScentVector> getVectors(int centerX, int centerY, int range, List<ScentCell> scentCells) {
-    return scentCells.stream()
+  static List<PreyVector> getPreyVectors(double sigma, int predatorX, int predatorY, int predatorRange, List<PreyGridCell> preyCells) {
+    return preyCells.stream()
         .map(cell -> {
           // Calculate the vector from center to the cell
-          var dx = cell.x() - centerX;
-          var dy = cell.y() - centerY;
+          var dx = cell.x() - predatorX;
+          var dy = cell.y() - predatorY;
 
           // Calculate distance from center
           var distance = Math.sqrt(dx * dx + dy * dy);
@@ -150,18 +167,18 @@ public class Predator {
           // Apply Gaussian decay to the intensity based on distance
           // Using formula: intensity = maxIntensity * exp(-distance²/(2*sigma²))
           // Where sigma controls the width of the Gaussian
-          var sigma = range / 3.0; // Adjust this parameter as needed
           var gaussianFactor = Math.exp(-(distance * distance) / (2 * sigma * sigma));
           var intensity = cell.maxIntensity() * gaussianFactor;
 
           // Create a vector with the unit direction and then scale by intensity
           // This gives a vector whose direction is normalized and magnitude equals the intensity
-          return new ScentVector(unitX * intensity, unitY * intensity, intensity);
+          return new PreyVector(unitX * intensity, unitY * intensity, distance, intensity);
         })
+        .filter(vector -> vector.intensity() > 0.0001)
         .toList();
   }
 
-  static List<ScentCell> getScentCells(List<GridCellRow> gridCellsInCircle) {
+  static List<PreyGridCell> getPreyCells(List<GridCellRow> gridCellsInCircle) {
     return gridCellsInCircle.stream()
         .map(cell -> {
           int maxIntensity = switch (cell.status().toLowerCase()) {
@@ -171,31 +188,31 @@ public class Predator {
             case "blue" -> 4;
             default -> 0;
           };
-          return new ScentCell(cell.id(), cell.x(), cell.y(), maxIntensity);
+          return new PreyGridCell(cell.id(), cell.x(), cell.y(), maxIntensity);
         })
         .filter(cell -> cell.maxIntensity() > 0)
         .toList();
   }
 
   // Filter grid cells that are inside the circle
-  static List<GridCellRow> getGridCellsInCircle(List<GridCellView.GridCellRow> allGridCells, int centerX, int centerY, int range) {
+  static List<GridCellRow> getGridCellsInCircle(List<GridCellView.GridCellRow> allGridCells, int predatorX, int predatorY, int predatorRange) {
     return allGridCells.stream()
         .filter(cell -> {
           // Calculate the distance from the cell to the center of the circle
           var distance = Math.sqrt(
-              Math.pow(cell.x() - centerX, 2) +
-                  Math.pow(cell.y() - centerY, 2));
+              Math.pow(cell.x() - predatorX, 2) +
+                  Math.pow(cell.y() - predatorY, 2));
 
-          // Keep only cells that are inside the circle (distance <= range)
-          return distance <= range;
+          // Keep only cells that are inside the circle (distance <= predatorRange)
+          return distance <= predatorRange;
         })
         .toList();
   }
 }
 
-record ScentCell(String id, int x, int y, int maxIntensity) {}
+record PreyGridCell(String id, int x, int y, int maxIntensity) {}
 
-record ScentVector(double x, double y, double intensity) {}
+record PreyVector(double x, double y, double distance, double intensity) {}
 
 record DirectionVector(double x, double y) {
   DirectionVector normalized() {

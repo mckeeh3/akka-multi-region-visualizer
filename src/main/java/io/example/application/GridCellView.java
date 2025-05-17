@@ -102,8 +102,8 @@ public class GridCellView extends View {
   public record GridCellRow(
       String id,
       String status,
-      Integer x,
-      Integer y,
+      int x,
+      int y,
       Instant clientAt,
       Instant endpointAt,
       Instant createdAt,
