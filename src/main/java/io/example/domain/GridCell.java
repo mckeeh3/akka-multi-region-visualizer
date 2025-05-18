@@ -44,7 +44,7 @@ public interface GridCell {
     // ============================================================
     // Command.UpdateStatus
     // ============================================================
-    public Optional<GridCell.Event> onCommand(Command.UpdateStatus command) {
+    public Optional<Event> onCommand(Command.UpdateStatus command) {
       if (!isEmpty() && status.equals(command.status)) {
         return Optional.empty();
       }
@@ -66,7 +66,7 @@ public interface GridCell {
     // ============================================================
     // Command.CreatePredator
     // ============================================================
-    public List<GridCell.Event> onCommand(Command.CreatePredator command) {
+    public List<Event> onCommand(Command.CreatePredator command) {
       if (!isEmpty() && status.equals(command.status)) {
         return List.of();
       }
@@ -127,7 +127,7 @@ public interface GridCell {
     // ============================================================
     // Command.MovePredator
     // ============================================================
-    public List<GridCell.Event> onCommand(Command.MovePredator command) {
+    public List<Event> onCommand(Command.MovePredator command) {
       var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
       var newUpdatedAt = Instant.now();
       var newCreated = isEmpty() ? command.region : created;
@@ -170,53 +170,67 @@ public interface GridCell {
       tail.add(command.id);
       var tailTooLong = tail.size() > 5;
       var tailEndId = tailTooLong ? tail.remove() : "";
+      var childMinRange = 1000;
 
-      var removeTailEndEvent = tailTooLong
-          ? Optional.of(new Event.PredatorUpdated(
-              tailEndId,
-              Status.inactive,
+      return List.of(
+          Optional.<Event>of(new Event.StatusUpdated(
+              command.id,
+              Status.predator,
+              newCreatedAt,
               newUpdatedAt,
               command.clientAt,
               command.endpointAt,
-              command.region))
-          : Optional.<Event>empty();
-
-      var cellStatusUpdated = new Event.StatusUpdated(
-          command.id,
-          Status.predator,
-          newCreatedAt,
-          newUpdatedAt,
-          command.clientAt,
-          command.endpointAt,
-          newCreated,
-          command.region);
-
-      var predatorMoved = new Event.PredatorMoved(
-          movedCellId,
-          command.status,
-          newCreatedAt,
-          newUpdatedAt,
-          command.clientAt,
-          command.endpointAt,
-          newCreated,
-          newRange,
-          newNextCellId,
-          tail,
-          command.region);
-
-      return Stream.<Event>concat(Stream.<Event>of(cellStatusUpdated, predatorMoved), removeTailEndEvent.stream())
+              newCreated,
+              command.region)),
+          Optional.<Event>of(new Event.PredatorMoved(
+              movedCellId,
+              command.status,
+              newCreatedAt,
+              newUpdatedAt,
+              command.clientAt,
+              command.endpointAt,
+              newCreated,
+              newRange > 2 * childMinRange ? newRange - childMinRange : newRange,
+              newNextCellId,
+              tail,
+              command.region)),
+          tailTooLong
+              ? Optional.<Event>of(new Event.PredatorUpdated(
+                  tailEndId,
+                  Status.inactive,
+                  newUpdatedAt,
+                  command.clientAt,
+                  command.endpointAt,
+                  command.region))
+              : Optional.<Event>empty(),
+          newRange > 2 * childMinRange
+              ? Optional.<Event>of(new Event.PredatorMoved(
+                  movedCellId,
+                  command.status,
+                  newCreatedAt,
+                  newUpdatedAt,
+                  command.clientAt,
+                  command.endpointAt,
+                  newCreated,
+                  childMinRange,
+                  newNextCellId,
+                  tail,
+                  command.region))
+              : Optional.<Event>empty())
+          .stream()
+          .flatMap(Optional::stream)
           .toList();
     }
 
     // ============================================================
     // Command.UpdatePredator
     // ============================================================
-    public List<GridCell.Event> onCommand(Command.UpdatePredator command) {
+    public Optional<Event> onCommand(Command.UpdatePredator command) {
       if (isEmpty() || status.equals(Status.inactive)) {
-        return List.of();
+        return Optional.empty();
       }
       if (!status.equals(Status.predator)) {
-        return List.of();
+        return Optional.empty();
       }
 
       var newUpdatedAt = Instant.now();
@@ -230,13 +244,13 @@ public interface GridCell {
           created,
           command.region);
 
-      return List.of(updateStatusEvent);
+      return Optional.of(updateStatusEvent);
     }
 
     // ============================================================
     // Command.SpanStatus
     // ============================================================
-    public List<GridCell.Event> onCommand(Command.SpanStatus command) {
+    public List<Event> onCommand(Command.SpanStatus command) {
       if (isEmpty() || status.equals(Status.inactive)) {
         return List.of();
       }
@@ -279,7 +293,7 @@ public interface GridCell {
     // ============================================================
     // Command.FillStatus
     // ============================================================
-    public List<GridCell.Event> onCommand(Command.FillStatus command) {
+    public List<Event> onCommand(Command.FillStatus command) {
       if (!isEmpty() && !status.equals(Status.inactive)) {
         return List.of();
       }
