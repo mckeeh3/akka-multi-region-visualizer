@@ -15,7 +15,7 @@ import io.example.application.GridCellView;
 public class PredatorTest {
 
   @Test
-  // @Disabled
+  @Disabled
   void testNextCellNorth() {
     var xyTopLeft = 8;
     var color = "blue";
@@ -30,7 +30,7 @@ public class PredatorTest {
   }
 
   @Test
-  // @Disabled
+  @Disabled
   void testNextCellNorthEast() {
     var xyTopLeft = 8;
     var color = "blue";
@@ -45,7 +45,7 @@ public class PredatorTest {
   }
 
   @Test
-  // @Disabled
+  @Disabled
   void testNextCellEast() {
     var xyTopLeft = 8;
     var color = "blue";
@@ -60,7 +60,7 @@ public class PredatorTest {
   }
 
   @Test
-  // @Disabled
+  @Disabled
   void testNextCellSouthEast() {
     var xyTopLeft = 8;
     var color = "blue";
@@ -75,7 +75,7 @@ public class PredatorTest {
   }
 
   @Test
-  // @Disabled
+  @Disabled
   void testNextCellSouth() {
     var xyTopLeft = 8;
     var color = "blue";
@@ -90,7 +90,7 @@ public class PredatorTest {
   }
 
   @Test
-  // @Disabled
+  @Disabled
   void testNextCellSouthWest() {
     var xyTopLeft = 8;
     var color = "blue";
@@ -105,7 +105,7 @@ public class PredatorTest {
   }
 
   @Test
-  // @Disabled
+  @Disabled
   void testNextCellWest() {
     var xyTopLeft = 8;
     var color = "blue";
@@ -120,7 +120,7 @@ public class PredatorTest {
   }
 
   @Test
-  // @Disabled
+  @Disabled
   void testNextCellNorthWest() {
     var xyTopLeft = 8;
     var color = "blue";
@@ -136,6 +136,21 @@ public class PredatorTest {
 
   @Test
   // @Disabled
+  void testDetectionDistanceOfSingleCell() {
+    var preyX = 15;
+    var preyY = 5;
+    var preyCell = createGridCell(preyX, preyY, "blue");
+
+    var predatorX = preyX + 100;
+    var predatorY = preyY;
+    var predatorId = "%sx%s".formatted(predatorY, predatorX); // RxC, YxX
+    var predatorRange = 200;
+    var nextGridCellId = Predator.nextGridCellId(predatorId, List.of(preyCell), predatorRange);
+    assertEquals("%dx%d".formatted(predatorY, predatorX - 1), nextGridCellId);
+  }
+
+  @Test
+  @Disabled
   void testOneColumnAboveVertical() {
     var xyTopLeft = 100;
     var color = "blue";
@@ -150,7 +165,7 @@ public class PredatorTest {
   }
 
   @Test
-  // @Disabled
+  @Disabled
   void testOneRowRightHorizontal() {
     var xyTopLeft = 100;
     var color = "blue";
@@ -165,7 +180,7 @@ public class PredatorTest {
   }
 
   @Test
-  // @Disabled
+  @Disabled
   void testNearbySmallClusterDistantLargeCluster() {
     var predatorX = 100;
     var predatorY = 100;
@@ -196,23 +211,7 @@ public class PredatorTest {
   List<GridCellView.GridCellRow> createGridCells(int xyTopLeft, String color, int rows, int cols) {
     var gridCells = IntStream.range(xyTopLeft, rows + xyTopLeft)
         .mapToObj(rowY -> IntStream.range(xyTopLeft, cols + xyTopLeft)
-            .mapToObj(colX -> {
-              var id = rowY + "x" + colX;
-              return new GridCellView.GridCellRow(
-                  id,
-                  color,
-                  colX,
-                  rowY,
-                  Instant.now(),
-                  Instant.now(),
-                  Instant.now(),
-                  Instant.now(),
-                  Instant.now(),
-                  0,
-                  "",
-                  "",
-                  "");
-            })
+            .mapToObj(colX -> createGridCell(colX, rowY, color))
             .toList())
         .toList();
     return gridCells.stream().flatMap(List::stream).toList();
@@ -222,25 +221,26 @@ public class PredatorTest {
   List<GridCellView.GridCellRow> createGridCells(int xTopLeft, int yTopLeft, String color, int rows, int cols) {
     var gridCells = IntStream.range(yTopLeft, rows + yTopLeft)
         .mapToObj(rowY -> IntStream.range(xTopLeft, cols + xTopLeft)
-            .mapToObj(colX -> {
-              var id = rowY + "x" + colX;
-              return new GridCellView.GridCellRow(
-                  id,
-                  color,
-                  colX,
-                  rowY,
-                  Instant.now(),
-                  Instant.now(),
-                  Instant.now(),
-                  Instant.now(),
-                  Instant.now(),
-                  0,
-                  "",
-                  "",
-                  "");
-            })
+            .mapToObj(colX -> createGridCell(colX, rowY, color))
             .toList())
         .toList();
     return gridCells.stream().flatMap(List::stream).toList();
+  }
+
+  GridCellView.GridCellRow createGridCell(int x, int y, String color) {
+    return new GridCellView.GridCellRow(
+        "" + y + "x" + x,
+        color,
+        x,
+        y,
+        Instant.now(),
+        Instant.now(),
+        Instant.now(),
+        Instant.now(),
+        Instant.now(),
+        0,
+        "",
+        "",
+        "");
   }
 }

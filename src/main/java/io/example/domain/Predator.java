@@ -38,10 +38,13 @@ public class Predator {
     return nextGridCellId;
   }
 
+  // ==================================================
+  // Short range
+  // ==================================================
   static public String nextGridCellIdShortRange(int predatorX, int predatorY, List<GridCellView.GridCellRow> allGridCells, int predatorRange) {
     var range = Math.min(predatorRange, 10);
     var gridCellsInCircle = getGridCellsInCircle(allGridCells, predatorX, predatorY, range);
-    log.info("Found {} grid cells in the circle area (filtered from {} in rectangle)", gridCellsInCircle.size(), allGridCells.size());
+    log.info("Found {} grid cells in the circle radius {} (filtered from {} in rectangle)", gridCellsInCircle.size(), range, allGridCells.size());
 
     var preyCells = getPreyCells(gridCellsInCircle).stream()
         .map(cell -> new PreyGridCellDistance(cell.id(), cell.x(), cell.y(), cell.maxIntensity(),
@@ -68,18 +71,22 @@ public class Predator {
     return nextGridCellId;
   }
 
+  // ==================================================
+  // Long range
+  // ==================================================
   static public String nextGridCellIdLongRange(int predatorX, int predatorY, List<GridCellView.GridCellRow> allGridCells, int predatorRange) {
-    var sigma = 10.0; // Adjust this parameter as needed
+    // Large sigma means more influence from distant cells
+    var sigma = 20.0;
 
     var gridCellsInCircle = getGridCellsInCircle(allGridCells, predatorX, predatorY, predatorRange);
-    log.info("Found {} grid cells in the circle area (filtered from {} in rectangle)", gridCellsInCircle.size(), allGridCells.size());
+    log.info("Found {} grid cells in the circle radius {} (filtered from {} in rectangle)", gridCellsInCircle.size(), predatorRange, allGridCells.size());
 
     var preyCells = getPreyCells(gridCellsInCircle);
     // preyCells.forEach(cell -> log.debug("Prey cell: {}", cell));
-    log.info("Found {} prey cells in predatorRange {}", preyCells.size(), predatorRange);
+    log.info("Found {} prey cells in radius {}", preyCells.size(), predatorRange);
 
     if (preyCells.isEmpty()) {
-      log.info("Next cell: (empty), predator: {}x{}, No prey cells in predatorRange {}", predatorY, predatorX, predatorRange);
+      log.info("Next cell: (empty), predator: {}x{}, No prey cells in radius {}", predatorY, predatorX, predatorRange);
       return "";
     }
 
@@ -135,7 +142,7 @@ public class Predator {
           // This gives a vector whose direction is normalized and magnitude adjusted by the intensity
           return new PreyVector(unitX * intensity, unitY * intensity, distance, intensity);
         })
-        .filter(vector -> vector.intensity() > 0.0001) // Filter out vectors with very low intensity
+        .filter(vector -> vector.intensity() > 0.000001) // Filter out vectors with very low intensity
         .toList();
   }
 
