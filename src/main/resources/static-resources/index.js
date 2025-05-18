@@ -1563,7 +1563,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Set up interval to fetch grid cell list every 250ms
   const urlParams = new URLSearchParams(window.location.search);
-  const interval = parseInt(urlParams.get('interval'), 10) || 5000;
+  const interval = parseInt(urlParams.get('interval'), 10) || 250;
   gridCellListInterval = setInterval(fetchGridCellList, interval);
 
   // Add window resize event listener to adjust grid when window size changes

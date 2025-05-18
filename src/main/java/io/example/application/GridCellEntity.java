@@ -51,7 +51,7 @@ public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.
         .thenReply(newState -> done());
   }
 
-  public Effect<Done> lingerPredator(GridCell.Command.LingerPredator command) {
+  public Effect<Done> updatePredator(GridCell.Command.UpdatePredator command) {
     log.info("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
 
     return effects()
@@ -108,7 +108,7 @@ public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.
       case GridCell.Event.StatusUpdated e -> currentState().onEvent(e);
       case GridCell.Event.PredatorCreated e -> currentState().onEvent(e);
       case GridCell.Event.PredatorMoved e -> currentState().onEvent(e);
-      case GridCell.Event.PredatorLingered e -> currentState().onEvent(e);
+      case GridCell.Event.PredatorUpdated e -> currentState().onEvent(e);
       case GridCell.Event.SpanToNeighbor e -> currentState().onEvent(e);
       case GridCell.Event.FillToNeighbor e -> currentState().onEvent(e);
       case GridCell.Event.ClearToNeighbor e -> currentState().onEvent(e);

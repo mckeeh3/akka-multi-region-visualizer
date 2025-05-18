@@ -195,17 +195,15 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
     log.info("Found {} grid cells in the rectangle area", allGridCells.size());
 
     String nextGridCellId = Predator.nextGridCellId(request.id(), allGridCells, request.radius());
-    log.info("Current cell: {}, Next cell: {}", request.id(), nextGridCellId);
+    log.info("Predator cell: {}, Next cell: {}", request.id(), nextGridCellId);
 
     var range = request.radius();
-    var linger = 3; // Math.max(2, range / 10);
     var command = new GridCell.Command.CreatePredator(
         request.id(),
         GridCell.Status.predator,
         request.updatedAt(),
         Instant.now(),
         range,
-        linger,
         nextGridCellId,
         region());
 

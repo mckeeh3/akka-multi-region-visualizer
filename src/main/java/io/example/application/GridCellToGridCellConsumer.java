@@ -38,7 +38,7 @@ public class GridCellToGridCellConsumer extends Consumer {
 
     return switch (event) {
       case GridCell.Event.PredatorMoved e -> onEvent(e);
-      case GridCell.Event.PredatorLingered e -> onEvent(e);
+      case GridCell.Event.PredatorUpdated e -> onEvent(e);
       case GridCell.Event.SpanToNeighbor e -> onEvent(e);
       case GridCell.Event.FillToNeighbor e -> onEvent(e);
       case GridCell.Event.ClearToNeighbor e -> onEvent(e);
@@ -67,8 +67,8 @@ public class GridCellToGridCellConsumer extends Consumer {
         event.clientAt(),
         event.endpointAt(),
         event.range(),
-        event.linger(),
         nextGridCellId,
+        event.tail(),
         region());
     componentClient.forEventSourcedEntity(event.id())
         .method(GridCellEntity::movePredator)
@@ -77,18 +77,17 @@ public class GridCellToGridCellConsumer extends Consumer {
     return effects().done();
   }
 
-  Effect onEvent(GridCell.Event.PredatorLingered event) {
+  Effect onEvent(GridCell.Event.PredatorUpdated event) {
     log.info("Region: {}, Event: {}", region(), event);
 
-    var command = new GridCell.Command.LingerPredator(
+    var command = new GridCell.Command.UpdatePredator(
         event.id(),
         event.status(),
         event.clientAt(),
         event.endpointAt(),
-        event.linger(),
         region());
     componentClient.forEventSourcedEntity(event.id())
-        .method(GridCellEntity::lingerPredator)
+        .method(GridCellEntity::updatePredator)
         .invoke(command);
 
     return effects().done();
