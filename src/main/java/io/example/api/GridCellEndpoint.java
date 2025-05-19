@@ -72,7 +72,7 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
         Instant.now(),
         request.centerX(),
         request.centerY(),
-        Math.min(50, request.radius()),
+        Math.min(30, request.radius()),
         region());
 
     return componentClient.forEventSourcedEntity(command.id())
@@ -92,7 +92,7 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
         Instant.now(),
         request.centerX(),
         request.centerY(),
-        Math.min(50, request.radius()),
+        Math.min(30, request.radius()),
         region());
 
     return componentClient.forEventSourcedEntity(command.id())
