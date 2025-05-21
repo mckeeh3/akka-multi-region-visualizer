@@ -1113,13 +1113,14 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   function fetchTimingOverlayData() {
     const id = hoveredCellId.substring(5); // Remove "cell-" prefix
-    fetch('/grid-cell/routes')
-      .then((resp) => resp.json())
+    const cellElement = document.getElementById(hoveredCellId);
+
+    getRoutes()
       .then((routes) => {
         console.info(`${new Date().toISOString()} `, `Multi-region routes ${routes}`);
         const dataList = [];
         let completed = 0;
-        const cellElement = document.getElementById(hoveredCellId);
+
         routes.forEach((route, idx) => {
           let routeUrl;
           if (route.startsWith('localhost') || route.startsWith('127.0.0.1')) {
@@ -1148,6 +1149,37 @@ document.addEventListener('DOMContentLoaded', () => {
       .catch((error) => {
         console.warn(`${new Date().toISOString()} `, `Error fetching routes: ${error}`);
       });
+  }
+
+  /**
+   * Gets routes either from URL query parameter or by fetching from the server
+   * @returns {Promise<Array>} Promise that resolves to an array of routes
+   */
+  function getRoutes() {
+    return new Promise((resolve, reject) => {
+      // First check for a "routes" query parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const routesParam = urlParams.get('routes');
+
+      if (routesParam) {
+        // If routes parameter exists, parse it (assuming comma-separated list)
+        const routes = routesParam.split(',');
+        console.info(`${new Date().toISOString()} `, `Using routes from URL parameter: ${routes}`);
+        resolve(routes);
+      } else {
+        // Otherwise fetch routes from the server
+        fetch('/grid-cell/routes')
+          .then((resp) => resp.json())
+          .then((routes) => {
+            console.info(`${new Date().toISOString()} `, `Fetched multi-region routes: ${routes}`);
+            resolve(routes);
+          })
+          .catch((error) => {
+            console.warn(`${new Date().toISOString()} `, `Error fetching routes: ${error}`);
+            reject(error);
+          });
+      }
+    });
   }
 
   /**
