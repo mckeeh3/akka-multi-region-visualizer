@@ -215,13 +215,14 @@ public class GridCellEntityTest {
   void testCreatePredator() {
     var testKit = EventSourcedTestKit.of(GridCellEntity::new);
     var id = "7x8";
+    var predatorId = "predator";
     var status = GridCell.Status.predator;
     var range = 5;
     var now = Instant.now();
     var nextCellId = "7x9";
     var region = "test";
 
-    var command = new GridCell.Command.CreatePredator(id, status, now, now, range, nextCellId, region);
+    var command = new GridCell.Command.CreatePredator(id, predatorId, status, now, now, range, nextCellId, region);
     var result = testKit.method(GridCellEntity::createPredator).invoke(command);
 
     assertTrue(result.isReply());
@@ -237,6 +238,7 @@ public class GridCellEntityTest {
     {
       var event = result.getNextEventOfType(GridCell.Event.PredatorMoved.class);
       assertEquals(nextCellId, event.id());
+      assertEquals(predatorId, event.predatorId());
       assertEquals(GridCell.Status.predator, event.status());
     }
 
@@ -249,6 +251,7 @@ public class GridCellEntityTest {
   void testMovePredator() {
     var testKit = EventSourcedTestKit.of(GridCellEntity::new);
     var id = "7x8";
+    var predatorId = "predator";
     var status = GridCell.Status.predator;
     var range = 5;
     var now = Instant.now();
@@ -258,7 +261,7 @@ public class GridCellEntityTest {
     var region = "test";
 
     {
-      var command = new GridCell.Command.MovePredator(id, status, now, now, range, nextCellId, tail, region);
+      var command = new GridCell.Command.MovePredator(id, predatorId, status, now, now, range, nextCellId, tail, region);
       var result = testKit.method(GridCellEntity::movePredator).invoke(command);
       assertTrue(result.isReply());
       assertEquals(done(), result.getReply());
@@ -273,6 +276,7 @@ public class GridCellEntityTest {
       {
         var event = result.getNextEventOfType(GridCell.Event.PredatorMoved.class);
         assertEquals(nextCellId, event.id());
+        assertEquals(predatorId, event.predatorId());
         assertEquals(GridCell.Status.predator, event.status());
       }
     }
@@ -286,6 +290,7 @@ public class GridCellEntityTest {
   void testMovePredatorWhenTailIsTooLong() {
     var testKit = EventSourcedTestKit.of(GridCellEntity::new);
     var id = "7x8";
+    var predatorId = "predator";
     var status = GridCell.Status.predator;
     var range = 5;
     var now = Instant.now();
@@ -299,7 +304,7 @@ public class GridCellEntityTest {
     var region = "test";
 
     {
-      var command = new GridCell.Command.MovePredator(id, status, now, now, range, nextCellId, tail, region);
+      var command = new GridCell.Command.MovePredator(id, predatorId, status, now, now, range, nextCellId, tail, region);
       var result = testKit.method(GridCellEntity::movePredator).invoke(command);
       assertTrue(result.isReply());
       assertEquals(done(), result.getReply());
@@ -314,12 +319,14 @@ public class GridCellEntityTest {
       {
         var event = result.getNextEventOfType(GridCell.Event.PredatorMoved.class);
         assertEquals(nextCellId, event.id());
+        assertEquals(predatorId, event.predatorId());
         assertEquals(GridCell.Status.predator, event.status());
       }
 
       {
         var event = result.getNextEventOfType(GridCell.Event.PredatorUpdated.class);
         assertEquals("7x3", event.id());
+        assertEquals(predatorId, event.predatorId());
         assertEquals(GridCell.Status.inactive, event.status());
       }
     }

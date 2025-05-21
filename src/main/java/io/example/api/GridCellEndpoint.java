@@ -3,8 +3,6 @@ package io.example.api;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -162,19 +160,19 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
   }
 
   @Get("/region")
-  public CompletionStage<String> getRegion() {
-    return CompletableFuture.completedFuture(region());
+  public String getRegion() {
+    return region();
   }
 
   @Get("/routes")
-  public CompletionStage<List<String>> getRoutes() {
+  public List<String> getRoutes() {
     if (region().equals("local-development")) {
       var port = config.getInt("akka.javasdk.dev-mode.http-port");
-      return CompletableFuture.completedFuture(List.of("localhost:" + port));
+      return List.of("localhost:" + port);
     }
     try {
       var routes = config.getString("multi-region-routes");
-      return CompletableFuture.completedFuture(List.of(routes.split(",")));
+      return List.of(routes.split(","));
     } catch (Exception e) {
       log.error("Failed to get routes from config", e);
       throw HttpException.error(StatusCodes.INTERNAL_SERVER_ERROR, e.getMessage());
@@ -198,8 +196,10 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
     log.info("Predator cell: {}, Next cell: {}", request.id(), nextGridCellId);
 
     var range = request.radius();
+    var predatorId = Predator.parentId();
     var command = new GridCell.Command.CreatePredator(
         request.id(),
+        predatorId,
         GridCell.Status.predator,
         request.updatedAt(),
         Instant.now(),
@@ -212,6 +212,11 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
         .invoke(command);
 
     return Done.done();
+  }
+
+  @Get("/config")
+  public Config getConfig() {
+    return config;
   }
 
   List<GridCellRow> queryGridCellsInArea(int x1, int y1, int x2, int y2, String pageTokenOffset) {

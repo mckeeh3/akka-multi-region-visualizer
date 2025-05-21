@@ -10,4 +10,14 @@
  -->
 <included>
     <logger name="io.example" level="DEBUG"/>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <!-- encoders are assigned the type
+             ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
+        <encoder>
+            <Pattern>%yellow(%d{MM-dd HH:mm:ss.SSS}) %blue(%-5level) %green(%-15.15thread) %cyan(%logger{25}): %msg%n</Pattern>
+        </encoder>
+    </appender>
+    <root level="debug">
+        <appender-ref ref="STDOUT"/>
+    </root>
 </included>

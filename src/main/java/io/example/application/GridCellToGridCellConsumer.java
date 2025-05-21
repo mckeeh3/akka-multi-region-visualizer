@@ -63,6 +63,7 @@ public class GridCellToGridCellConsumer extends Consumer {
 
     var command = new GridCell.Command.MovePredator(
         event.id(),
+        event.predatorId(),
         event.status(),
         event.clientAt(),
         event.endpointAt(),
@@ -82,6 +83,7 @@ public class GridCellToGridCellConsumer extends Consumer {
 
     var command = new GridCell.Command.UpdatePredator(
         event.id(),
+        event.predatorId(),
         event.status(),
         event.clientAt(),
         event.endpointAt(),

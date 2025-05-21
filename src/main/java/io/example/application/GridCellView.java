@@ -14,7 +14,7 @@ import akka.javasdk.view.UpdateContext;
 import akka.javasdk.view.View;
 import io.example.domain.GridCell;
 
-@ComponentId("grid_cell_view")
+@ComponentId("grid-cell-view")
 public class GridCellView extends View {
   private static final Logger log = LoggerFactory.getLogger(GridCellView.class);
 

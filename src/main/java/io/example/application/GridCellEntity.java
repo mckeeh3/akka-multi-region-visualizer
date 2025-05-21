@@ -11,7 +11,7 @@ import akka.javasdk.eventsourcedentity.EventSourcedEntity;
 import akka.javasdk.eventsourcedentity.EventSourcedEntityContext;
 import io.example.domain.GridCell;
 
-@ComponentId("grid-cell")
+@ComponentId("grid-cell-entity")
 public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.Event> {
   private final Logger log = LoggerFactory.getLogger(getClass());
   private final String entityId;
@@ -106,7 +106,6 @@ public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.
 
     return switch (event) {
       case GridCell.Event.StatusUpdated e -> currentState().onEvent(e);
-      case GridCell.Event.PredatorCreated e -> currentState().onEvent(e);
       case GridCell.Event.PredatorMoved e -> currentState().onEvent(e);
       case GridCell.Event.PredatorUpdated e -> currentState().onEvent(e);
       case GridCell.Event.SpanToNeighbor e -> currentState().onEvent(e);

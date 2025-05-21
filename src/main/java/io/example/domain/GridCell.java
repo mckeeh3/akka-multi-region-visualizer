@@ -96,8 +96,8 @@ public interface GridCell {
             command.region));
       }
 
-      var movedCellId = command.nextCellId;
-      var newNextCellId = "";
+      var movedToCellId = command.nextCellId;
+      var newLastCellId = command.id;
       var tail = new LinkedList<String>();
       tail.add(command.id);
       return List.of(
@@ -111,7 +111,8 @@ public interface GridCell {
               newCreated,
               command.region),
           new Event.PredatorMoved(
-              movedCellId,
+              movedToCellId,
+              command.predatorId,
               command.status,
               newCreatedAt,
               newUpdatedAt,
@@ -119,7 +120,7 @@ public interface GridCell {
               command.endpointAt,
               newCreated,
               command.range,
-              newNextCellId,
+              newLastCellId,
               tail,
               command.region));
     }
@@ -144,6 +145,7 @@ public interface GridCell {
         var tailEvents = command.tail.stream()
             .map(id -> new Event.PredatorUpdated(
                 id,
+                command.predatorId,
                 Status.inactive,
                 newUpdatedAt,
                 command.clientAt,
@@ -163,8 +165,8 @@ public interface GridCell {
             tailEvents.stream()).toList();
       }
 
-      var movedCellId = command.nextCellId;
-      var newNextCellId = "";
+      var movedToCellId = command.nextCellId;
+      var newLastCellId = command.id;
 
       var tail = command.tail;
       tail.add(command.id);
@@ -183,7 +185,8 @@ public interface GridCell {
               newCreated,
               command.region)),
           Optional.<Event>of(new Event.PredatorMoved(
-              movedCellId,
+              movedToCellId,
+              command.predatorId,
               command.status,
               newCreatedAt,
               newUpdatedAt,
@@ -191,21 +194,23 @@ public interface GridCell {
               command.endpointAt,
               newCreated,
               newRange > 2 * childMinRange ? newRange - childMinRange : newRange,
-              newNextCellId,
+              newLastCellId,
               tail,
               command.region)),
           tailTooLong
               ? Optional.<Event>of(new Event.PredatorUpdated(
                   tailEndId,
+                  command.predatorId,
                   Status.inactive,
                   newUpdatedAt,
                   command.clientAt,
                   command.endpointAt,
                   command.region))
               : Optional.<Event>empty(),
-          newRange > 2 * childMinRange
+          newRange > 2 * childMinRange // Spawn child predator
               ? Optional.<Event>of(new Event.PredatorMoved(
-                  movedCellId,
+                  movedToCellId,
+                  Predator.childId(command.predatorId),
                   command.status,
                   newCreatedAt,
                   newUpdatedAt,
@@ -213,7 +218,7 @@ public interface GridCell {
                   command.endpointAt,
                   newCreated,
                   childMinRange,
-                  newNextCellId,
+                  newLastCellId,
                   tail,
                   command.region))
               : Optional.<Event>empty())
@@ -403,10 +408,6 @@ public interface GridCell {
           event.updated);
     }
 
-    public State onEvent(Event.PredatorCreated event) {
-      return this;
-    }
-
     public State onEvent(Event.PredatorMoved event) {
       return this;
     }
@@ -473,6 +474,7 @@ public interface GridCell {
 
     public record CreatePredator(
         String id,
+        String predatorId,
         Status status,
         Instant clientAt,
         Instant endpointAt,
@@ -481,12 +483,13 @@ public interface GridCell {
         String region) implements Command {
 
       public CreatePredator withRegion(String newRegion) {
-        return new CreatePredator(id, status, clientAt, endpointAt, range, nextCellId, newRegion);
+        return new CreatePredator(id, predatorId, status, clientAt, endpointAt, range, nextCellId, newRegion);
       }
     }
 
     public record MovePredator(
         String id,
+        String predatorId,
         Status status,
         Instant clientAt,
         Instant endpointAt,
@@ -496,19 +499,20 @@ public interface GridCell {
         String region) implements Command {
 
       public MovePredator withRegion(String newRegion) {
-        return new MovePredator(id, status, clientAt, endpointAt, range, nextCellId, tail, newRegion);
+        return new MovePredator(id, predatorId, status, clientAt, endpointAt, range, nextCellId, tail, newRegion);
       }
     }
 
     public record UpdatePredator(
         String id,
+        String predatorId,
         Status status,
         Instant clientAt,
         Instant endpointAt,
         String region) implements Command {
 
       public UpdatePredator withRegion(String newRegion) {
-        return new UpdatePredator(id, status, clientAt, endpointAt, newRegion);
+        return new UpdatePredator(id, predatorId, status, clientAt, endpointAt, newRegion);
       }
     }
 
@@ -575,23 +579,10 @@ public interface GridCell {
         String created,
         String updated) implements Event {}
 
-    @TypeName("predator-created")
-    public record PredatorCreated(
-        String id,
-        Status status,
-        Instant createdAt,
-        Instant updatedAt,
-        Instant clientAt,
-        Instant endpointAt,
-        String created,
-        Integer range,
-        Integer linger,
-        String nextCell,
-        String updated) implements Event {}
-
     @TypeName("predator-moved")
     public record PredatorMoved(
         String id,
+        String predatorId,
         Status status,
         Instant createdAt,
         Instant updatedAt,
@@ -599,13 +590,14 @@ public interface GridCell {
         Instant endpointAt,
         String created,
         Integer range,
-        String nextCell,
+        String lastCellId,
         Queue<String> tail,
         String updated) implements Event {}
 
     @TypeName("predator-updated")
     public record PredatorUpdated(
         String id,
+        String predatorId,
         Status status,
         Instant updatedAt,
         Instant clientAt,
