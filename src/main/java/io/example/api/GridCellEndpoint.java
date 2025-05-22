@@ -172,7 +172,7 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
     pageTokenOffset = pageTokenOffset.equals("start") ? "" : pageTokenOffset;
 
     return componentClient.forView()
-        .method(GridCellView::getGridCellsPagedList)
+        .method(GridCellView::queryGridCellsPagedList)
         .invoke(new GridCellView.PagedGridCellsRequest(x1, y1, x2, y2, pageTokenOffset));
   }
 

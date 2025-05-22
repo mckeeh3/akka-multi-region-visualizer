@@ -495,7 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
       body: JSON.stringify({
         id: id,
         status: 'predator',
-        updatedAt: new Date().toISOString(),
+        clientAt: new Date().toISOString(),
         centerX: parseInt(id.split('x')[1]),
         centerY: parseInt(id.split('x')[0]),
         radius: range,
@@ -581,50 +581,50 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /**
-   * Handles incoming messages from the SSE stream.
-   * @param {string} messageData Raw message data string (expected JSON)
+   * Handles incoming messages from the SSE stream or a query response.
+   * @param {string} gridCellJson Raw message data string (expected JSON)
    */
-  function handleStreamMessage(messageData) {
+  function handleGridCellData(gridCellJson) {
     try {
-      const update = JSON.parse(messageData);
+      const gridCell = JSON.parse(gridCellJson);
 
-      if (update.id && update.status !== undefined) {
+      if (gridCell.id && gridCell.status !== undefined) {
         // Server is using the 'rxc' format, just prepend 'cell-'
-        const cellId = `cell-${update.id}`;
-        const cellElement = document.getElementById(cellId);
+        const cellId = `cell-${gridCell.id}`;
+        const gridCellElement = document.getElementById(cellId);
 
-        if (cellElement) {
+        if (gridCellElement) {
           // Get the previous status before removing classes
-          const previousStatus = getCellStatus(cellElement);
+          const previousStatus = getCellStatus(gridCellElement);
 
           // Only update if the status has changed
-          if (previousStatus !== update.status) {
+          if (previousStatus !== gridCell.status) {
             // Remove existing status classes first
-            cellElement.classList.remove('cell-red', 'cell-green', 'cell-blue', 'cell-orange', 'cell-predator');
+            gridCellElement.classList.remove('cell-red', 'cell-green', 'cell-blue', 'cell-orange', 'cell-predator');
 
             // Update cell counts
-            updateCellCounts(previousStatus, update.status);
+            updateCellCounts(previousStatus, gridCell.status);
 
             // Add the appropriate class based on status
-            if (update.status !== 'inactive') {
-              cellElement.classList.add(`cell-${update.status}`);
+            if (gridCell.status !== 'inactive') {
+              gridCellElement.classList.add(`cell-${gridCell.status}`);
             }
 
             // Calculate and display elapsed time if available
-            if (update.updatedAt && update.status !== 'inactive') {
-              const elapsedMs = Math.min(9999, update.elapsedMs);
+            if (gridCell.updatedAt && gridCell.status !== 'inactive') {
+              const elapsedMs = Math.min(9999, gridCell.elapsedMs);
 
               if (elapsedMs >= 0) {
-                cellElement.textContent = elapsedMs;
-                cellElement.classList.add('has-elapsed-time');
+                gridCellElement.textContent = elapsedMs;
+                gridCellElement.classList.add('has-elapsed-time');
               } else {
-                cellElement.textContent = '';
-                cellElement.classList.remove('has-elapsed-time');
+                gridCellElement.textContent = '';
+                gridCellElement.classList.remove('has-elapsed-time');
               }
             } else {
               // Clear text content for inactive state
-              cellElement.textContent = '';
-              cellElement.classList.remove('has-elapsed-time');
+              gridCellElement.textContent = '';
+              gridCellElement.classList.remove('has-elapsed-time');
             }
 
             // Update the grid summary display
@@ -633,7 +633,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     } catch (error) {
-      console.error('Error parsing stream message:', error, 'Data:', messageData);
+      console.error('Error parsing stream message:', error, 'Data:', gridCellJson);
     }
   }
 
@@ -642,14 +642,20 @@ document.addEventListener('DOMContentLoaded', () => {
    * Handles pagination for large grid cell lists
    */
   async function fetchGridCellList() {
-    await fetchGridCellPage('start');
+    // await fetchGridCellData('start');
+
+    const regions = subdivideGrid(viewportY, viewportX, gridRows, gridCols, 500);
+
+    for (const region of regions) {
+      await queryGridCellData(region, 'start');
+    }
   }
 
   /**
    * Fetches a page of grid cells and processes them
    * @param {string} pageToken - The page token for pagination ('start' for first page)
    */
-  async function fetchGridCellPage(pageToken) {
+  async function fetchGridCellData(pageToken) {
     try {
       const x1 = viewportX; // Current viewport X offset
       const y1 = viewportY; // Current viewport Y offset
@@ -674,13 +680,13 @@ document.addEventListener('DOMContentLoaded', () => {
         data.gridCells.forEach((cell) => {
           // Convert the grid cell object to a JSON string as handleStreamMessage expects
           const gridCellJson = JSON.stringify(cell);
-          handleStreamMessage(gridCellJson);
+          handleGridCellData(gridCellJson);
         });
 
         // Check if there are more pages to fetch
         if (data.hasMore && data.nextPageToken) {
           // Fetch the next page
-          await fetchGridCellPage(data.nextPageToken);
+          await fetchGridCellData(data.nextPageToken);
         }
       } else {
         console.error('Invalid response format:', data);
@@ -688,6 +694,90 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
       console.error(`Error fetching grid cell page ${pageToken}:`, error);
     }
+  }
+
+  async function queryGridCellData(region, pageToken) {
+    try {
+      const x1 = region.topLeft.col + viewportX; // Current viewport X offset
+      const y1 = region.topLeft.row + viewportY; // Current viewport Y offset
+      const x2 = x1 + region.dimensions.cols; // End of viewport X offset
+      const y2 = y1 + region.dimensions.rows; // End of viewport Y offset
+      const url = `${origin}/grid-cell/paginated-list/${x1}/${y1}/${x2}/${y2}/${pageToken}`;
+      // console.info(`Fetching grid cell data from ${url}...`);
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        console.error(`HTTP error! Status: ${response.status}`, await response.text());
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data && data.gridCells && Array.isArray(data.gridCells)) {
+        // console.info(`Received ${data.cells.length} cells from page ${pageToken}`);
+
+        // Process each cell through the handleStreamMessage function
+        data.gridCells.forEach((cell) => {
+          // Convert the grid cell object to a JSON string as handleStreamMessage expects
+          const gridCellJson = JSON.stringify(cell);
+          handleGridCellData(gridCellJson);
+        });
+
+        // Check if there are more pages to fetch
+        if (data.hasMore && data.nextPageToken) {
+          // Fetch the next page
+          await fetchGridCellData(data.nextPageToken);
+        }
+      } else {
+        console.error('Invalid response format:', data);
+      }
+    } catch (error) {
+      console.error(`Error fetching grid cell page ${pageToken}:`, error);
+    }
+  }
+
+  function subdivideGrid(topLeftRow, topLeftCol, rows, cols, maxCells) {
+    const regions = [];
+
+    function subdivideRegion(r1, c1, r2, c2) {
+      const regionRows = r2 - r1 + 1;
+      const regionCols = c2 - c1 + 1;
+      const cellCount = regionRows * regionCols;
+
+      // If region is within max cells, add it to results
+      if (cellCount <= maxCells) {
+        regions.push({
+          idTopLeft: `${r1}x${c1}`,
+          idBottomRight: `${r2}x${c2}`,
+          topLeft: { row: r1, col: c1 },
+          bottomRight: { row: r2, col: c2 },
+          dimensions: { rows: regionRows, cols: regionCols },
+          cellCount: cellCount,
+        });
+        return;
+      }
+
+      // Determine split direction - prefer splitting the longer dimension
+      const splitVertically = regionRows >= regionCols;
+
+      if (splitVertically) {
+        // Split horizontally (divide rows)
+        const midRow = Math.floor((r1 + r2) / 2);
+        subdivideRegion(r1, c1, midRow, c2);
+        subdivideRegion(midRow + 1, c1, r2, c2);
+      } else {
+        // Split vertically (divide columns)
+        const midCol = Math.floor((c1 + c2) / 2);
+        subdivideRegion(r1, c1, r2, midCol);
+        subdivideRegion(r1, midCol + 1, r2, c2);
+      }
+    }
+
+    // Start subdivision with the entire grid (0-indexed)
+    subdivideRegion(topLeftRow, topLeftCol, topLeftRow + rows - 1, topLeftCol + cols - 1);
+
+    return regions;
   }
 
   /**
@@ -757,7 +847,7 @@ document.addEventListener('DOMContentLoaded', () => {
     eventSource.onmessage = (event) => {
       if (event.data) {
         // console.debug(`${new Date().toISOString()} SSE message: ${event.data}`);
-        handleStreamMessage(event.data);
+        handleGridCellData(event.data);
       }
     };
 

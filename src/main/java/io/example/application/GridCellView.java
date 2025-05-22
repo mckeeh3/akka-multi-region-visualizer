@@ -52,7 +52,7 @@ public class GridCellView extends View {
         LIMIT 1000
         OFFSET page_token_offset(:pageTokenOffset)
           """)
-  public QueryEffect<PagedGridCells> getGridCellsPagedList(PagedGridCellsRequest request) {
+  public QueryEffect<PagedGridCells> queryGridCellsPagedList(PagedGridCellsRequest request) {
     return queryResult();
   }
 
