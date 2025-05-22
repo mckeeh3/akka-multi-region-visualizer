@@ -3,6 +3,8 @@ package io.example.api;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -45,12 +47,14 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
   public Done updateStatus(UpdateGridCellRequest request) {
     log.info("Region: {}, {}", region(), request);
 
-    var status = GridCell.Status.valueOf(request.status().equals("default") ? "inactive" : request.status());
+    var status = GridCell.Status.valueOf(request.status());
+    var clientAt = request.clientAt();
+    var endpointAt = Instant.now();
     var command = new GridCell.Command.UpdateStatus(
         request.id(),
         status,
-        request.updatedAt(),
-        Instant.now(),
+        clientAt,
+        endpointAt,
         region());
 
     return componentClient.forEventSourcedEntity(command.id())
@@ -62,12 +66,14 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
   public Done spanStatus(UpdateGridCellRequest request) {
     log.info("Region: {}, {}", region(), request);
 
-    var status = GridCell.Status.valueOf(request.status().equals("default") ? "inactive" : request.status());
+    var status = GridCell.Status.valueOf(request.status());
+    var clientAt = request.clientAt();
+    var endpointAt = Instant.now();
     var command = new GridCell.Command.SpanStatus(
         request.id(),
         status,
-        request.updatedAt(),
-        Instant.now(),
+        clientAt,
+        endpointAt,
         request.centerX(),
         request.centerY(),
         Math.min(30, request.radius()),
@@ -82,12 +88,14 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
   public Done fillStatus(UpdateGridCellRequest request) {
     log.info("Region: {}, {}", region(), request);
 
-    var status = GridCell.Status.valueOf(request.status().equals("default") ? "inactive" : request.status());
+    var status = GridCell.Status.valueOf(request.status());
+    var clientAt = request.clientAt();
+    var endpointAt = Instant.now();
     var command = new GridCell.Command.FillStatus(
         request.id(),
         status,
-        request.updatedAt(),
-        Instant.now(),
+        clientAt,
+        endpointAt,
         request.centerX(),
         request.centerY(),
         Math.min(30, request.radius()),
@@ -98,11 +106,20 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
         .invoke(command);
   }
 
+  @Put("/fill-rectangle")
+  public Done fillRectangle(FillRectangle.Request request) {
+    log.info("Region: {}, {}", region(), request);
+
+    FillRectangle.fillRectangle(request, componentClient);
+
+    return Done.done();
+  }
+
   @Put("/clear-status")
   public Done clearStatus(UpdateGridCellRequest request) {
     log.info("Region: {}, {}", region(), request);
 
-    var status = GridCell.Status.valueOf(request.status().equals("default") ? "inactive" : request.status());
+    var status = GridCell.Status.valueOf(request.status());
     var command = new GridCell.Command.ClearStatus(request.id(), status);
 
     return componentClient.forEventSourcedEntity(command.id())
@@ -201,7 +218,7 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
         request.id(),
         predatorId,
         GridCell.Status.predator,
-        request.updatedAt(),
+        request.clientAt(),
         Instant.now(),
         range,
         nextGridCellId,
@@ -212,11 +229,6 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
         .invoke(command);
 
     return Done.done();
-  }
-
-  @Get("/config")
-  public Config getConfig() {
-    return config;
   }
 
   List<GridCellRow> queryGridCellsInArea(int x1, int y1, int x2, int y2, String pageTokenOffset) {
@@ -231,7 +243,7 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
         }
 
         var pagedGridCells = componentClient.forView()
-            .method(GridCellView::getGridCellsPagedList)
+            .method(GridCellView::queryActiveGridCells)
             .invoke(new GridCellView.PagedGridCellsRequest(x1, y1, x2, y2, currentPageToken));
 
         currentPageToken = pagedGridCells.nextPageToken();
@@ -245,6 +257,21 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
         .toList();
   }
 
+  @Get("/config")
+  public Config getConfig() {
+    return config;
+  }
+
+  @Get("/system-properties")
+  public Properties getSystemProperties() {
+    return System.getProperties();
+  }
+
+  @Get("/system-environment")
+  public Map<String, String> getSystemEnvironment() {
+    return System.getenv();
+  }
+
   @Get("/current-time")
   public HttpResponse streamCurrentTime() {
     return HttpResponses.serverSentEvents(
@@ -256,7 +283,7 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
     return requestContext().selfRegion().isEmpty() ? "local-development" : requestContext().selfRegion();
   }
 
-  record UpdateGridCellRequest(String id, String status, Instant updatedAt, Integer centerX, Integer centerY, Integer radius) {}
+  record UpdateGridCellRequest(String id, String status, Instant clientAt, Integer centerX, Integer centerY, Integer radius) {}
 
   record ScentCell(int x, int y, int maxIntensity) {}
 

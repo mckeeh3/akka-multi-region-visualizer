@@ -3,16 +3,10 @@ import sys
 import collections
 from datetime import datetime
 
-# Using a fixed year for parsing MM-dd timestamps. This is generally fine for
-# calculating deltas if logs don't span year boundaries in a way that makes
-# MM-dd ambiguous for chronological order. If logs have explicit years,
-# parsing should be adjusted.
-LOG_YEAR = 2000  # A common choice for year-less log timestamps
-
 def parse_timestamp_to_datetime(ts_str: str) -> datetime | None:
-    """Converts an MM-dd HH:mm:ss.SSS string to a datetime object."""
+    """Converts a YYYY-MM-dd HH:mm:ss.SSS string to a datetime object."""
     try:
-        return datetime.strptime(f"{LOG_YEAR}-{ts_str}", "%Y-%m-%d %H:%M:%S.%f")
+        return datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S.%f")
     except ValueError:
         print(f"Warning: Could not parse timestamp string: {ts_str}", file=sys.stderr)
         return None
@@ -83,7 +77,7 @@ def scan_log_file(log_file_path: str):
         - Warnings or error messages to standard error if issues occur
           (e.g., file not found, timestamp parsing problems).
     """
-    timestamp_regex = re.compile(r"^\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}")
+    timestamp_regex = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}")
     # Regex for predatorId pattern, Group 1 captures the ID value
     predator_id_regex = re.compile(r"predatorId=([^ ,]+)")
 

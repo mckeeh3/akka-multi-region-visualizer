@@ -50,16 +50,8 @@ public class GridCellToGridCellConsumer extends Consumer {
   Effect onEvent(GridCell.Event.PredatorMoved event) {
     log.info("Region: {}, Event: {}", region(), event);
 
-    var s = event.id().split("x"); // RxC, YxX
-    var x = Integer.parseInt(s[1]);
-    var y = Integer.parseInt(s[0]);
-    var x1 = x - event.range();
-    var y1 = y - event.range();
-    var x2 = x + event.range();
-    var y2 = y + event.range();
-    var pageTokenOffset = "";
-    var allGridCells = queryGridCellsInArea(x1, y1, x2, y2, pageTokenOffset);
-    String nextGridCellId = Predator.nextGridCellId(event.id(), allGridCells, event.range());
+    var gridCellsInRange = queryGridCellsInRange(event.id(), event.range());
+    var nextGridCellId = Predator.nextGridCellId(event.id(), gridCellsInRange, event.range());
 
     var command = new GridCell.Command.MovePredator(
         event.id(),
@@ -162,7 +154,39 @@ public class GridCellToGridCellConsumer extends Consumer {
     return region.isEmpty() ? "local-development" : region;
   }
 
-  List<GridCellRow> queryGridCellsInArea(int x1, int y1, int x2, int y2, String pageTokenOffset) {
+  List<GridCellRow> queryGridCellsInRange(String id, int range) {
+    var s = id.split("x"); // RxC, YxX
+    var x = Integer.parseInt(s[1]);
+    var y = Integer.parseInt(s[0]);
+
+    // Try a short range query first for nearby grid cells
+    if (range > 32) {
+      var shortRange = 24;
+      var x1 = x - shortRange;
+      var y1 = y - shortRange;
+      var x2 = x + shortRange;
+      var y2 = y + shortRange;
+      var gridCellsInRange = queryGridCellsInRange(x1, y1, x2, y2, "").stream()
+          .filter(cell -> !cell.status().equals("predator"))
+          .toList();
+
+      if (!gridCellsInRange.isEmpty()) {
+        return gridCellsInRange;
+      }
+    }
+
+    var x1 = x - range;
+    var y1 = y - range;
+    var x2 = x + range;
+    var y2 = y + range;
+    var gridCellsInRange = queryGridCellsInRange(x1, y1, x2, y2, "").stream()
+        .filter(cell -> !cell.status().equals("predator"))
+        .toList();
+
+    return gridCellsInRange;
+  }
+
+  List<GridCellRow> queryGridCellsInRange(int x1, int y1, int x2, int y2, String pageTokenOffset) {
     return Stream.generate(new Supplier<GridCellView.PagedGridCells>() {
       String currentPageToken = pageTokenOffset;
       boolean hasMore = true;
@@ -174,7 +198,7 @@ public class GridCellToGridCellConsumer extends Consumer {
         }
 
         var pagedGridCells = componentClient.forView()
-            .method(GridCellView::getGridCellsPagedList)
+            .method(GridCellView::queryActiveGridCells)
             .invoke(new GridCellView.PagedGridCellsRequest(x1, y1, x2, y2, currentPageToken));
 
         currentPageToken = pagedGridCells.nextPageToken();

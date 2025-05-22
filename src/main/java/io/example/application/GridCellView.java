@@ -24,7 +24,6 @@ public class GridCellView extends View {
         WHERE id = :id
           """)
   public QueryEffect<GridCellRow> getGridCell(String id) {
-    log.info("Getting grid cell {}", id);
     return queryResult();
   }
 
@@ -34,7 +33,6 @@ public class GridCellView extends View {
         WHERE x >= :x1 AND x <= :x2 AND y >= :y1 AND y <= :y2
           """, streamUpdates = true)
   public QueryStreamEffect<GridCellRow> getGridCellsStream(StreamedGridCellsRequest request) {
-    log.info("Getting all grid cells");
     return queryStreamResult();
   }
 
@@ -44,7 +42,6 @@ public class GridCellView extends View {
         LIMIT 1000
           """)
   public QueryEffect<GridCells> getGridCellsList() {
-    log.info("Getting grid cells by status");
     return queryResult();
   }
 
@@ -56,7 +53,18 @@ public class GridCellView extends View {
         OFFSET page_token_offset(:pageTokenOffset)
           """)
   public QueryEffect<PagedGridCells> getGridCellsPagedList(PagedGridCellsRequest request) {
-    log.info("Getting grid cells by status");
+    return queryResult();
+  }
+
+  @Query("""
+      SELECT * as gridCells, next_page_token() AS nextPageToken, has_more() AS hasMore
+        FROM grid_cell_view
+        WHERE x >= :x1 AND x <= :x2 AND y >= :y1 AND y <= :y2
+        AND status != 'inactive'
+        LIMIT 1000
+        OFFSET page_token_offset(:pageTokenOffset)
+          """)
+  public QueryEffect<PagedGridCells> queryActiveGridCells(PagedGridCellsRequest request) {
     return queryResult();
   }
 

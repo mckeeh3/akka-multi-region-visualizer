@@ -420,6 +420,8 @@ document.addEventListener('DOMContentLoaded', () => {
    * Sends the update command to the backend via HTTP PUT.
    * @param {string} id The cell's entity ID (e.g., "RxC" format)
    * @param {string} colorChar The action key ('r', 'g', 'b', 'd')
+   * @param {string} command The command to send ('update-status', 'span-status', 'fill-status', 'clear-status', 'erase-status')
+   * @param {number} radius The radius for span and fill commands
    */
   async function sendCellUpdate(id, colorChar, command, radius) {
     // Use 'RxC' as the service ID format (no conversion needed)
@@ -436,12 +438,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastError = null;
 
     while (attempt < maxRetries && !success) {
-      const updatedAt = new Date().toISOString();
+      const clientAt = new Date().toISOString();
       attempt++;
       if (attempt > 1) {
-        console.warn(`${new Date().toISOString()} `, `Retrying PUT to ${apiUrl} with id: ${serverFormatId}, status: ${status}, updatedAt: ${updatedAt}, cx: ${centerX}, cy: ${centerY}, r: ${radius}`);
+        console.warn(`${new Date().toISOString()} `, `Retrying PUT to ${apiUrl} with id: ${serverFormatId}, status: ${status}, clientAt: ${clientAt}, cx: ${centerX}, cy: ${centerY}, r: ${radius}`);
       } else {
-        console.info(`${new Date().toISOString()} `, `Sending PUT to ${apiUrl} with id: ${serverFormatId}, status: ${status}, updatedAt: ${updatedAt}, cx: ${centerX}, cy: ${centerY}, r: ${radius}`);
+        console.info(`${new Date().toISOString()} `, `Sending PUT to ${apiUrl} with id: ${serverFormatId}, status: ${status}, clientAt: ${clientAt}, cx: ${centerX}, cy: ${centerY}, r: ${radius}`);
       }
       try {
         const response = await fetch(apiUrl, {
@@ -452,7 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
           body: JSON.stringify({
             id: serverFormatId,
             status: status,
-            updatedAt: updatedAt,
+            clientAt: clientAt,
             centerX: centerX,
             centerY: centerY,
             radius: radius,
@@ -502,6 +504,80 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
+  }
+
+  /**
+   * Sends a request to fill a rectangle with a specific color/status
+   * @param {number} x1 - Starting X coordinate
+   * @param {number} y1 - Starting Y coordinate
+   * @param {number} x2 - Ending X coordinate
+   * @param {number} y2 - Ending Y coordinate
+   * @param {string} colorChar - Color character ('r', 'g', 'b', 'o', 'p', 'd')
+   * @returns {Promise<boolean>} - True if successful, false otherwise
+   */
+  async function sendFillRectangle(x1, y1, x2, y2, colorChar) {
+    const apiUrl = `${origin}/grid-cell/fill-rectangle`;
+    const statusMap = { r: 'red', g: 'green', b: 'blue', o: 'orange', p: 'predator', d: 'inactive' };
+    const status = statusMap[colorChar];
+    const clientAt = new Date().toISOString();
+    const maxRetries = 5;
+    const retryDelay = 200; // ms
+    let attempt = 0;
+    let success = false;
+    let lastError = null;
+
+    while (attempt < maxRetries && !success) {
+      attempt++;
+      if (attempt > 1) {
+        console.warn(`${new Date().toISOString()} `, `Retrying PUT to ${apiUrl} for rectangle (${x1},${y1})-(${x2},${y2}), status: ${status}`);
+      } else {
+        console.info(`${new Date().toISOString()} `, `Sending PUT to ${apiUrl} for rectangle (${x1},${y1})-(${x2},${y2}), status: ${status}`);
+      }
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            x1: x1,
+            y1: y1,
+            x2: x2,
+            y2: y2,
+            status: status,
+            clientAt: clientAt,
+            endpointAt: clientAt, // Server will override this
+            region: 'client-side', // Server will override this with actual region
+          }),
+        });
+
+        if (response.ok) {
+          console.info(`${new Date().toISOString()} `, `Fill rectangle request for (${x1},${y1})-(${x2},${y2}) sent successfully.`);
+          success = true;
+        } else {
+          const errorText = await response.text();
+          lastError = `HTTP error for rectangle! Status: ${response.status} ${errorText}`;
+          console.error(`${new Date().toISOString()} `, lastError);
+          if (attempt < maxRetries) {
+            await new Promise((res) => setTimeout(res, retryDelay));
+          }
+        }
+      } catch (error) {
+        lastError = error;
+        console.error(`${new Date().toISOString()} `, `Error sending rectangle fill:`, error);
+        if (attempt < maxRetries) {
+          await new Promise((res) => setTimeout(res, retryDelay));
+        }
+      }
+    }
+
+    if (!success) {
+      console.error(`${new Date().toISOString()} `, `Failed to fill rectangle after ${maxRetries} attempts. Last error:`, lastError);
+      return false;
+    }
+
+    return true;
   }
 
   /**
@@ -915,10 +991,17 @@ document.addEventListener('DOMContentLoaded', () => {
           : 'fill-status'; //
 
       if (currentSelection.length > 0) {
+        const topLeftXy = currentSelection[0].split('x'); // RxC, YxX
+        const topLeftX = parseInt(topLeftXy[1]);
+        const topLeftY = parseInt(topLeftXy[0]);
+        const bottomRightXy = currentSelection[currentSelection.length - 1].split('x');
+        const bottomRightX = parseInt(bottomRightXy[1]);
+        const bottomRightY = parseInt(bottomRightXy[0]);
+        sendFillRectangle(topLeftX, topLeftY, bottomRightX, bottomRightY, colorChar);
         // Apply to all selected cells
-        currentSelection.forEach((id) => {
-          sendCellUpdate(id, colorChar, command, radius);
-        });
+        // currentSelection.forEach((id) => {
+        //   sendCellUpdate(id, colorChar, command, radius);
+        // });
 
         // Clear selection after applying
         clearSelection();
@@ -966,7 +1049,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (hasElapsedTime) {
         const command = 'erase-status';
         const id = hoveredCellId.substring(5); // Remove "cell-" prefix
-        sendCellUpdate(id, '', command, 0);
+        const radius = 0;
+        sendCellUpdate(id, '', command, radius);
       }
     }
 
