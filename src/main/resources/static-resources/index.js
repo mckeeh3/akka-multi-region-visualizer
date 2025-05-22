@@ -727,7 +727,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Check if there are more pages to fetch
         if (data.hasMore && data.nextPageToken) {
           // Fetch the next page
-          await fetchGridCellData(data.nextPageToken);
+          await queryGridCellData(region, data.nextPageToken);
         }
       } else {
         console.error('Invalid response format:', data);
