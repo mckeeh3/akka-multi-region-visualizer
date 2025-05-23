@@ -73,6 +73,9 @@
       .orange {
         background-color: #f0950c;
       }
+      .predator {
+        background-color: #730192;
+      }
 
       .section {
         margin-bottom: 30px;
@@ -119,8 +122,8 @@
       <div class="section">
         <h2>How to Use the UI</h2>
         <p>
-          The Akka Multi-Region Grid Demo provides a visual interface for interacting with a distributed grid of cells. Each cell can be in one of five states: default (empty) or color (red, green,
-          blue, orange).
+          The Akka Multi-Region Grid Demo provides a visual interface for interacting with a distributed grid of cells. Each cell can be in one of six states: default (empty) or color (red, green,
+          blue, orange, predator).
         </p>
 
         <h3>Basic Interactions:</h3>
@@ -132,10 +135,15 @@
               <li><span class="key">g</span> - Set cell to <span class="color-box green"></span> green</li>
               <li><span class="key">b</span> - Set cell to <span class="color-box blue"></span> blue</li>
               <li><span class="key">o</span> - Set cell to <span class="color-box orange"></span> orange</li>
+              <li><span class="key">p</span> - Set cell to <span class="color-box predator"></span> predator</li>
               <li><span class="key">d</span> - Set cell to default (empty)</li>
             </ul>
           </li>
-          <li><strong>Cell Information</strong>: Cells display the elapsed time (in milliseconds) since they were last updated.</li>
+          <li>
+            <strong>Cell Information</strong>: Cells display the elapsed time (in milliseconds) since they were last updated. This value is calculated as the difference between the
+            <code>viewAt</code> and <code>updatedAt</code> timestamps. These timestamps are recorded before the durable I/O operations, so they represent the actual time taken to replicate the entity
+            state change across regions and prior to updating the view row in each region.
+          </li>
           <li><strong>Grid Summary</strong>: The top of the grid shows a summary of the total number of cells in each state.</li>
           <li><strong>Connection Status</strong>: The top bar shows the current connection status and the server endpoint being used.</li>
         </ul>
@@ -175,11 +183,14 @@
 
         <h3>Advanced Features:</h3>
         <ul>
-          <li><strong>URL Parameters</strong>: You can customize the polling interval by adding <code>?interval=X</code> to the URL, where X is the interval in milliseconds (default is 2000ms).</li>
+          <li>
+            <strong>URL Parameters</strong>: You can customize the polling interval by adding <code>?interval=X</code> to the URL, where X is the interval in milliseconds (default is 2000ms). The
+            <code>routes="region1,region2"</code> (see the <code>application.conf</code> file for more details).
+          </li>
           <li><strong>Responsive Design</strong>: The grid automatically adjusts to your screen size, showing as many cells as possible while maintaining readability.</li>
         </ul>
 
-        <h3>Box Selection for Multi-Cell Updates</h3>
+        <h2>Box Selection for Multi-Cell Updates</h2>
         <p>The grid visualizer includes a powerful box selection feature that allows you to update multiple cells simultaneously:</p>
 
         <ol>
@@ -205,7 +216,7 @@
         </ol>
 
         <br />
-        <h3>Circular Multi-Cell Updates</h3>
+        <h2>Circular Multi-Cell Updates</h2>
         <p>
           Another way to perform multi-cell state changes is with a circular generation. Position the mouse pointer on any cell, then enter a number followed by one of the color keys. The mouse
           position is the center of a circle with a radius of the number entered (in cells). For example, <code>10r</code> will attempt to propagate the red color state to all cells within a circle of
@@ -248,7 +259,7 @@
           clients connected to other regions. The elapsed time numbers will help you visualize the replication latency across your distributed system.
         </p>
 
-        <h3>Clear Color and Erase Colors Multi Cell Update</h3>
+        <h2>Clear Color and Erase Colors Multi Cell Update</h2>
         <ul>
           <li>
             <strong>Clear Color (<span class="key">c</span> command):</strong>
@@ -268,7 +279,56 @@
           their own neighbors, allowing the action to spread efficiently across the grid.
         </p>
 
-        <h3>Grid Cell Information Overlays</h3>
+        <h2>Predators and Prey</h2>
+        <p>
+          The grid simulation includes a dynamic predator-prey ecosystem that demonstrates event-driven entity behavior in a distributed system. Predators hunt and consume prey cells (colored cells)
+          in an autonomous, event-sourced process.
+        </p>
+
+        <h4>Creating Predators:</h4>
+        <p>
+          To create a predator, position your mouse over any cell and type a number followed by the <span class="key">p</span> key. For example, <code>30p</code> creates a predator with an initial
+          energy/range of 30 at the current mouse position.
+        </p>
+
+        <h4>How Predators Hunt:</h4>
+        <ul>
+          <li>
+            <strong>Scent Following:</strong> Predators detect and follow the "scent" of prey cells. Larger clusters of colored cells emit stronger scents, attracting predators more effectively.
+          </li>
+          <li><strong>Movement:</strong> Predators move one cell at a time in the direction of the strongest scent. Each move consumes one unit of energy/range.</li>
+          <li><strong>Consumption:</strong> When a predator moves into a prey cell, it consumes the cell (changing it to empty) and gains energy based on the prey's color.</li>
+        </ul>
+
+        <h4>Prey Energy Values:</h4>
+        <ul>
+          <li><span class="color-box red"></span> Red cells: 1 energy unit (weakest scent)</li>
+          <li><span class="color-box orange"></span> Orange cells: 2 energy units</li>
+          <li><span class="color-box green"></span> Green cells: 3 energy units</li>
+          <li><span class="color-box blue"></span> Blue cells: 4 energy units (strongest scent)</li>
+        </ul>
+
+        <h4>Predator Lifecycle:</h4>
+        <ul>
+          <li><strong>Survival:</strong> Predators must consume prey to survive. If a predator's energy/range reaches zero, it dies.</li>
+          <li><strong>Starvation:</strong> If no prey cells are within range, the predator dies from starvation.</li>
+          <li><strong>Reproduction:</strong> When a predator's energy level reaches a certain threshold, it can spawn child predators, creating a self-sustaining ecosystem.</li>
+        </ul>
+
+        <h4>Technical Implementation:</h4>
+        <p>
+          Predator movement is implemented through Akka SDK's event-sourced entity behavior. When a predator moves to a new cell, it receives information about its next move target through entity
+          events. These entity events are processed by a consumer component that emits commands to the predator entity. The consumer processes predator move events by first retrieving the prey cells
+          within range, and then determining the direction of the cells with the strongest scent. The consumer then sends a move command to the predator entity, which includes the next cell after the
+          move in the direction of the strongest scent. This creates a fully autonomous, event-driven process that demonstrates the power of event sourcing in distributed systems.
+        </p>
+
+        <p>
+          The predator-prey simulation provides a visual demonstration of how event-sourced entities can create complex, autonomous behaviors in a distributed system. Watch as predators hunt across
+          the grid, making decisions based on the state of surrounding cells, all coordinated through behavior of the Akka SDK components in a multi-region distributed system.
+        </p>
+
+        <h2>Grid Cell Information Overlays</h2>
         <p>
           Each cell in the grid displays a number representing the elapsed time in milliseconds (<code>elapsedMs</code>). This value provides a real-time measurement of entity state replication and
           view update latency in the Akka SDK multi-region architecture.
