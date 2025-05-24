@@ -5,6 +5,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let gridCols = 0; // Will be calculated dynamically
   const cellMinSize = 30; // Minimum cell size in pixels (increased from 20)
 
+  // Recording state
+  let isRecording = false; // Track recording state
+
   // Viewport configuration
   const MIN_GRID_COORD = -1000000; // Minimum grid coordinate
   const MAX_GRID_COORD = 1000000; // Maximum grid coordinate
@@ -1755,6 +1758,100 @@ document.addEventListener('DOMContentLoaded', () => {
     .catch((error) => {
       document.getElementById('project-version').textContent = `Error: ${error}`;
     });
+
+  class VoiceCommand {
+    constructor() {
+      this.recordButton = null;
+
+      this.mediaRecorder = null;
+      this.audioChunks = [];
+      this.isRecording = false;
+
+      this.init();
+    }
+
+    async init() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        this.mediaRecorder = new MediaRecorder(stream);
+
+        this.createRecordButton();
+        this.setupEventListeners();
+        // this.updateStatus('Ready to listen');
+      } catch (error) {
+        // this.showError('Microphone access denied. Please allow microphone access to use voice chat.');
+        console.error(`${new Date().toISOString()} `, 'Error accessing microphone:', error);
+      }
+    }
+
+    createRecordButton() {
+      const recordButton = document.createElement('div');
+      recordButton.id = 'record-button';
+      recordButton.className = 'record-button';
+      recordButton.innerHTML = '<div class="record-icon"></div>';
+      document.body.appendChild(recordButton);
+      this.recordButton = recordButton;
+    }
+
+    setupEventListeners() {
+      this.recordButton.addEventListener('click', () => {
+        if (this.isRecording) {
+          this.stopRecording();
+        } else {
+          this.startRecording();
+        }
+      });
+
+      this.mediaRecorder.addEventListener('dataavailable', (event) => {
+        this.audioChunks.push(event.data);
+      });
+
+      this.mediaRecorder.addEventListener('stop', () => {
+        this.processAudio();
+      });
+    }
+
+    startRecording() {
+      this.audioChunks = [];
+      this.mediaRecorder.start();
+      this.isRecording = true;
+
+      this.recordButton.classList.add('recording');
+      // this.updateStatus('Recording...', 'recording');
+    }
+
+    stopRecording() {
+      this.mediaRecorder.stop();
+      this.isRecording = false;
+
+      this.recordButton.classList.remove('recording');
+      this.recordButton.disabled = true;
+      // this.updateStatus('Processing...', 'processing');
+    }
+
+    processAudio() {
+      const audioBlob = new Blob(this.audioChunks, { type: 'audio/wav' });
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'recording.wav');
+
+      console.info(`${new Date().toISOString()} `, 'Processing audio...');
+
+      fetch(`${origin}/grid-cell/voice-command`, {
+        method: 'POST',
+        body: formData,
+      })
+        .then((response) => response.text())
+        .then((data) => {
+          console.info(`${new Date().toISOString()} `, 'Audio processed:', data);
+          // this.updateStatus('Ready to listen');
+        })
+        .catch((error) => {
+          console.error(`${new Date().toISOString()} `, 'Error processing audio:', error);
+          // this.showError('Failed to process audio');
+        });
+    }
+  }
+  new VoiceCommand();
 
   // --- Initialization ---
   initializeViewport(); // Set default viewport position

@@ -16,7 +16,7 @@
   <parent>
     <groupId>io.akka</groupId>
     <artifactId>akka-javasdk-parent</artifactId>
-    <version>3.3.1</version>
+    <version>3.3.2</version>
   </parent>
   <groupId>io.example</groupId>
   <artifactId>akka-multi-region-visualizer</artifactId>
@@ -44,15 +44,15 @@
     <url>https://github.com/akka/akka-sdk/akka-javasdk-parent/akka-multi-region-visualizer</url>
   </scm>
   <properties>
-    <akka-javasdk.version>3.3.1</akka-javasdk.version>
-    <akka-runtime.version>1.4.10</akka-runtime.version>
-    <akka.grpc.version>2.5.4</akka.grpc.version>
+    <akka-javasdk.version>3.3.2</akka-javasdk.version>
+    <akka-runtime.version>1.4.12</akka-runtime.version>
+    <akka.grpc.version>2.5.5</akka.grpc.version>
     <build-helper-maven-plugin.version>3.2.0</build-helper-maven-plugin.version>
     <docker-maven-plugin.version>0.45.1</docker-maven-plugin.version>
     <docker.base.image>alpine:3.14</docker.base.image>
     <docker.image>akka-multi-region-visualizer</docker.image>
     <docker.platform>linux/amd64</docker.platform>
-    <docker.tag>1.0.1-20250522224827</docker.tag>
+    <docker.tag>1.0.1-20250524130455</docker.tag>
     <logback.configurationFile>logback-runtime-dev-mode.xml</logback.configurationFile>
     <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
     <maven-deploy-plugin.version>3.1.1</maven-deploy-plugin.version>
@@ -79,17 +79,17 @@
       <dependency>
         <groupId>io.akka</groupId>
         <artifactId>akka-javasdk</artifactId>
-        <version>3.3.1</version>
+        <version>3.3.2</version>
       </dependency>
       <dependency>
         <groupId>io.akka</groupId>
         <artifactId>akka-javasdk-testkit</artifactId>
-        <version>3.3.1</version>
+        <version>3.3.2</version>
       </dependency>
       <dependency>
         <groupId>io.kalix</groupId>
         <artifactId>kalix-dev-runtime_2.13</artifactId>
-        <version>1.4.10</version>
+        <version>1.4.12</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -97,19 +97,19 @@
     <dependency>
       <groupId>io.akka</groupId>
       <artifactId>akka-javasdk</artifactId>
-      <version>3.3.1</version>
+      <version>3.3.2</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>io.akka</groupId>
       <artifactId>akka-javasdk-testkit</artifactId>
-      <version>3.3.1</version>
+      <version>3.3.2</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>io.kalix</groupId>
       <artifactId>kalix-dev-runtime_2.13</artifactId>
-      <version>1.4.10</version>
+      <version>1.4.12</version>
       <scope>runtime</scope>
     </dependency>
   </dependencies>
@@ -200,7 +200,7 @@
               <path>
                 <groupId>io.akka</groupId>
                 <artifactId>akka-javasdk-annotation-processor</artifactId>
-                <version>3.3.1</version>
+                <version>3.3.2</version>
               </path>
             </annotationProcessorPaths>
           </configuration>
@@ -227,7 +227,7 @@
                         <platform>linux/amd64</platform>
                       </buildOptions>
                       <tags>
-                        <tag>1.0.1-20250522224827</tag>
+                        <tag>1.0.1-20250524130455</tag>
                       </tags>
                       <assembly>
                         <inline>
@@ -315,7 +315,7 @@
                     <platform>linux/amd64</platform>
                   </buildOptions>
                   <tags>
-                    <tag>1.0.1-20250522224827</tag>
+                    <tag>1.0.1-20250524130455</tag>
                   </tags>
                   <assembly>
                     <inline>
@@ -528,7 +528,7 @@
                 <path>
                   <groupId>io.akka</groupId>
                   <artifactId>akka-javasdk-annotation-processor</artifactId>
-                  <version>3.3.1</version>
+                  <version>3.3.2</version>
                 </path>
               </annotationProcessorPaths>
             </configuration>
@@ -551,7 +551,7 @@
                 <path>
                   <groupId>io.akka</groupId>
                   <artifactId>akka-javasdk-annotation-processor</artifactId>
-                  <version>3.3.1</version>
+                  <version>3.3.2</version>
                 </path>
               </annotationProcessorPaths>
             </configuration>
@@ -569,7 +569,7 @@
             <path>
               <groupId>io.akka</groupId>
               <artifactId>akka-javasdk-annotation-processor</artifactId>
-              <version>3.3.1</version>
+              <version>3.3.2</version>
             </path>
           </annotationProcessorPaths>
         </configuration>
@@ -710,7 +710,7 @@
                       <platform>linux/amd64</platform>
                     </buildOptions>
                     <tags>
-                      <tag>1.0.1-20250522224827</tag>
+                      <tag>1.0.1-20250524130455</tag>
                     </tags>
                     <assembly>
                       <inline>
@@ -798,7 +798,7 @@
                   <platform>linux/amd64</platform>
                 </buildOptions>
                 <tags>
-                  <tag>1.0.1-20250522224827</tag>
+                  <tag>1.0.1-20250524130455</tag>
                 </tags>
                 <assembly>
                   <inline>
@@ -876,18 +876,11 @@
       </plugin>
       <plugin>
         <artifactId>maven-clean-plugin</artifactId>
-        <version>3.4.0</version>
+        <version>3.2.0</version>
         <executions>
           <execution>
             <id>default-clean</id>
             <phase>clean</phase>
-            <goals>
-              <goal>clean</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>clean-on-missing-descriptor</id>
-            <phase>initialize</phase>
             <goals>
               <goal>clean</goal>
             </goals>

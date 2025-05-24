@@ -2,6 +2,7 @@ package io.example.api;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -14,32 +15,40 @@ import org.slf4j.LoggerFactory;
 import com.typesafe.config.Config;
 
 import akka.Done;
+import akka.http.javadsl.model.HttpRequest;
 import akka.http.javadsl.model.HttpResponse;
 import akka.http.javadsl.model.StatusCodes;
 import akka.javasdk.annotations.Acl;
 import akka.javasdk.annotations.http.Get;
 import akka.javasdk.annotations.http.HttpEndpoint;
+import akka.javasdk.annotations.http.Post;
 import akka.javasdk.annotations.http.Put;
 import akka.javasdk.client.ComponentClient;
 import akka.javasdk.http.AbstractHttpEndpoint;
 import akka.javasdk.http.HttpException;
 import akka.javasdk.http.HttpResponses;
+import akka.stream.Materializer;
+import akka.stream.javadsl.Framing;
+import akka.stream.javadsl.FramingTruncation;
 import akka.stream.javadsl.Source;
 import io.example.application.GridCellEntity;
 import io.example.application.GridCellView;
 import io.example.application.GridCellView.GridCellRow;
 import io.example.domain.GridCell;
 import io.example.domain.Predator;
+import akka.util.ByteString;
 
 @Acl(allow = @Acl.Matcher(principal = Acl.Principal.INTERNET))
 @HttpEndpoint("/grid-cell")
 public class GridCellEndpoint extends AbstractHttpEndpoint {
   private final Logger log = LoggerFactory.getLogger(GridCellEndpoint.class);
   private final ComponentClient componentClient;
+  private final Materializer materializer;
   private final Config config;
 
-  public GridCellEndpoint(ComponentClient componentClient, Config config) {
+  public GridCellEndpoint(ComponentClient componentClient, Materializer materializer, Config config) {
     this.componentClient = componentClient;
+    this.materializer = materializer;
     this.config = config;
   }
 
@@ -228,6 +237,52 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
         .method(GridCellEntity::createPredator)
         .invoke(command);
 
+    return Done.done();
+  }
+
+  @Post("/voice-command")
+  public Done voiceCommand(HttpRequest request) {
+    log.info("Voice command: Content-type: {}", request.entity().getContentType());
+
+    var contentType = request.entity().getContentType().toString();
+    if (contentType == null
+        || !contentType.startsWith("multipart/form-data")
+        || !(contentType.split("boundary=").length == 2)) {
+      log.error("Voice command: Content-type is null or not multipart/form-data");
+      throw HttpException.badRequest("Content-type must be multipart/form-data");
+    }
+
+    var boundary = "--" + (contentType.split("boundary=")[1]).trim().replace("\"", "");
+    log.info("Voice command: Boundary: {}", boundary);
+
+    var frames = request.entity().toStrict(Duration.ofSeconds(10).toMillis(), materializer)
+        .thenApply(strict -> {
+          log.info("Voice command: Strict: {}", strict.getData().size());
+          return strict;
+        })
+        .thenApply(strict -> strict.getDataBytes())
+        .thenApply(dataSource -> {
+          var lines = new ArrayList<String>();
+          return dataSource.via(Framing.delimiter(ByteString.fromString("\n"), 8192, FramingTruncation.ALLOW))
+              .map(frame -> frame.utf8String())
+              .runForeach(frame -> {
+                if (frame.startsWith(boundary)) {
+                  log.info("Voice command: Found boundary: {}", frame);
+                }
+                lines.add(frame);
+                log.info("Voice command: Line: {}", lines.size());
+              }, materializer)
+              .thenApply(done -> {
+                log.info("Voice command: Done, lines: {}", lines.size());
+                return lines;
+              }).toCompletableFuture().join();
+          // })
+          // .thenApply(lines -> {
+          // log.info("Voice command: Done: return {}", lines.size());
+          // return lines;
+        });
+
+    log.info("Voice command: Frames: {}", frames.toCompletableFuture().join().size());
     return Done.done();
   }
 
