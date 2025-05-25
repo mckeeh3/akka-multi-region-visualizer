@@ -1832,7 +1832,7 @@ document.addEventListener('DOMContentLoaded', () => {
     processAudio() {
       const audioBlob = new Blob(this.audioChunks, { type: 'audio/wav' });
       const formData = new FormData();
-      formData.append('audio', audioBlob, 'recording.wav');
+      formData.append('audio', audioBlob, 'voice-command.wav');
 
       console.info(`${new Date().toISOString()} `, 'Processing audio...');
 
