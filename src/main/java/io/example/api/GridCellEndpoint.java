@@ -284,7 +284,8 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
 
           var llmClient = new LLMClient();
           try {
-            var response = llmClient.chat(audioToText);
+            var userPrompt = audioToText + " Current UI view port location: top left 10 x, 10 y, bottom right 110 x, 110 y";
+            var response = llmClient.chat(userPrompt);
             log.info("Voice command: LLM response: {}", response);
           } catch (IOException | InterruptedException e) {
             log.error("Voice command: Failed to get LLM response", e);

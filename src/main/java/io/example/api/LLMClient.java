@@ -21,26 +21,42 @@ public class LLMClient {
   private final String openaiApiKey;
   private final HttpClient client;
   private final ObjectMapper objectMapper;
+  private String systemPrompt;
 
   public LLMClient() {
-    this.openaiApiKey = System.getenv("OPENAI_API_KEY");
-    if (this.openaiApiKey == null || this.openaiApiKey.isEmpty()) {
+    openaiApiKey = System.getenv("OPENAI_API_KEY");
+    if (openaiApiKey == null || openaiApiKey.isEmpty()) {
       throw new IllegalStateException("OPENAI_API_KEY environment variable is not set");
     }
-    this.client = HttpClient.newHttpClient();
-    this.objectMapper = new ObjectMapper();
+    client = HttpClient.newHttpClient();
+    objectMapper = new ObjectMapper();
+
+    try {
+      // Read system prompt from resources folder
+      var inputStream = getClass().getResourceAsStream("/system-prompt.txt");
+      if (inputStream == null) {
+        throw new IOException("Could not find system-prompt.txt in resources");
+      }
+      systemPrompt = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+      systemPrompt = systemPrompt.replaceAll("\"", "\\\"");
+      systemPrompt = systemPrompt.replaceAll("\n", " ");
+    } catch (IOException e) {
+      log.error("Failed to read system prompt", e);
+      throw new IllegalStateException("Failed to read system prompt", e);
+    }
   }
 
   public String chat(String userMessage) throws IOException, InterruptedException {
     var request = new OpenAIRequest(
-        "gpt-3.5-turbo",
+        "gpt-4o-mini",
         List.of(
-            new OpenAIRequest.Message("system", "You are a helpful assistant."),
+            new OpenAIRequest.Message("system", systemPrompt),
             new OpenAIRequest.Message("user", userMessage)),
-        1000,
+        10000,
         0.7);
 
     var jsonRequest = objectMapper.writeValueAsString(request);
+    log.info("LLM request: {}", jsonRequest);
 
     var httpRequest = HttpRequest.newBuilder()
         .uri(URI.create("https://api.openai.com/v1/chat/completions"))
