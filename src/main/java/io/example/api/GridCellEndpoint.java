@@ -273,11 +273,21 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
           }
           log.info("Voice command: Audio data length: {}", audioData.length);
 
+          var audioToText = "";
           try {
-            var transcription = new AudioToTextTranscription().transcribeAudio(audioData);
-            log.info("Voice command: Transcription: {}", transcription);
+            audioToText = new AudioToTextTranscription().transcribeAudio(audioData);
+            log.info("Voice command: Transcription: {}", audioToText);
           } catch (IOException | InterruptedException e) {
             log.error("Voice command: Failed to transcribe audio", e);
+            throw HttpException.badRequest(e.getMessage());
+          }
+
+          var llmClient = new LLMClient();
+          try {
+            var response = llmClient.chat(audioToText);
+            log.info("Voice command: LLM response: {}", response);
+          } catch (IOException | InterruptedException e) {
+            log.error("Voice command: Failed to get LLM response", e);
             throw HttpException.badRequest(e.getMessage());
           }
 
