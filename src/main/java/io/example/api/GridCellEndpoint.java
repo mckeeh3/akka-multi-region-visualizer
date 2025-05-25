@@ -1,8 +1,11 @@
 package io.example.api;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -252,12 +255,24 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
       throw HttpException.badRequest("Content-type must be multipart/form-data");
     }
 
-    var boundary = "--" + (contentType.split("boundary=")[1]).trim().replace("\"", "");
-    log.info("Voice command: Boundary: {}", boundary);
+    var partBoundary = "--" + (contentType.split("boundary=")[1]).trim().replace("\"", "");
+    var lastBoundary = partBoundary + "--";
+    log.info("Voice command: Boundary: {}", partBoundary);
 
     var frames = request.entity().toStrict(Duration.ofSeconds(10).toMillis(), materializer)
         .thenApply(strict -> {
           log.info("Voice command: Strict: {}", strict.getData().size());
+          var bytes = strict.getData().toArray();
+          var input = new ByteArrayInputStream(bytes);
+          var parser = new MultipartFormDataParser(contentType, input);
+          try {
+            parser.parse();
+          } catch (IOException e) {
+            log.error("Voice command: Failed to parse multipart form data", e);
+            throw HttpException.error(StatusCodes.INTERNAL_SERVER_ERROR, e.getMessage());
+          }
+          var audioData = parser.getFile();
+          log.info("Voice command: Audio data length: {}", audioData.length);
           return strict;
         })
         .thenApply(strict -> strict.getDataBytes())
@@ -266,16 +281,40 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
           return dataSource.via(Framing.delimiter(ByteString.fromString("\n"), 8192, FramingTruncation.ALLOW))
               .map(frame -> frame.utf8String())
               .runForeach(frame -> {
-                if (frame.startsWith(boundary)) {
+                if (frame.startsWith(partBoundary)) {
                   log.info("Voice command: Found boundary: {}", frame);
                 }
+                if (frame.startsWith(lastBoundary)) {
+                  log.info("Voice command: Found last boundary: {}", frame);
+                }
+                // lines.add(frame.trim());
                 lines.add(frame);
-                log.info("Voice command: Line: {}", lines.size());
+                log.info("Voice command: Line: {}, length: {}", lines.size(), lines.get(lines.size() - 1).length());
               }, materializer)
               .thenApply(done -> {
                 log.info("Voice command: Done, lines: {}", lines.size());
                 return lines;
-              }).toCompletableFuture().join();
+              })
+              .thenApply(audioLines -> {
+                log.info("Voice command: Done: return {}", audioLines.size());
+                if (audioLines.size() > 0 && audioLines.get(0).trim().equals(partBoundary)) {
+                  log.info("Voice command: Found first boundary: {}", audioLines.get(0));
+                  var headers = new HashMap<String, String>();
+                  var i = 1;
+                  while (i < audioLines.size() && !audioLines.get(i).trim().isEmpty()) {
+                    var headerLine = audioLines.get(i).trim();
+                    log.info("Voice command: header line: {}", headerLine);
+                    var header = headerLine.split(":");
+                    headers.put(header[0].trim(), header[1].trim());
+                    i++;
+                  }
+                  headers.forEach((key, value) -> log.info("Voice command: header: {}={}", key, value));
+
+                }
+                return audioLines;
+              })
+              .toCompletableFuture()
+              .join();
           // })
           // .thenApply(lines -> {
           // log.info("Voice command: Done: return {}", lines.size());
