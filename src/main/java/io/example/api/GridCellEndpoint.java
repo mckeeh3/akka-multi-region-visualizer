@@ -4,11 +4,10 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -28,29 +27,29 @@ import akka.javasdk.annotations.http.Post;
 import akka.javasdk.annotations.http.Put;
 import akka.javasdk.client.ComponentClient;
 import akka.javasdk.http.AbstractHttpEndpoint;
+import akka.javasdk.http.HttpClientProvider;
 import akka.javasdk.http.HttpException;
 import akka.javasdk.http.HttpResponses;
 import akka.stream.Materializer;
-import akka.stream.javadsl.Framing;
-import akka.stream.javadsl.FramingTruncation;
 import akka.stream.javadsl.Source;
 import io.example.application.GridCellEntity;
 import io.example.application.GridCellView;
 import io.example.application.GridCellView.GridCellRow;
 import io.example.domain.GridCell;
 import io.example.domain.Predator;
-import akka.util.ByteString;
 
 @Acl(allow = @Acl.Matcher(principal = Acl.Principal.INTERNET))
 @HttpEndpoint("/grid-cell")
 public class GridCellEndpoint extends AbstractHttpEndpoint {
   private final Logger log = LoggerFactory.getLogger(GridCellEndpoint.class);
   private final ComponentClient componentClient;
+  private final HttpClientProvider httpClientProvider;
   private final Materializer materializer;
   private final Config config;
 
-  public GridCellEndpoint(ComponentClient componentClient, Materializer materializer, Config config) {
+  public GridCellEndpoint(ComponentClient componentClient, HttpClientProvider httpClientProvider, Materializer materializer, Config config) {
     this.componentClient = componentClient;
+    this.httpClientProvider = httpClientProvider;
     this.materializer = materializer;
     this.config = config;
   }
@@ -244,7 +243,7 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
   }
 
   @Post("/voice-command")
-  public Done voiceCommand(HttpRequest request) {
+  public CompletionStage<Done> voiceCommand(HttpRequest request) {
     log.info("Voice command: Content-type: {}", request.entity().getContentType());
 
     var contentType = request.entity().getContentType().toString();
@@ -255,11 +254,7 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
       throw HttpException.badRequest("Content-type must be multipart/form-data");
     }
 
-    var partBoundary = "--" + (contentType.split("boundary=")[1]).trim().replace("\"", "");
-    var lastBoundary = partBoundary + "--";
-    log.info("Voice command: Boundary: {}", partBoundary);
-
-    var frames = request.entity().toStrict(Duration.ofSeconds(10).toMillis(), materializer)
+    return request.entity().toStrict(Duration.ofSeconds(10).toMillis(), materializer)
         .thenApply(strict -> {
           log.info("Voice command: Strict: {}", strict.getData().size());
           var bytes = strict.getData().toArray();
@@ -269,60 +264,25 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
             parser.parse();
           } catch (IOException e) {
             log.error("Voice command: Failed to parse multipart form data", e);
-            throw HttpException.error(StatusCodes.INTERNAL_SERVER_ERROR, e.getMessage());
+            throw HttpException.badRequest(e.getMessage());
           }
           var audioData = parser.getFile();
+          if (audioData == null) {
+            log.error("Voice command: No audio data found");
+            throw HttpException.badRequest("No audio data found");
+          }
           log.info("Voice command: Audio data length: {}", audioData.length);
-          return strict;
-        })
-        .thenApply(strict -> strict.getDataBytes())
-        .thenApply(dataSource -> {
-          var lines = new ArrayList<String>();
-          return dataSource.via(Framing.delimiter(ByteString.fromString("\n"), 8192, FramingTruncation.ALLOW))
-              .map(frame -> frame.utf8String())
-              .runForeach(frame -> {
-                if (frame.startsWith(partBoundary)) {
-                  log.info("Voice command: Found boundary: {}", frame);
-                }
-                if (frame.startsWith(lastBoundary)) {
-                  log.info("Voice command: Found last boundary: {}", frame);
-                }
-                // lines.add(frame.trim());
-                lines.add(frame);
-                log.info("Voice command: Line: {}, length: {}", lines.size(), lines.get(lines.size() - 1).length());
-              }, materializer)
-              .thenApply(done -> {
-                log.info("Voice command: Done, lines: {}", lines.size());
-                return lines;
-              })
-              .thenApply(audioLines -> {
-                log.info("Voice command: Done: return {}", audioLines.size());
-                if (audioLines.size() > 0 && audioLines.get(0).trim().equals(partBoundary)) {
-                  log.info("Voice command: Found first boundary: {}", audioLines.get(0));
-                  var headers = new HashMap<String, String>();
-                  var i = 1;
-                  while (i < audioLines.size() && !audioLines.get(i).trim().isEmpty()) {
-                    var headerLine = audioLines.get(i).trim();
-                    log.info("Voice command: header line: {}", headerLine);
-                    var header = headerLine.split(":");
-                    headers.put(header[0].trim(), header[1].trim());
-                    i++;
-                  }
-                  headers.forEach((key, value) -> log.info("Voice command: header: {}={}", key, value));
 
-                }
-                return audioLines;
-              })
-              .toCompletableFuture()
-              .join();
-          // })
-          // .thenApply(lines -> {
-          // log.info("Voice command: Done: return {}", lines.size());
-          // return lines;
+          try {
+            var transcription = new AudioToTextTranscription().transcribeAudio(audioData);
+            log.info("Voice command: Transcription: {}", transcription);
+          } catch (IOException | InterruptedException e) {
+            log.error("Voice command: Failed to transcribe audio", e);
+            throw HttpException.badRequest(e.getMessage());
+          }
+
+          return Done.done();
         });
-
-    log.info("Voice command: Frames: {}", frames.toCompletableFuture().join().size());
-    return Done.done();
   }
 
   List<GridCellRow> queryGridCellsInArea(int x1, int y1, int x2, int y2, String pageTokenOffset) {
