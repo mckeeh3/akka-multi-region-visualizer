@@ -27,7 +27,6 @@ import akka.javasdk.annotations.http.Post;
 import akka.javasdk.annotations.http.Put;
 import akka.javasdk.client.ComponentClient;
 import akka.javasdk.http.AbstractHttpEndpoint;
-import akka.javasdk.http.HttpClientProvider;
 import akka.javasdk.http.HttpException;
 import akka.javasdk.http.HttpResponses;
 import akka.stream.Materializer;
@@ -43,13 +42,11 @@ import io.example.domain.Predator;
 public class GridCellEndpoint extends AbstractHttpEndpoint {
   private final Logger log = LoggerFactory.getLogger(GridCellEndpoint.class);
   private final ComponentClient componentClient;
-  private final HttpClientProvider httpClientProvider;
   private final Materializer materializer;
   private final Config config;
 
-  public GridCellEndpoint(ComponentClient componentClient, HttpClientProvider httpClientProvider, Materializer materializer, Config config) {
+  public GridCellEndpoint(ComponentClient componentClient, Materializer materializer, Config config) {
     this.componentClient = componentClient;
-    this.httpClientProvider = httpClientProvider;
     this.materializer = materializer;
     this.config = config;
   }
@@ -246,6 +243,17 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
   public CompletionStage<Done> voiceCommand(HttpRequest request) {
     log.info("Voice command: Content-type: {}", request.entity().getContentType());
 
+    request.getHeaders().forEach(header -> {
+      log.info("Header: {}", header);
+    });
+
+    var viewportTopLeftX = request.getHeader("X-Viewport-TopLeft-X").map(header -> Integer.parseInt(header.value())).orElse(0);
+    var viewportTopLeftY = request.getHeader("X-Viewport-TopLeft-Y").map(header -> Integer.parseInt(header.value())).orElse(0);
+    var viewportBottomRightX = request.getHeader("X-Viewport-BottomRight-X").map(header -> Integer.parseInt(header.value())).orElse(0);
+    var viewportBottomRightY = request.getHeader("X-Viewport-BottomRight-Y").map(header -> Integer.parseInt(header.value())).orElse(0);
+
+    log.info("Voice command: Viewport: {}, {}, {}, {}", viewportTopLeftX, viewportTopLeftY, viewportBottomRightX, viewportBottomRightY);
+
     var contentType = request.entity().getContentType().toString();
     if (contentType == null
         || !contentType.startsWith("multipart/form-data")
@@ -284,7 +292,8 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
 
           var llmClient = new LLMClient();
           try {
-            var userPrompt = audioToText + " Current UI view port location: top left 10 x, 10 y, bottom right 110 x, 110 y";
+            var userPrompt = "%s\nCurrent UI view port location: top left %d x, %d y, bottom right %d x, %d y"
+                .formatted(audioToText, viewportTopLeftX, viewportTopLeftY, viewportBottomRightX, viewportBottomRightY);
             var response = llmClient.chat(userPrompt);
             log.info("Voice command: LLM response: {}", response);
           } catch (IOException | InterruptedException e) {

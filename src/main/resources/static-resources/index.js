@@ -1838,6 +1838,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
       fetch(`${origin}/grid-cell/voice-command`, {
         method: 'POST',
+        headers: {
+          // Custom headers for viewport information
+          'X-Viewport-TopLeft-X': viewportX,
+          'X-Viewport-TopLeft-Y': viewportY,
+          'X-Viewport-BottomRight-X': viewportX + gridCols,
+          'X-Viewport-BottomRight-Y': viewportY + gridRows,
+        },
         body: formData,
       })
         .then((response) => response.text())

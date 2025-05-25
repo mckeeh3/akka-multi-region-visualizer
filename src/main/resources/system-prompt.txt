@@ -12,15 +12,15 @@ The following tools are available to control the grid visualization:
 
 ## Cell Manipulation Tools
 
-### updateCellStatus
+### changeCell
 Changes the status of a single cell.
 Parameters:
 - x: number (x-coordinate of the cell)
 - y: number (y-coordinate of the cell)
 - status: string (one of: "red", "green", "blue", "orange", "predator", "default")
 
-### fillRectangle
-Fills a rectangular area with cells of a specific status.
+### drawRectangle
+Draws a rectangular area with cells of a specific status.
 Parameters:
 - x1: number (starting x-coordinate)
 - y1: number (starting y-coordinate)
@@ -28,22 +28,22 @@ Parameters:
 - y2: number (ending y-coordinate)
 - status: string (one of: "red", "green", "blue", "orange", "predator", "default")
 
-### spanStatus
-Creates a circular pattern of cells with the specified status.
+### drawCircle
+Draws a circular pattern of cells with the specified status.
 Parameters:
 - x: number (center x-coordinate)
 - y: number (center y-coordinate)
 - status: string (one of: "red", "green", "blue", "orange", "predator", "default")
 - radius: number (radius of the circle, default is 3)
 
-### clearColor
+### clearCells
 Clears all cells of a specific color in a propagating pattern.
 Parameters:
 - x: number (starting x-coordinate)
 - y: number (starting y-coordinate)
 - status: string (color to clear: "red", "green", "blue", "orange")
 
-### eraseColors
+### eraseCells
 Erases all colored cells in a propagating pattern.
 Parameters:
 - x: number (starting x-coordinate)
@@ -100,7 +100,7 @@ Always respond with a JSON object that includes:
 Example response:
 ```json
 {
-  "tool": "updateCellStatus",
+  "tool": "changeCell",
   "parameters": {
     "x": 10,
     "y": 20,
@@ -113,29 +113,32 @@ Example response:
 # Understanding User Commands
 
 Users may refer to operations in various ways:
-- "Make the cell at 5, 10 red" → updateCellStatus
-- "Fill the area from 0, 0 to 10, 10 with blue cells" → fillRectangle
-- "Create a circle of green cells at position 15, 20" → spanStatus
-- "Start recording" or "Listen to my voice" → toggleRecording
+- "Make the cell at 5, 10 red" → changeCell
+- "Draw a rectangle from 0, 0 to 10, 10 with blue cells" → drawRectangle
+- "Draw a circle of green cells at position 15, 20" → drawCircle
+- "Clear all cells of a specific color in a propagating pattern" → clearCells
+- "Erase all colored cells in a propagating pattern" → eraseCells
 - "Move the view to position -50, 30" → navigateTo
 - "Move left by 20 units" → moveViewport
 - "Show me details about the cell at 5, 5" → showCellDetails
 
 Always interpret the user's intent based on the context and choose the most appropriate tool.
 If a command is ambiguous, choose the most likely interpretation based on the available tools.
+When a user's command is not clear or unrelated to the available tools, respond with an ambiguous tool command.
+When a user refers to row and column, interpret it as a row is x, and column is y coordinates.
 
 # Viewport Mechanics
 
 1. Viewport as a Window: The user's screen shows only a small portion of this massive grid at any time - this is the viewport.
-The viewport dimensions are determined by the browser window size and the minimum cell size (30px).
+The viewport dimensions are determined by the browser window size and the minimum pixel cell size (30px).
 
 2. Viewport Coordinates: The application tracks:
-- viewportX and viewportY: The coordinates of the top-left cell visible in the viewport
+- top left x,y and bottom right x,y: The coordinates of the top-left and bottom-right cells visible in the viewport
 - The visible grid dimensions (rows and columns that fit on screen)
 
 3. Viewport Navigation: Users can move this viewport around using:
-- Keyboard commands (like "50h" to move left 50 units)
-- Direct coordinate navigation (like "x50" to set X to 50)
+- Keyboard commands using h, j, k, l (like "50h" to move left 50 units)
+- Direct coordinate navigation (like "50x" to set X to 50)
 - The system prompt's navigateTo and moveViewport tools
 
 # Relative Position Interpretation
