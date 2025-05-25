@@ -20,6 +20,8 @@ public class MyServiceSetup implements ServiceSetup {
   @Override
   public void onStartup() {
     log.info("Service started");
-    config.entrySet().stream().forEach(entry -> log.info("{} = {}", entry.getKey(), entry.getValue()));
+    config.entrySet().stream()
+        .filter(entry -> entry.getKey().startsWith("akka.javasdk"))
+        .forEach(entry -> log.info("{} = {}", entry.getKey(), entry.getValue()));
   }
 }
