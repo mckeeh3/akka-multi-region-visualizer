@@ -244,7 +244,7 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
     log.info("Voice command: Content-type: {}", request.entity().getContentType());
 
     request.getHeaders().forEach(header -> {
-      log.info("Header: {}", header);
+      log.info("Voice command: Header: {}", header);
     });
 
     var viewportTopLeftX = request.getHeader("X-Viewport-TopLeft-X").map(header -> Integer.parseInt(header.value())).orElse(0);
@@ -252,7 +252,8 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
     var viewportBottomRightX = request.getHeader("X-Viewport-BottomRight-X").map(header -> Integer.parseInt(header.value())).orElse(0);
     var viewportBottomRightY = request.getHeader("X-Viewport-BottomRight-Y").map(header -> Integer.parseInt(header.value())).orElse(0);
 
-    log.info("Voice command: Viewport: {}, {}, {}, {}", viewportTopLeftX, viewportTopLeftY, viewportBottomRightX, viewportBottomRightY);
+    log.info("Voice command: Viewport: top left x {}, y {}, bottom right x {}, y {}",
+        viewportTopLeftX, viewportTopLeftY, viewportBottomRightX, viewportBottomRightY);
 
     var contentType = request.entity().getContentType().toString();
     if (contentType == null
@@ -292,7 +293,7 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
 
           var llmClient = new LLMClient();
           try {
-            var userPrompt = "%s\nCurrent UI view port location: top left %d x, %d y, bottom right %d x, %d y"
+            var userPrompt = "%s\nCurrent UI view port location: top left x %d, y %d, bottom right x %d, y %d"
                 .formatted(audioToText, viewportTopLeftX, viewportTopLeftY, viewportBottomRightX, viewportBottomRightY);
             var response = llmClient.chat(userPrompt);
             log.info("Voice command: LLM response: {}", response);
