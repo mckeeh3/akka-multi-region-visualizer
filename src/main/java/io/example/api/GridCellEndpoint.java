@@ -272,6 +272,8 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
           log.info("Voice command: Strict: {}", strict.getData().size());
           var bytes = strict.getData().toArray();
           var input = new ByteArrayInputStream(bytes);
+
+          // Parse the multipart audio data
           var parser = new MultipartFormDataParser(contentType, input);
           try {
             parser.parse();
@@ -286,6 +288,7 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
           }
           log.info("Voice command: Audio data length: {}", audioData.length);
 
+          // Transcribe the audio to text
           var audioToText = "";
           try {
             audioToText = new AudioToTextTranscription().transcribeAudio(audioData);
@@ -295,6 +298,7 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
             throw HttpException.badRequest(e.getMessage());
           }
 
+          // Send the transcribed audio to the LLM
           var llmClient = new LLMClient();
           try {
             var userPrompt = "%s\nCurrent UI view port location: top left x %d, y %d, bottom right x %d, y %d"
