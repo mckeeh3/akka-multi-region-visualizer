@@ -125,7 +125,7 @@ Users may refer to operations in various ways:
 Always interpret the user's intent based on the context and choose the most appropriate tool.
 If a command is ambiguous, choose the most likely interpretation based on the available tools.
 When a user's command is not clear or unrelated to the available tools, respond with an ambiguous tool command.
-When a user refers to row and column, interpret it as a row is x, and column is y coordinates.
+When a user refers to row and column, interpret row and column as the viewport relative x and y coordinates.
 
 # Viewport Mechanics
 
@@ -193,6 +193,14 @@ Here's how the viewport and cell manipulation work:
    - "Center" refers to the middle point of the current viewport
    - "Upper left" refers to the top-left area of the current viewport
    - "Bottom right" refers to the bottom-right area of the current viewport
+   - "Top" refers to the top side of the current viewport
+   - "Bottom" refers to the bottom side of the current viewport
+   - "Left" refers to the left side of the current viewport
+   - "Right" refers to the right side of the current viewport
+   - row and column refer to the viewport relative x and y coordinates
+   - Commands the follow moving the viewport need to use the adjusted viewport coordinates:
+     - navigateTo
+     - moveViewport
 
 4. **Example Interpretation**:
    - If the viewport shows cells from (100,100) to (130,130):

@@ -31,6 +31,10 @@ import akka.javasdk.http.HttpException;
 import akka.javasdk.http.HttpResponses;
 import akka.stream.Materializer;
 import akka.stream.javadsl.Source;
+import io.example.agent.AudioToTextTranscription;
+import io.example.agent.LLMClient;
+import io.example.agent.LLMResponseParser;
+import io.example.agent.MultipartFormDataParser;
 import io.example.application.GridCellEntity;
 import io.example.application.GridCellView;
 import io.example.application.GridCellView.GridCellRow;
@@ -240,7 +244,7 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
   }
 
   @Post("/voice-command")
-  public CompletionStage<Done> voiceCommand(HttpRequest request) {
+  public CompletionStage<String> voiceCommand(HttpRequest request) {
     log.info("Voice command: Content-type: {}", request.entity().getContentType());
 
     request.getHeaders().forEach(header -> {
@@ -297,12 +301,16 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
                 .formatted(audioToText, viewportTopLeftX, viewportTopLeftY, viewportBottomRightX, viewportBottomRightY);
             var response = llmClient.chat(userPrompt);
             log.info("Voice command: LLM response: {}", response);
+
+            var jsonCommands = LLMResponseParser.extractJsonCommands(response);
+            var commands = LLMResponseParser.parseCommands(jsonCommands);
+            commands.forEach(cmd -> log.info("Voice command: LLM response command: {}", cmd));
+
+            return jsonCommands.toString();
           } catch (IOException | InterruptedException e) {
             log.error("Voice command: Failed to get LLM response", e);
             throw HttpException.badRequest(e.getMessage());
           }
-
-          return Done.done();
         });
   }
 

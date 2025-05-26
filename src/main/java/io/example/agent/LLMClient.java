@@ -1,4 +1,4 @@
-package io.example.api;
+package io.example.agent;
 
 import java.io.IOException;
 import java.net.URI;
@@ -56,7 +56,6 @@ public class LLMClient {
         0.7);
 
     var jsonRequest = objectMapper.writeValueAsString(request);
-    log.info("LLM request: {}", jsonRequest);
 
     var httpRequest = HttpRequest.newBuilder()
         .uri(URI.create("https://api.openai.com/v1/chat/completions"))
@@ -74,6 +73,7 @@ public class LLMClient {
     log.info("LLM response status code: {}\n{}", response.statusCode(), responseBody);
 
     var openAIResponse = objectMapper.readValue(responseBody, OpenAIResponse.class);
+    log.info("LLM response: {}", openAIResponse.choices().get(0).message().content());
 
     if (openAIResponse.choices() != null && !openAIResponse.choices().isEmpty()) {
       return openAIResponse.choices().get(0).message().content();
