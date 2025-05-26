@@ -58,13 +58,13 @@ Parameters:
 
 ## Navigation Tools
 
-### navigateTo
+### absoluteViewportNavigation
 Moves the viewport to a specific absolute coordinate.
 Parameters:
 - x: number (target x-coordinate)
 - y: number (target y-coordinate)
 
-### moveViewport
+### relativeViewportNavigation
 Moves the viewport by a relative amount.
 Parameters:
 - direction: string (one of: "left", "right", "up", "down")

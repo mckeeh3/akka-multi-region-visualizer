@@ -1848,14 +1848,80 @@ document.addEventListener('DOMContentLoaded', () => {
         body: formData,
       })
         .then((response) => response.text())
-        .then((data) => {
-          console.info(`${new Date().toISOString()} `, 'Audio processed:', data);
-          // this.updateStatus('Ready to listen');
+        .then((responseText) => JSON.parse(responseText))
+        .then((responseJson) => {
+          this.processLLMResponse(responseJson);
         })
         .catch((error) => {
           console.error(`${new Date().toISOString()} `, 'Error processing audio:', error);
           // this.showError('Failed to process audio');
         });
+    }
+
+    processLLMResponse(responseJson) {
+      console.debug(`${new Date().toISOString()} `, 'Audio processed: LLM agent response:', responseJson);
+      responseJson.forEach((command) => {
+        console.debug(`${new Date().toISOString()} `, 'Audio processed: LLM agent response command:', command);
+        this.processLLMCommand(command);
+      });
+    }
+
+    processLLMCommand(command) {
+      switch (command.tool) {
+        case 'absoluteViewportNavigation':
+          this.absoluteViewportNavigation(command);
+          break;
+        case 'relativeViewportNavigation':
+          this.relativeViewportNavigation(command);
+          break;
+        default:
+          console.error(`${new Date().toISOString()} `, 'Audio processed: LLM agent response command:', command);
+      }
+    }
+
+    absoluteViewportNavigation(command) {
+      const newX = command.parameters.x;
+      if (newX != viewportX) {
+        const parsedCommand = parseViewportCommand(`${newX}x`);
+        if (parsedCommand) {
+          updateViewport(parsedCommand.x, parsedCommand.y, parsedCommand.relativeX, parsedCommand.relativeY);
+        }
+      }
+      const newY = command.parameters.y;
+      if (newY != viewportY) {
+        const parsedCommand = parseViewportCommand(`${newY}y`);
+        if (parsedCommand) {
+          updateViewport(parsedCommand.x, parsedCommand.y, parsedCommand.relativeX, parsedCommand.relativeY);
+        }
+      }
+    }
+
+    relativeViewportNavigation(command) {
+      const direction = command.parameters.direction;
+      const amount = command.parameters.amount;
+      let moveCommand = '';
+
+      switch (direction) {
+        case 'left':
+          moveCommand = `${amount}h`;
+          break;
+        case 'right':
+          moveCommand = `${amount}l`;
+          break;
+        case 'up':
+          moveCommand = `${amount}k`;
+          break;
+        case 'down':
+          moveCommand = `${amount}j`;
+          break;
+        default:
+          console.error(`${new Date().toISOString()} `, 'Audio processed: LLM agent response command:', command);
+      }
+
+      const parsedCommand = parseViewportCommand(moveCommand);
+      if (parsedCommand) {
+        updateViewport(parsedCommand.x, parsedCommand.y, parsedCommand.relativeX, parsedCommand.relativeY);
+      }
     }
   }
   new VoiceCommand();
