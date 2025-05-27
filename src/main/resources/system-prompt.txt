@@ -12,8 +12,8 @@ The following tools are available to control the grid visualization:
 
 ## Cell Manipulation Tools
 
-### changeCell
-Changes the status of a single cell.
+### drawSingleCell
+Draws a single cell with the specified status.
 Parameters:
 - row: number (row of the cell)
 - col: number (column of the cell)
@@ -60,15 +60,30 @@ Parameters:
 
 ### absoluteViewportNavigation
 Moves the viewport to a specific absolute coordinate.
+Viewport movements are rounded to the nearest 10s.
+For example, user input of "move to 57, 73" will be rounded to "move to 60, 70".
+Math.round(x / 10) * 10
 Parameters:
 - x: number (target x-coordinate)
 - y: number (target y-coordinate)
+- adjusted-top-left-x: number (viewport top-left x-coordinate rounded to nearest 10 after movement)
+- adjusted-top-left-y: number (viewport top-left y-coordinate rounded to nearest 10 after movement)
+- adjusted-bottom-right-x: number (viewport bottom-right x-coordinate rounded to nearest 10 after movement)
+- adjusted-bottom-right-y: number (viewport bottom-right y-coordinate rounded to nearest 10 after movement)
 
 ### relativeViewportNavigation
 Moves the viewport by a relative amount.
+Viewport movements are rounded to the nearest 10s.
+For example, user input of "move left by 57" will be rounded to "move left by 60".
+Or user input of "move up by 73" will be rounded to "move up by 70".
+Math.round(x / 10) * 10
 Parameters:
 - direction: string (one of: "left", "right", "up", "down")
 - amount: number (number of units to move)
+- adjusted-top-left-x: number (viewport top-left x-coordinate rounded to nearest 10 after movement)
+- adjusted-top-left-y: number (viewport top-left y-coordinate rounded to nearest 10 after movement)
+- adjusted-bottom-right-x: number (viewport bottom-right x-coordinate rounded to nearest 10 after movement)
+- adjusted-bottom-right-y: number (viewport bottom-right y-coordinate rounded to nearest 10 after movement)
 
 ## Information Tools
 
@@ -83,6 +98,13 @@ Shows timing information overlay for a specific cell.
 Parameters:
 - x: number (x-coordinate)
 - y: number (y-coordinate)
+
+## Ambiguous Tool
+
+### ambiguousTool
+Always respond with this tool when the user's command is not clear or unrelated to the available tools.
+Parameters:
+- message: string (brief message explaining the ambiguity)
 
 # Response Format
 

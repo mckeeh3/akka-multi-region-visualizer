@@ -14,7 +14,7 @@ import akka.javasdk.client.ComponentClient;
 import io.example.application.GridCellEntity;
 import io.example.domain.GridCell;
 
-class FillRectangle {
+public class FillRectangle {
   private static final Logger log = LoggerFactory.getLogger(FillRectangle.class);
   private final ComponentClient componentClient;
   private final Executor virtualThreadExecutor;
@@ -24,7 +24,7 @@ class FillRectangle {
     virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
   }
 
-  static void fillRectangle(Request request, ComponentClient componentClient) {
+  public static void fillRectangle(Request request, ComponentClient componentClient) {
     var width = (int) Math.abs(request.x2() - request.x1()) + 1;
     var height = (int) Math.abs(request.y2() - request.y1()) + 1;
     var grid = new Grid(request.x1(), request.y1(), width, height);
@@ -142,7 +142,7 @@ class FillRectangle {
         .toList();
   }
 
-  record Request(int x1, int y1, int x2, int y2, String region, Instant clientAt, Instant endpointAt, GridCell.Status status) {}
+  public record Request(int x1, int y1, int x2, int y2, String region, Instant clientAt, Instant endpointAt, GridCell.Status status) {}
 
   record Grid(int x, int y, int width, int height) {
     boolean isSingleCell() {

@@ -1,7 +1,6 @@
 package io.example.api;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -31,10 +30,7 @@ import akka.javasdk.http.HttpException;
 import akka.javasdk.http.HttpResponses;
 import akka.stream.Materializer;
 import akka.stream.javadsl.Source;
-import io.example.agent.AudioToTextTranscription;
-import io.example.agent.LLMClient;
-import io.example.agent.LLMResponseParser;
-import io.example.agent.MultipartFormDataParser;
+import io.example.agent.LLMAgent;
 import io.example.application.GridCellEntity;
 import io.example.application.GridCellView;
 import io.example.application.GridCellView.GridCellRow;
@@ -244,20 +240,13 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
   }
 
   @Post("/voice-command")
-  public CompletionStage<String> voiceCommand(HttpRequest request) {
+  public CompletionStage<String> voiceCommandAsync(HttpRequest request) {
     log.info("Voice command: Content-type: {}", request.entity().getContentType());
-
-    request.getHeaders().forEach(header -> {
-      log.info("Voice command: Header: {}", header);
-    });
 
     var viewportTopLeftX = request.getHeader("X-Viewport-TopLeft-X").map(header -> Integer.parseInt(header.value())).orElse(0);
     var viewportTopLeftY = request.getHeader("X-Viewport-TopLeft-Y").map(header -> Integer.parseInt(header.value())).orElse(0);
     var viewportBottomRightX = request.getHeader("X-Viewport-BottomRight-X").map(header -> Integer.parseInt(header.value())).orElse(0);
     var viewportBottomRightY = request.getHeader("X-Viewport-BottomRight-Y").map(header -> Integer.parseInt(header.value())).orElse(0);
-
-    log.info("Voice command: Viewport: top left x {}, y {}, bottom right x {}, y {}",
-        viewportTopLeftX, viewportTopLeftY, viewportBottomRightX, viewportBottomRightY);
 
     var contentType = request.entity().getContentType().toString();
     if (contentType == null
@@ -267,52 +256,21 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
       throw HttpException.badRequest("Content-type must be multipart/form-data");
     }
 
+    var viewport = new LLMAgent.ViewPort(viewportTopLeftX, viewportTopLeftY, viewportBottomRightX, viewportBottomRightY);
+    log.info("Voice command: Viewport: {}", viewport);
+
+    var llmAgent = new LLMAgent(componentClient, viewport, region());
+
     return request.entity().toStrict(Duration.ofSeconds(10).toMillis(), materializer)
         .thenApply(strict -> {
           log.info("Voice command: Strict: {}", strict.getData().size());
           var bytes = strict.getData().toArray();
           var input = new ByteArrayInputStream(bytes);
 
-          // Parse the multipart audio data
-          var parser = new MultipartFormDataParser(contentType, input);
           try {
-            parser.parse();
-          } catch (IOException e) {
-            log.error("Voice command: Failed to parse multipart form data", e);
-            throw HttpException.badRequest(e.getMessage());
-          }
-          var audioData = parser.getFile();
-          if (audioData == null) {
-            log.error("Voice command: No audio data found");
-            throw HttpException.badRequest("No audio data found");
-          }
-          log.info("Voice command: Audio data length: {}", audioData.length);
-
-          // Transcribe the audio to text
-          var audioToText = "";
-          try {
-            audioToText = new AudioToTextTranscription().transcribeAudio(audioData);
-            log.info("Voice command: Transcription: {}", audioToText);
-          } catch (IOException | InterruptedException e) {
-            log.error("Voice command: Failed to transcribe audio", e);
-            throw HttpException.badRequest(e.getMessage());
-          }
-
-          // Send the transcribed audio to the LLM
-          var llmClient = new LLMClient();
-          try {
-            var userPrompt = "%s\nCurrent UI view port location: top left x %d, y %d, bottom right x %d, y %d"
-                .formatted(audioToText, viewportTopLeftX, viewportTopLeftY, viewportBottomRightX, viewportBottomRightY);
-            var response = llmClient.chat(userPrompt);
-            log.info("Voice command: LLM response: {}", response);
-
-            var jsonCommands = LLMResponseParser.extractJsonCommands(response);
-            var commands = LLMResponseParser.parseCommands(jsonCommands);
-            commands.forEach(cmd -> log.info("Voice command: LLM response command: {}", cmd));
-
-            return jsonCommands.toString();
-          } catch (IOException | InterruptedException e) {
-            log.error("Voice command: Failed to get LLM response", e);
+            return llmAgent.chat(contentType, input);
+          } catch (LLMAgent.LLMException e) {
+            log.error("Voice command: LLM agent error", e);
             throw HttpException.badRequest(e.getMessage());
           }
         });
