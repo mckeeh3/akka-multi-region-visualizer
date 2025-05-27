@@ -3,6 +3,9 @@ package io.example.agent;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
+import java.util.List;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,7 +13,10 @@ import org.slf4j.LoggerFactory;
 import akka.javasdk.client.ComponentClient;
 import io.example.agent.LLMResponseParser.Command;
 import io.example.application.GridCellEntity;
+import io.example.application.GridCellView;
+import io.example.application.GridCellView.GridCellRow;
 import io.example.domain.GridCell;
+import io.example.domain.Predator;
 import io.example.api.FillRectangle;
 
 public class LLMAgent {
@@ -183,6 +189,12 @@ public class LLMAgent {
     var col = parameters.get("col").asInt();
     var status = parameters.get("status").asText();
     log.info("Clear like color cells at row {} and column {} with status {}", row, col, status);
+
+    var cellId = String.format("%dx%d", row, col);
+    var clearCommand = new GridCell.Command.ClearStatus(cellId, GridCell.Status.valueOf(status.toLowerCase()));
+    componentClient.forEventSourcedEntity(cellId)
+        .method(GridCellEntity::updateClearStatus)
+        .invoke(clearCommand);
   }
 
   void eraseAllActiveCells(Command command) {
@@ -190,6 +202,12 @@ public class LLMAgent {
     var row = parameters.get("row").asInt();
     var col = parameters.get("col").asInt();
     log.info("Erase all active cells at row {} and column {}", row, col);
+
+    var cellId = String.format("%dx%d", row, col);
+    var eraseCommand = new GridCell.Command.EraseStatus(cellId);
+    componentClient.forEventSourcedEntity(cellId)
+        .method(GridCellEntity::updateEraseStatus)
+        .invoke(eraseCommand);
   }
 
   void createPredator(Command command) {
@@ -198,6 +216,34 @@ public class LLMAgent {
     var col = parameters.get("col").asInt();
     var range = parameters.get("range").asInt();
     log.info("Create predator at row {} and column {} with range {}", row, col, range);
+
+    var x1 = col - range;
+    var y1 = row - range;
+    var x2 = col + range;
+    var y2 = row + range;
+    var pageTokenOffset = "";
+
+    var allGridCells = queryGridCellsInArea(x1, y1, x2, y2, pageTokenOffset);
+    log.info("Found {} grid cells in the rectangle area", allGridCells.size());
+
+    var cellId = String.format("%dx%d", row, col);
+    String nextGridCellId = Predator.nextGridCellId(cellId, allGridCells, range);
+    log.info("Predator cell: {}, Next cell: {}", cellId, nextGridCellId);
+
+    var predatorId = Predator.parentId();
+    var predatorCommand = new GridCell.Command.CreatePredator(
+        cellId,
+        predatorId,
+        GridCell.Status.predator,
+        Instant.now(),
+        Instant.now(),
+        range,
+        nextGridCellId,
+        region);
+
+    componentClient.forEventSourcedEntity(cellId)
+        .method(GridCellEntity::createPredator)
+        .invoke(predatorCommand);
   }
 
   void absoluteViewportNavigation(Command command) {
@@ -295,6 +341,32 @@ public class LLMAgent {
     public LLMException(String message, Throwable cause) {
       super(message, cause);
     }
+  }
+
+  List<GridCellRow> queryGridCellsInArea(int x1, int y1, int x2, int y2, String pageTokenOffset) {
+    return Stream.generate(new Supplier<GridCellView.PagedGridCells>() {
+      String currentPageToken = pageTokenOffset;
+      boolean hasMore = true;
+
+      @Override
+      public GridCellView.PagedGridCells get() {
+        if (!hasMore) {
+          return null;
+        }
+
+        var pagedGridCells = componentClient.forView()
+            .method(GridCellView::queryActiveGridCells)
+            .invoke(new GridCellView.PagedGridCellsRequest(x1, y1, x2, y2, currentPageToken));
+
+        currentPageToken = pagedGridCells.nextPageToken();
+        hasMore = pagedGridCells.hasMore();
+
+        return pagedGridCells;
+      }
+    })
+        .takeWhile(pagedGridCells -> pagedGridCells != null)
+        .flatMap(pagedGridCells -> pagedGridCells.gridCells().stream())
+        .toList();
   }
 
   public record ViewPort(int topLeftX, int topLeftY, int bottomRightX, int bottomRightY) {}
