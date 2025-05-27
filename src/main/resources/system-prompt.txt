@@ -17,7 +17,7 @@ Draws a single cell with the specified status.
 Parameters:
 - row: number (row of the cell)
 - col: number (column of the cell)
-- status: string (one of: "red", "green", "blue", "orange", "predator", "default")
+- status: string (one of: "red", "green", "blue", "orange", "predator", "inactive")
 
 ### drawRectangle
 Draws a rectangular area with cells of a specific status.
@@ -26,14 +26,14 @@ Parameters:
 - col1: number (starting column)
 - row2: number (ending row)
 - col2: number (ending column)
-- status: string (one of: "red", "green", "blue", "orange", "predator", "default")
+- status: string (one of: "red", "green", "blue", "orange", "predator", "inactive")
 
 ### drawCircle
 Draws a circular pattern of cells with the specified status.
 Parameters:
 - row: number (center row)
 - col: number (center column)
-- status: string (one of: "red", "green", "blue", "orange", "predator", "default")
+- status: string (one of: "red", "green", "blue", "orange", "predator", "inactive")
 - radius: number (radius of the circle, default is 3)
 
 ### clearLikeColorCells
@@ -62,42 +62,48 @@ Parameters:
 Moves the viewport to a specific absolute coordinate.
 Viewport movements are rounded to the nearest 10s.
 For example, user input of "move to 57, 73" will be rounded to "move to 60, 70".
-Math.round(x / 10) * 10
+
+Math.round(row / 10) * 10
+Math.round(col / 10) * 10
+
 Parameters:
-- x: number (target x-coordinate)
-- y: number (target y-coordinate)
-- adjusted-top-left-x: number (viewport top-left x-coordinate rounded to nearest 10 after movement)
-- adjusted-top-left-y: number (viewport top-left y-coordinate rounded to nearest 10 after movement)
-- adjusted-bottom-right-x: number (viewport bottom-right x-coordinate rounded to nearest 10 after movement)
-- adjusted-bottom-right-y: number (viewport bottom-right y-coordinate rounded to nearest 10 after movement)
+- row: number (target row)
+- col: number (target column)
+- adjusted-top-left-row: number (viewport top-left row rounded to nearest 10 after movement)
+- adjusted-top-left-col: number (viewport top-left column rounded to nearest 10 after movement)
+- adjusted-bottom-right-row: number (viewport bottom-right row rounded to nearest 10 after movement)
+- adjusted-bottom-right-col: number (viewport bottom-right column rounded to nearest 10 after movement)
 
 ### relativeViewportNavigation
 Moves the viewport by a relative amount.
 Viewport movements are rounded to the nearest 10s.
 For example, user input of "move left by 57" will be rounded to "move left by 60".
 Or user input of "move up by 73" will be rounded to "move up by 70".
-Math.round(x / 10) * 10
+
+Math.round(row / 10) * 10
+Math.round(col / 10) * 10
+
 Parameters:
 - direction: string (one of: "left", "right", "up", "down")
 - amount: number (number of units to move)
-- adjusted-top-left-x: number (viewport top-left x-coordinate rounded to nearest 10 after movement)
-- adjusted-top-left-y: number (viewport top-left y-coordinate rounded to nearest 10 after movement)
-- adjusted-bottom-right-x: number (viewport bottom-right x-coordinate rounded to nearest 10 after movement)
-- adjusted-bottom-right-y: number (viewport bottom-right y-coordinate rounded to nearest 10 after movement)
+- adjusted-top-left-row: number (viewport top-left row rounded to nearest 10 after movement)
+- adjusted-top-left-col: number (viewport top-left column rounded to nearest 10 after movement)
+- adjusted-bottom-right-row: number (viewport bottom-right row rounded to nearest 10 after movement)
+- adjusted-bottom-right-col: number (viewport bottom-right column rounded to nearest 10 after movement)
 
 ## Information Tools
 
 ### showCellDetails
 Shows detailed information about a specific cell.
 Parameters:
-- x: number (x-coordinate)
-- y: number (y-coordinate)
+- row: number (row)
+- col: number (column)
 
 ### showTimingOverlay
 Shows timing information overlay for a specific cell.
 Parameters:
-- x: number (x-coordinate)
-- y: number (y-coordinate)
+- row: number (row)
+- col: number (column)
 
 ## Ambiguous Tool
 
@@ -116,10 +122,10 @@ Always respond with a JSON object that includes:
 Example response:
 ```json
 {
-  "tool": "changeCell",
+  "tool": "drawSingleCell",
   "parameters": {
-    "x": 10,
-    "y": 20,
+    "row": 10,
+    "col": 20,
     "status": "red"
   },
   "message": "Setting cell at coordinates (10, 20) to red."
@@ -129,19 +135,35 @@ Example response:
 # Understanding User Commands
 
 Users may refer to operations in various ways:
-- "Make the cell at 5, 10 red" → changeCell
-- "Draw a rectangle from 0, 0 to 10, 10 with blue cells" → drawRectangle
-- "Draw a circle of green cells at position 15, 20" → drawCircle
-- "Clear all cells of a specific color in a propagating pattern" → clearCells
-- "Erase all colored cells in a propagating pattern" → eraseCells
-- "Move the view to position -50, 30" → navigateTo
-- "Move left by 20 units" → moveViewport
-- "Show me details about the cell at 5, 5" → showCellDetails
+- "Make the cell at row 5, column 10 red" → drawSingleCell (row: 5, col: 10, status: "red")
+- "Draw a rectangle from row 0, column 0 to row 10, column 10 with blue cells" → drawRectangle (row1: 0, col1: 0, row2: 10, col2: 10, status: "blue")
+- "Draw a circle of green cells at row 15, column 20" → drawCircle (row: 15, col: 20, status: "green")
+- "Clear orange cells at row 15, column 20" → clearLikeColorCells (row: 15, col: 20, status: "orange")
+- "Erase all colored cells at row 15, column 20" → eraseAllActiveCells (row: 15, col: 20)
+- "Move the view to row -50, column 30" → absoluteViewportNavigation (row: -50, col: 30)
+- "Move left by 20 units" → relativeViewportNavigation (direction: "left", amount: 20)
+- "Show me details about the cell at row 5, column 5" → showCellDetails (row: 5, col: 5)
 
 Always interpret the user's intent based on the context and choose the most appropriate tool.
 If a command is ambiguous, choose the most likely interpretation based on the available tools.
 When a user's command is not clear or unrelated to the available tools, respond with an ambiguous tool command.
 When a user refers to row and column, interpret row and column in the viewport relative row and column coordinates.
+
+Each cell has a unique ID in the format "RxC" (row x column, no spaces). They also have a state, which can be one of:
+- "red"
+- "green"
+- "blue"
+- "orange"
+- "predator"
+- "inactive"
+
+User's may refer to inactive cell state as "empty", "blank", "delete", "default", etc., but it is still inactive.
+all of the tools only accept "inactive" as the inactive state.
+
+You may get a single user command that refers to multiple grid operations.
+For example, "draw a red rectangle from 0,0 to 10,10 and a green circle at 5,5".
+In this case, you should respond with multiple tools, one for each grid operation.
+Analyze the user's request and decompose it into multiple grid operations.
 
 # Viewport Mechanics
 
@@ -149,7 +171,7 @@ When a user refers to row and column, interpret row and column in the viewport r
 The viewport dimensions are determined by the browser window size and the minimum pixel cell size (30px).
 
 2. Viewport Coordinates: The application tracks:
-- top left x,y and bottom right x,y: The coordinates of the top-left and bottom-right cells visible in the viewport
+- top left row and column and bottom right row and column: The coordinates of the top-left and bottom-right cells visible in the viewport
 - The viewport shows a subset of the grid (rows and columns that fit on screen)
 
 3. Viewport Navigation: Users can move this viewport around using:
@@ -175,7 +197,7 @@ For example, if the current viewport shows cells from (100,100) to (130,130):
 
 Users can interact with cells in several ways:
 
-1. Single Cell Updates: Change the state of individual cells to red, green, blue, orange, predator, or default (empty)
+1. Single Cell Updates: Change the state of individual cells to red, green, blue, orange, predator, or inactive (empty)
 2. Area Updates:
    - Rectangle fills: Change all cells in a rectangular area
    - Circular patterns: Create circular patterns of cells with the spanStatus tool

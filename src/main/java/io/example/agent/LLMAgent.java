@@ -61,8 +61,8 @@ public class LLMAgent {
     // Send the transcribed audio to the LLM
     var llmClient = new LLMClient();
     try {
-      var userPrompt = "%s\nCurrent UI view port location: top left x %d, y %d, bottom right x %d, y %d"
-          .formatted(audioToText, viewport.topLeftX(), viewport.topLeftY(), viewport.bottomRightX(), viewport.bottomRightY());
+      var userPrompt = "%s\nCurrent UI view port location: top left row %d, col %d, bottom right row %d, col %d"
+          .formatted(audioToText, viewport.topLeftRow(), viewport.topLeftCol(), viewport.bottomRightRow(), viewport.bottomRightCol());
       var response = llmClient.chat(userPrompt);
       log.info("LLM response: {}", response);
 
@@ -249,28 +249,28 @@ public class LLMAgent {
   void absoluteViewportNavigation(Command command) {
     var parameters = command.getParameters();
 
-    // Check if x and y parameters exist
-    boolean hasX = parameters.has("x");
-    boolean hasY = parameters.has("y");
+    // Check if col and row parameters exist
+    boolean hasRow = parameters.has("row");
+    boolean hasCol = parameters.has("col");
 
-    int viewportWidth = viewport.bottomRightX() - viewport.topLeftX();
-    int viewportHeight = viewport.bottomRightY() - viewport.topLeftY();
+    int viewportWidth = viewport.bottomRightCol() - viewport.topLeftCol();
+    int viewportHeight = viewport.bottomRightRow() - viewport.topLeftRow();
 
-    int newX = hasX ? parameters.get("x").asInt() : viewport.topLeftX();
-    newX = Math.round(newX / 10.0f) * 10;
-    int newY = hasY ? parameters.get("y").asInt() : viewport.topLeftY();
-    newY = Math.round(newY / 10.0f) * 10;
+    int newRow = hasRow ? parameters.get("row").asInt() : viewport.topLeftRow();
+    newRow = Math.round(newRow / 10.0f) * 10;
+    int newCol = hasCol ? parameters.get("col").asInt() : viewport.topLeftCol();
+    newCol = Math.round(newCol / 10.0f) * 10;
 
-    boolean xChanged = hasX && newX != viewport.topLeftX();
-    boolean yChanged = hasY && newY != viewport.topLeftY();
+    boolean rowChanged = hasRow && newRow != viewport.topLeftRow();
+    boolean colChanged = hasCol && newCol != viewport.topLeftCol();
 
-    if (xChanged || yChanged) {
-      int updatedTopLeftX = xChanged ? newX : viewport.topLeftX();
-      int updatedTopLeftY = yChanged ? newY : viewport.topLeftY();
-      int updatedBottomRightX = updatedTopLeftX + viewportWidth;
-      int updatedBottomRightY = updatedTopLeftY + viewportHeight;
+    if (rowChanged || colChanged) {
+      int updatedTopLeftRow = rowChanged ? newRow : viewport.topLeftRow();
+      int updatedTopLeftCol = colChanged ? newCol : viewport.topLeftCol();
+      int updatedBottomRightRow = updatedTopLeftRow + viewportHeight;
+      int updatedBottomRightCol = updatedTopLeftCol + viewportWidth;
 
-      var updatedViewport = new ViewPort(updatedTopLeftX, updatedTopLeftY, updatedBottomRightX, updatedBottomRightY);
+      var updatedViewport = new ViewPort(updatedTopLeftRow, updatedTopLeftCol, updatedBottomRightRow, updatedBottomRightCol);
 
       log.info("Viewport moved \n_from {} \n_to   {}", viewport, updatedViewport);
       this.viewport = updatedViewport;
@@ -283,31 +283,31 @@ public class LLMAgent {
     var amount = parameters.get("amount").asInt();
     amount = Math.round(amount / 10.0f) * 10;
 
-    int viewportWidth = viewport.bottomRightX() - viewport.topLeftX();
-    int viewportHeight = viewport.bottomRightY() - viewport.topLeftY();
+    int viewportWidth = viewport.bottomRightCol() - viewport.topLeftCol();
+    int viewportHeight = viewport.bottomRightRow() - viewport.topLeftRow();
 
     // Calculate delta changes based on direction
-    int deltaX = 0;
-    int deltaY = 0;
+    int deltaCol = 0;
+    int deltaRow = 0;
 
     switch (direction.toLowerCase()) {
-      case "left" -> deltaX = -amount;
-      case "right" -> deltaX = amount;
-      case "up" -> deltaY = -amount;
-      case "down" -> deltaY = amount;
+      case "left" -> deltaCol = -amount;
+      case "right" -> deltaCol = amount;
+      case "up" -> deltaRow = -amount;
+      case "down" -> deltaRow = amount;
       default -> {
         log.warn("Unknown direction: {}", direction);
         return;
       }
     }
 
-    if (deltaX != 0 || deltaY != 0) {
-      int newTopLeftX = viewport.topLeftX() + deltaX;
-      int newTopLeftY = viewport.topLeftY() + deltaY;
-      int newBottomRightX = newTopLeftX + viewportWidth;
-      int newBottomRightY = newTopLeftY + viewportHeight;
+    if (deltaCol != 0 || deltaRow != 0) {
+      int newTopLeftCol = viewport.topLeftCol() + deltaCol;
+      int newTopLeftRow = viewport.topLeftRow() + deltaRow;
+      int newBottomRightCol = newTopLeftCol + viewportWidth;
+      int newBottomRightRow = newTopLeftRow + viewportHeight;
 
-      var updatedViewport = new ViewPort(newTopLeftX, newTopLeftY, newBottomRightX, newBottomRightY);
+      var updatedViewport = new ViewPort(newTopLeftRow, newTopLeftCol, newBottomRightRow, newBottomRightCol);
       log.info("Viewport moved \n_from {} \n_to   {}", viewport, updatedViewport);
       this.viewport = updatedViewport;
     }
@@ -369,5 +369,5 @@ public class LLMAgent {
         .toList();
   }
 
-  public record ViewPort(int topLeftX, int topLeftY, int bottomRightX, int bottomRightY) {}
+  public record ViewPort(int topLeftRow, int topLeftCol, int bottomRightRow, int bottomRightCol) {}
 }

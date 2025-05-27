@@ -243,10 +243,10 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
   public CompletionStage<String> voiceCommandAsync(HttpRequest request) {
     log.info("Voice command: Content-type: {}", request.entity().getContentType());
 
-    var viewportTopLeftX = request.getHeader("X-Viewport-TopLeft-X").map(header -> Integer.parseInt(header.value())).orElse(0);
-    var viewportTopLeftY = request.getHeader("X-Viewport-TopLeft-Y").map(header -> Integer.parseInt(header.value())).orElse(0);
-    var viewportBottomRightX = request.getHeader("X-Viewport-BottomRight-X").map(header -> Integer.parseInt(header.value())).orElse(0);
-    var viewportBottomRightY = request.getHeader("X-Viewport-BottomRight-Y").map(header -> Integer.parseInt(header.value())).orElse(0);
+    var viewportTopLeftRow = request.getHeader("X-Viewport-Top-Left-Row").map(header -> Integer.parseInt(header.value())).orElse(0);
+    var viewportTopLeftCol = request.getHeader("X-Viewport-Top-Left-Col").map(header -> Integer.parseInt(header.value())).orElse(0);
+    var viewportBottomRightRow = request.getHeader("X-Viewport-Bottom-Right-Row").map(header -> Integer.parseInt(header.value())).orElse(0);
+    var viewportBottomRightCol = request.getHeader("X-Viewport-Bottom-Right-Col").map(header -> Integer.parseInt(header.value())).orElse(0);
 
     var contentType = request.entity().getContentType().toString();
     if (contentType == null
@@ -256,7 +256,7 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
       throw HttpException.badRequest("Content-type must be multipart/form-data");
     }
 
-    var viewport = new LLMAgent.ViewPort(viewportTopLeftX, viewportTopLeftY, viewportBottomRightX, viewportBottomRightY);
+    var viewport = new LLMAgent.ViewPort(viewportTopLeftCol, viewportTopLeftRow, viewportBottomRightCol, viewportBottomRightRow);
     log.info("Voice command: Viewport: {}", viewport);
 
     var llmAgent = new LLMAgent(componentClient, viewport, region());

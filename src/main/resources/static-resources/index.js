@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function updateMousePositionDisplay(x, y) {
     if (mousePositionElement) {
-      mousePositionElement.textContent = `Mouse Position: x=${x}, y=${y}`;
+      mousePositionElement.textContent = `Mouse Position: row/Y=${y}, col/X=${x}`;
     }
   }
 
@@ -174,7 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateGridPositionDisplay() {
     const gridPositionElement = document.getElementById('grid-position');
     if (gridPositionElement) {
-      gridPositionElement.textContent = `Grid Position: x=${viewportX}, y=${viewportY}`;
+      gridPositionElement.textContent = `Grid Position: row/Y=${viewportY}, col/X=${viewportX}`;
     }
   }
 
@@ -1840,10 +1840,10 @@ document.addEventListener('DOMContentLoaded', () => {
         method: 'POST',
         headers: {
           // Custom headers for viewport information
-          'X-Viewport-TopLeft-X': viewportX,
-          'X-Viewport-TopLeft-Y': viewportY,
-          'X-Viewport-BottomRight-X': viewportX + gridCols,
-          'X-Viewport-BottomRight-Y': viewportY + gridRows,
+          'X-Viewport-Top-Left-Row': viewportY,
+          'X-Viewport-Top-Left-Col': viewportX,
+          'X-Viewport-Bottom-Right-Row': viewportY + gridRows,
+          'X-Viewport-Bottom-Right-Col': viewportX + gridCols,
         },
         body: formData,
       })
@@ -1880,14 +1880,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     absoluteViewportNavigation(command) {
-      const newX = command.parameters.x;
+      const newX = command.parameters.col;
       if (newX != viewportX) {
         const parsedCommand = parseViewportCommand(`${newX}x`);
         if (parsedCommand) {
           updateViewport(parsedCommand.x, parsedCommand.y, parsedCommand.relativeX, parsedCommand.relativeY);
         }
       }
-      const newY = command.parameters.y;
+      const newY = command.parameters.row;
       if (newY != viewportY) {
         const parsedCommand = parseViewportCommand(`${newY}y`);
         if (parsedCommand) {
