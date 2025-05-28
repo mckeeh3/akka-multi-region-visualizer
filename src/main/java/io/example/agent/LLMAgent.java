@@ -59,7 +59,7 @@ public class LLMAgent {
     }
 
     // Send the transcribed audio to the LLM
-    var llmClient = new LLMClient();
+    var llmClient = new OpenAiClient("/system-prompt.txt");
     try {
       var userPrompt = "%s\nCurrent UI view port location: top left row %d, col %d, bottom right row %d, col %d"
           .formatted(audioToText, viewport.topLeftRow(), viewport.topLeftCol(), viewport.bottomRightRow(), viewport.bottomRightCol());

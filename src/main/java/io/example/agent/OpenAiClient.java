@@ -15,15 +15,15 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-public class LLMClient {
-  private static final Logger log = LoggerFactory.getLogger(LLMClient.class);
+public class OpenAiClient {
+  private static final Logger log = LoggerFactory.getLogger(OpenAiClient.class);
 
   private final String openaiApiKey;
   private final HttpClient client;
   private final ObjectMapper objectMapper;
-  private String systemPrompt;
+  private final String systemPrompt;
 
-  public LLMClient() {
+  public OpenAiClient(String systemPromptPath) {
     openaiApiKey = System.getenv("OPENAI_API_KEY");
     if (openaiApiKey == null || openaiApiKey.isEmpty()) {
       throw new IllegalStateException("OPENAI_API_KEY environment variable is not set");
@@ -33,13 +33,13 @@ public class LLMClient {
 
     try {
       // Read system prompt from resources folder
-      var inputStream = getClass().getResourceAsStream("/system-prompt.txt");
+      var inputStream = getClass().getResourceAsStream(systemPromptPath);
       if (inputStream == null) {
-        throw new IOException("Could not find system-prompt.txt in resources");
+        throw new IOException("Could not find system prompt file: " + systemPromptPath);
       }
-      systemPrompt = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-      systemPrompt = systemPrompt.replaceAll("\"", "\\\"");
-      systemPrompt = systemPrompt.replaceAll("\n", " ");
+      systemPrompt = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8)
+          .replaceAll("\"", "\\\"")
+          .replaceAll("\n", " ");
     } catch (IOException e) {
       log.error("Failed to read system prompt", e);
       throw new IllegalStateException("Failed to read system prompt", e);
@@ -47,11 +47,11 @@ public class LLMClient {
   }
 
   public String chat(String userMessage) throws IOException, InterruptedException {
-    var request = new OpenAIRequest(
+    var request = new OpenAiRequest(
         "gpt-4o-mini",
         List.of(
-            new OpenAIRequest.Message("system", systemPrompt),
-            new OpenAIRequest.Message("user", userMessage)),
+            new OpenAiRequest.Message("system", systemPrompt),
+            new OpenAiRequest.Message("user", userMessage)),
         10000,
         0.7);
 
@@ -72,7 +72,7 @@ public class LLMClient {
     var responseBody = response.body();
     log.info("LLM response status code: {}\n{}", response.statusCode(), responseBody);
 
-    var openAIResponse = objectMapper.readValue(responseBody, OpenAIResponse.class);
+    var openAIResponse = objectMapper.readValue(responseBody, OpenAiResponse.class);
     log.info("LLM response: {}", openAIResponse.choices().get(0).message().content());
 
     if (openAIResponse.choices() != null && !openAIResponse.choices().isEmpty()) {
@@ -82,7 +82,7 @@ public class LLMClient {
     throw new IOException("No response from LLM");
   }
 
-  public record OpenAIRequest(
+  public record OpenAiRequest(
       String model,
       List<Message> messages,
       @JsonProperty("max_tokens") Integer maxTokens,
@@ -101,7 +101,7 @@ public class LLMClient {
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public record OpenAIResponse(
+  public record OpenAiResponse(
       String id,
       String object,
       Long created,
