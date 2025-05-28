@@ -146,6 +146,7 @@ Users may refer to operations in various ways:
 
 Always interpret the user's intent based on the context and choose the most appropriate tool.
 If a command is ambiguous, choose the most likely interpretation based on the available tools.
+When a user's command does not include a specific row and column, use the mouse row and column as the default.
 When a user's command is not clear or unrelated to the available tools, respond with an ambiguous tool command.
 When a user refers to row and column, interpret row and column in the viewport relative row and column coordinates.
 

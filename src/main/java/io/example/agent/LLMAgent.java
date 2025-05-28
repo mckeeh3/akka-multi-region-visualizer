@@ -61,8 +61,17 @@ public class LLMAgent {
     // Send the transcribed audio to the LLM
     var llmClient = new OpenAiClient("/system-prompt.txt");
     try {
-      var userPrompt = "%s\nCurrent UI view port location: top left row %d, col %d, bottom right row %d, col %d"
-          .formatted(audioToText, viewport.topLeftRow(), viewport.topLeftCol(), viewport.bottomRightRow(), viewport.bottomRightCol());
+      var userPrompt = "%s\nCurrent UI view port location: top left row %d, col %d, bottom right row %d, col %d\nMouse location: row %d, col %d"
+          .formatted(
+              audioToText,
+              viewport.topLeftRow(),
+              viewport.topLeftCol(),
+              viewport.bottomRightRow(),
+              viewport.bottomRightCol(),
+              viewport.mouseRow(),
+              viewport.mouseCol());
+      log.info("User prompt: {}", userPrompt);
+
       var response = llmClient.chat(userPrompt);
       log.info("LLM response: {}", response);
 
@@ -270,7 +279,13 @@ public class LLMAgent {
       int updatedBottomRightRow = updatedTopLeftRow + viewportHeight;
       int updatedBottomRightCol = updatedTopLeftCol + viewportWidth;
 
-      var updatedViewport = new ViewPort(updatedTopLeftRow, updatedTopLeftCol, updatedBottomRightRow, updatedBottomRightCol);
+      var updatedViewport = new ViewPort(
+          updatedTopLeftRow,
+          updatedTopLeftCol,
+          updatedBottomRightRow,
+          updatedBottomRightCol,
+          viewport.mouseRow(),
+          viewport.mouseCol());
 
       log.info("Viewport moved \n_from {} \n_to   {}", viewport, updatedViewport);
       this.viewport = updatedViewport;
@@ -307,7 +322,13 @@ public class LLMAgent {
       int newBottomRightCol = newTopLeftCol + viewportWidth;
       int newBottomRightRow = newTopLeftRow + viewportHeight;
 
-      var updatedViewport = new ViewPort(newTopLeftRow, newTopLeftCol, newBottomRightRow, newBottomRightCol);
+      var updatedViewport = new ViewPort(
+          newTopLeftRow,
+          newTopLeftCol,
+          newBottomRightRow,
+          newBottomRightCol,
+          viewport.mouseRow(),
+          viewport.mouseCol());
       log.info("Viewport moved \n_from {} \n_to   {}", viewport, updatedViewport);
       this.viewport = updatedViewport;
     }
@@ -369,5 +390,11 @@ public class LLMAgent {
         .toList();
   }
 
-  public record ViewPort(int topLeftRow, int topLeftCol, int bottomRightRow, int bottomRightCol) {}
+  public record ViewPort(
+      int topLeftRow,
+      int topLeftCol,
+      int bottomRightRow,
+      int bottomRightCol,
+      int mouseRow,
+      int mouseCol) {}
 }

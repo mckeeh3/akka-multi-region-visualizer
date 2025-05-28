@@ -81,6 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- Functions ---
 
   // Mouse position tracking on grid
+  let mouseGridPosition = { row: 0, col: 0 };
   if (gridContainer) {
     gridContainer.addEventListener('mousemove', (e) => {
       // Get bounding rect of grid
@@ -97,6 +98,8 @@ document.addEventListener('DOMContentLoaded', () => {
       // Clamp to grid bounds
       gridX = Math.max(MIN_GRID_COORD, Math.min(MAX_GRID_COORD, gridX));
       gridY = Math.max(MIN_GRID_COORD, Math.min(MAX_GRID_COORD, gridY));
+      mouseGridPosition.row = gridY;
+      mouseGridPosition.col = gridX;
       updateMousePositionDisplay(gridX, gridY);
     });
     gridContainer.addEventListener('mouseleave', clearMousePositionDisplay);
@@ -1179,6 +1182,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       sendCreatePredator(id, range);
     }
+
+    // Handle toggle microphone command
+    if (event.key === 'm') {
+      event.preventDefault(); // Prevent default browser action
+      voiceCommand.toggleMicrophone();
+    }
   }
 
   /**
@@ -1829,6 +1838,14 @@ document.addEventListener('DOMContentLoaded', () => {
       // this.updateStatus('Processing...', 'processing');
     }
 
+    toggleMicrophone() {
+      if (this.mediaRecorder.state === 'recording') {
+        this.stopRecording();
+      } else {
+        this.startRecording();
+      }
+    }
+
     processAudio() {
       const audioBlob = new Blob(this.audioChunks, { type: 'audio/wav' });
       const formData = new FormData();
@@ -1844,6 +1861,8 @@ document.addEventListener('DOMContentLoaded', () => {
           'X-Viewport-Top-Left-Col': viewportX,
           'X-Viewport-Bottom-Right-Row': viewportY + gridRows,
           'X-Viewport-Bottom-Right-Col': viewportX + gridCols,
+          'X-Mouse-Row': mouseGridPosition.row,
+          'X-Mouse-Col': mouseGridPosition.col,
         },
         body: formData,
       })
@@ -1874,8 +1893,6 @@ document.addEventListener('DOMContentLoaded', () => {
         case 'relativeViewportNavigation':
           this.relativeViewportNavigation(command);
           break;
-        default:
-          console.error(`${new Date().toISOString()} `, 'Audio processed: LLM agent response command:', command);
       }
     }
 
@@ -1924,7 +1941,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   }
-  new VoiceCommand();
+  const voiceCommand = new VoiceCommand();
 
   // --- Initialization ---
   initializeViewport(); // Set default viewport position

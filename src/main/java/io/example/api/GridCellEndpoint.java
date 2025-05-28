@@ -247,6 +247,17 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
     var viewportTopLeftCol = request.getHeader("X-Viewport-Top-Left-Col").map(header -> Integer.parseInt(header.value())).orElse(0);
     var viewportBottomRightRow = request.getHeader("X-Viewport-Bottom-Right-Row").map(header -> Integer.parseInt(header.value())).orElse(0);
     var viewportBottomRightCol = request.getHeader("X-Viewport-Bottom-Right-Col").map(header -> Integer.parseInt(header.value())).orElse(0);
+    var mouseRow = request.getHeader("X-Mouse-Row").map(header -> Integer.parseInt(header.value())).orElse(0);
+    var mouseCol = request.getHeader("X-Mouse-Col").map(header -> Integer.parseInt(header.value())).orElse(0);
+
+    var viewport = new LLMAgent.ViewPort(
+        viewportTopLeftCol,
+        viewportTopLeftRow,
+        viewportBottomRightCol,
+        viewportBottomRightRow,
+        mouseRow,
+        mouseCol);
+    log.info("Voice command: Viewport: {}", viewport);
 
     var contentType = request.entity().getContentType().toString();
     if (contentType == null
@@ -255,9 +266,6 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
       log.error("Voice command: Content-type is null or not multipart/form-data");
       throw HttpException.badRequest("Content-type must be multipart/form-data");
     }
-
-    var viewport = new LLMAgent.ViewPort(viewportTopLeftCol, viewportTopLeftRow, viewportBottomRightCol, viewportBottomRightRow);
-    log.info("Voice command: Viewport: {}", viewport);
 
     var llmAgent = new LLMAgent(componentClient, viewport, region());
 
