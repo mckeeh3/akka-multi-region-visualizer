@@ -51,7 +51,7 @@ public class LLMAgent {
     // Transcribe the audio to text
     var audioToText = "";
     try {
-      audioToText = new AudioToTextTranscription().transcribeAudio(audioData);
+      audioToText = new LLMAgentAudioToTextLlmClient().transcribeAudio(audioData);
       log.info("Transcription: {}", audioToText);
     } catch (IOException | InterruptedException e) {
       log.error("Failed to transcribe audio", e);

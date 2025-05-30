@@ -18,6 +18,43 @@ import akka.javasdk.client.ComponentClient;
 import io.example.application.AgentStepEntity;
 import io.example.domain.AgentStep;
 
+/**
+ * The GridAgent class serves as an intelligent intermediary that processes user prompts and generates a sequence of
+ * tool commands for grid manipulation in the Akka Multi-Region Visualizer application. It represents the first stage
+ * in the voice command processing pipeline, where natural language is transformed into structured tool commands.
+ *
+ * <h2>Core Functionality</h2>
+ * <ol>
+ * <li><b>Natural Language Processing</b>: Communicates with a Large Language Model (LLM) to interpret user prompts
+ * and generate a series of tool commands that will be executed later in the pipeline.</li>
+ * <li><b>Command Sequencing</b>: Parses the LLM response and creates a sequence of AgentStep entities, each containing
+ * a tool command to be executed by the GridAgentTool.</li>
+ * <li><b>JSON Parsing</b>: Extracts tool commands from the LLM's JSON response, handling different JSON formats and
+ * structures that might be returned.</li>
+ * </ol>
+ *
+ * <h2>Technical Details</h2>
+ * <ul>
+ * <li>Uses an OpenAiClient with a specific system prompt (/grid-agent-system-prompt.txt) to process user inputs</li>
+ * <li>Maintains context about the current viewport and user session</li>
+ * <li>Parses JSON responses from the LLM using regular expressions to handle various formats</li>
+ * <li>Creates a sequence of AgentStep entities that will be processed by the AgentStepToAgentConsumer</li>
+ * </ul>
+ *
+ * <h2>Integration Points</h2>
+ * <ul>
+ * <li>Works with the ComponentClient to create AgentStep entities</li>
+ * <li>Integrates with the AgentStep domain model for creating processing steps</li>
+ * <li>Feeds into the GridAgentTool which will execute the generated tool commands</li>
+ * </ul>
+ *
+ * <h2>Usage</h2>
+ * <p>
+ * This class is typically invoked by the AgentStepToAgentConsumer when processing a step with stepNumber=1,
+ * representing the initial user prompt that needs to be converted into a series of tool commands. The resulting
+ * tool commands are then processed as subsequent steps in the pipeline.
+ * </p>
+ */
 public class GridAgent {
   static final Logger log = LoggerFactory.getLogger(GridAgent.class);
   final ComponentClient componentClient;

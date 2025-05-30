@@ -12,14 +12,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.io.ByteArrayOutputStream;
 
-public class AudioToTextTranscription {
+public class LLMAgentAudioToTextLlmClient {
 
   private final String openaiApiKey;
   private final HttpClient client;
   private final ObjectMapper objectMapper;
 
-  public AudioToTextTranscription() {
-    // Load API key from environment variable or properties file
+  public LLMAgentAudioToTextLlmClient() {
     this.openaiApiKey = System.getenv("OPENAI_API_KEY");
     if (this.openaiApiKey == null || this.openaiApiKey.isEmpty()) {
       throw new IllegalStateException("OPENAI_API_KEY environment variable is not set");

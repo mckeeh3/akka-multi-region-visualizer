@@ -38,8 +38,6 @@ public class AgentStepToAgentConsumer extends Consumer {
   }
 
   Effect onEvent(AgentStep.Event.StepCreated event) {
-    log.info("Region: {}, Event: {}", region(), event);
-
     switch (event.stepNumber()) {
       case 0 -> processStepZero(event);
       case 1 -> processStepOne(event);
@@ -50,16 +48,51 @@ public class AgentStepToAgentConsumer extends Consumer {
 
   void processStepZero(AgentStep.Event.StepCreated event) {
     log.info("Region: {}, Event: {}", region(), event);
-    GridAgent.chat(
-        event.llmNextPrompt(),
-        event.sequenceId(),
-        event.userSessionId(),
-        event.viewport(),
-        componentClient);
+
+    {
+      var llmPrompt = event.llmNextPrompt();
+      var llmNextPrompt = "(series of tool prompts)";
+      var stepOne = 1;
+      var command = AgentStep.Command.CreateStep.of(
+          event.sequenceId(),
+          stepOne,
+          llmPrompt,
+          llmNextPrompt,
+          event.viewport(),
+          event.userSessionId());
+
+      componentClient.forEventSourcedEntity(command.id())
+          .method(AgentStepEntity::createStep)
+          .invoke(command);
+    }
+
+    {
+      var command = AgentStep.Command.ConsumedStep.of(
+          event.sequenceId(),
+          event.stepNumber());
+
+      componentClient.forEventSourcedEntity(command.id())
+          .method(AgentStepEntity::consumeStep)
+          .invoke(command);
+    }
   }
 
   void processStepOne(AgentStep.Event.StepCreated event) {
     log.info("Region: {}, Event: {}", region(), event);
+    GridAgent.chat(
+        event.llmPrompt(),
+        event.sequenceId(),
+        event.userSessionId(),
+        event.viewport(),
+        componentClient);
+
+    var command = AgentStep.Command.ConsumedStep.of(
+        event.sequenceId(),
+        event.stepNumber());
+
+    componentClient.forEventSourcedEntity(command.id())
+        .method(AgentStepEntity::consumeStep)
+        .invoke(command);
   }
 
   void processStepNext(AgentStep.Event.StepCreated event) {
@@ -72,6 +105,16 @@ public class AgentStepToAgentConsumer extends Consumer {
         event.viewport(),
         componentClient,
         region());
+
+    var command = AgentStep.Command.ProcessedStep.of(
+        event.sequenceId(),
+        event.stepNumber(),
+        event.llmNextPrompt(),
+        event.viewport());
+
+    componentClient.forEventSourcedEntity(command.id())
+        .method(AgentStepEntity::processedStep)
+        .invoke(command);
   }
 
   String region() {

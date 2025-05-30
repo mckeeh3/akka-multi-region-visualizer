@@ -30,7 +30,7 @@ import akka.javasdk.http.HttpException;
 import akka.javasdk.http.HttpResponses;
 import akka.stream.Materializer;
 import akka.stream.javadsl.Source;
-import io.example.agent.AgentAudioToText;
+import io.example.agent.GridAgentAudioToText;
 import io.example.agent.LLMAgent;
 import io.example.application.GridCellEntity;
 import io.example.application.GridCellView;
@@ -306,13 +306,13 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
 
     return request.entity().toStrict(Duration.ofSeconds(10).toMillis(), materializer)
         .thenCompose(strict -> {
-          log.info("Voice command: Strict: {}", strict.getData().size());
+          log.info("Voice command: Audio request size: {}", strict.getData().size());
           var bytes = strict.getData().toArray();
           var input = new ByteArrayInputStream(bytes);
 
           try {
-            return AgentAudioToText.convertAudioToText(componentClient, viewport, contentType, input, userSessionId);
-          } catch (AgentAudioToText.AudioToTextException e) {
+            return GridAgentAudioToText.convertAudioToText(componentClient, viewport, contentType, input, userSessionId);
+          } catch (GridAgentAudioToText.AudioToTextException e) {
             log.error("Voice command: LLM agent error", e);
             throw HttpException.badRequest(e.getMessage());
           }

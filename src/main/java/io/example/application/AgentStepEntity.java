@@ -33,7 +33,15 @@ public class AgentStepEntity extends EventSourcedEntity<AgentStep.State, AgentSt
         .thenReply(newState -> done());
   }
 
-  public Effect<Done> completeStep(AgentStep.Command.ProcessedStep command) {
+  public Effect<Done> processedStep(AgentStep.Command.ProcessedStep command) {
+    log.info("EntityId: {}\n_State: {}\n_Command: {}", entityId, currentState(), command);
+
+    return effects()
+        .persistAll(currentState().onCommand(command).stream().toList())
+        .thenReply(newState -> done());
+  }
+
+  public Effect<Done> consumeStep(AgentStep.Command.ConsumedStep command) {
     log.info("EntityId: {}\n_State: {}\n_Command: {}", entityId, currentState(), command);
 
     return effects()
@@ -48,6 +56,7 @@ public class AgentStepEntity extends EventSourcedEntity<AgentStep.State, AgentSt
     return switch (event) {
       case AgentStep.Event.StepCreated e -> currentState().onEvent(e);
       case AgentStep.Event.StepProcessed e -> currentState().onEvent(e);
+      case AgentStep.Event.StepConsumed e -> currentState().onEvent(e);
     };
   }
 }

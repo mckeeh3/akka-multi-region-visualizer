@@ -71,6 +71,18 @@ public interface AgentStep {
               command.viewport));
     }
 
+    public Optional<Event> onCommand(Command.ConsumedStep command) {
+      if (isEmpty()) {
+        return Optional.empty();
+      }
+
+      return Optional.of(
+          new Event.StepConsumed(
+              id,
+              sequenceId,
+              stepNumber));
+    }
+
     // ============================================================
     // Event handlers
     // ============================================================
@@ -95,6 +107,17 @@ public interface AgentStep {
           llmNextPrompt,
           Status.processed);
     }
+
+    public State onEvent(Event.StepConsumed event) {
+      return new State(
+          event.id,
+          event.sequenceId,
+          event.stepNumber,
+          llmPrompt,
+          llmResponse,
+          llmNextPrompt,
+          Status.consumed);
+    }
   }
 
   // ============================================================
@@ -116,7 +139,7 @@ public interface AgentStep {
         return new CreateStep(id, sequenceId, stepNumber, llmPrompt, llmNextPrompt, viewport, userSessionId);
       }
 
-      public static CreateStep ofFirstStep(String llmPrompt, String llmNextPrompt, ViewPort viewport, String userSessionId) {
+      public static CreateStep ofStepZero(String llmPrompt, String llmNextPrompt, ViewPort viewport, String userSessionId) {
         var sequenceId = State.randomSequenceId();
         return of(sequenceId, 0, llmPrompt, llmNextPrompt, viewport, userSessionId);
       }
@@ -132,6 +155,17 @@ public interface AgentStep {
       public static ProcessedStep of(String sequenceId, int stepNumber, String llmResponse, ViewPort viewport) {
         var id = "%s-%d".formatted(sequenceId, stepNumber);
         return new ProcessedStep(id, sequenceId, stepNumber, llmResponse, viewport);
+      }
+    }
+
+    public record ConsumedStep(
+        String id,
+        String sequenceId,
+        int stepNumber) implements Command {
+
+      public static ConsumedStep of(String sequenceId, int stepNumber) {
+        var id = "%s-%d".formatted(sequenceId, stepNumber);
+        return new ConsumedStep(id, sequenceId, stepNumber);
       }
     }
   }
@@ -158,6 +192,12 @@ public interface AgentStep {
         int stepNumber,
         String llmResponse,
         ViewPort viewport) implements Event {}
+
+    @TypeName("step-consumed")
+    public record StepConsumed(
+        String id,
+        String sequenceId,
+        int stepNumber) implements Event {}
   }
 
   public record Location(int row, int col) {}

@@ -24,6 +24,56 @@ import io.example.domain.AgentStep.ViewPort;
 import io.example.domain.GridCell;
 import io.example.domain.Predator;
 
+/**
+ * The GridAgentTool class is a central component in the Akka Multi-Region Visualizer application that serves as an
+ * interface between natural language commands and grid manipulation operations. It processes tool commands that have
+ * been generated from user inputs (likely from voice commands that were transcribed to text) and executes the
+ * appropriate grid operations.
+ *
+ * <h2>Core Functionality</h2>
+ * <ol>
+ * <li><b>Command Processing</b>: The class receives text commands, sends them to a Large Language Model (LLM), and then
+ * processes the structured commands returned by the LLM to manipulate the grid visualization.</li>
+ * <li><b>Grid Manipulation</b>: It provides a comprehensive set of operations to modify the grid state, including:
+ * <ul>
+ * <li>Drawing single cells with specific statuses</li>
+ * <li>Drawing rectangles and circles</li>
+ * <li>Clearing cells with similar colors</li>
+ * <li>Erasing all active cells</li>
+ * <li>Creating predator entities</li>
+ * <li>Navigating the viewport (both absolute and relative navigation)</li>
+ * </ul>
+ * </li>
+ * <li><b>State Management</b>: The class maintains the current viewport state and can update it based on navigation
+ * commands, ensuring the UI reflects the user's desired view.</li>
+ * <li><b>Event Sourcing Integration</b>: It interacts with Akka's event sourcing system to persist changes to the grid
+ * state and update the agent steps in the processing pipeline.</li>
+ * </ol>
+ *
+ * <h2>Technical Details</h2>
+ * <ul>
+ * <li>Uses an OpenAiClient with a specific system prompt (/grid-agent-tool-system-prompt.txt) to interpret user
+ * commands</li>
+ * <li>Parses JSON commands from the LLM response using the LLMResponseParser</li>
+ * <li>Executes different grid operations based on the command type</li>
+ * <li>Updates the agent step state to mark it as processed after command execution</li>
+ * <li>Handles errors and exceptions during command processing</li>
+ * </ul>
+ *
+ * <h2>Integration Points</h2>
+ * <ul>
+ * <li>Works with the ComponentClient to interact with Akka entities</li>
+ * <li>Integrates with the AgentStep domain model for processing steps</li>
+ * <li>Uses GridCellEntity and other grid-related components to modify the grid state</li>
+ * <li>Communicates with the AgentStepEntity to update the processing status</li>
+ * </ul>
+ *
+ * <h2>Usage</h2>
+ * <p>
+ * This class is a key part of the application's voice command processing pipeline, serving as the execution engine for
+ * grid manipulation commands that have been interpreted from user voice inputs.
+ * </p>
+ */
 public class GridAgentTool {
   static final Logger log = LoggerFactory.getLogger(GridAgentTool.class);
   final ComponentClient componentClient;
@@ -77,7 +127,7 @@ public class GridAgentTool {
       var llmResponse = response;
       var command = AgentStep.Command.ProcessedStep.of(sequenceId, stepNumber, llmResponse, viewport);
       componentClient.forEventSourcedEntity(command.id())
-          .method(AgentStepEntity::completeStep)
+          .method(AgentStepEntity::processedStep)
           .invoke(command);
     } catch (IOException | InterruptedException e) {
       log.error("Voice command: Failed to get LLM response", e);
