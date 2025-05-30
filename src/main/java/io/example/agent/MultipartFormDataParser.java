@@ -3,17 +3,17 @@ package io.example.agent;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MultipartFormDataParser {
-  private static final Logger log = LoggerFactory.getLogger(MultipartFormDataParser.class);
-  private final String boundary;
-  private final InputStream input;
-  private final Map<String, byte[]> parts = new HashMap<>();
+  static final Logger log = LoggerFactory.getLogger(MultipartFormDataParser.class);
+  final String boundary;
+  final InputStream input;
+  final Map<String, byte[]> parts = new HashMap<>();
 
   public MultipartFormDataParser(String contentType, InputStream input) {
     // Extract boundary from content type
@@ -200,7 +200,7 @@ public class MultipartFormDataParser {
     }
   }
 
-  private String readLine(InputStream input) throws IOException {
+  String readLine(InputStream input) throws IOException {
     var line = new StringBuilder();
     var b = 0;
 
@@ -249,10 +249,5 @@ public class MultipartFormDataParser {
 
     log.warn("No audio file found in any part of the multipart request");
     return null;
-  }
-
-  public String getParameter(String name) {
-    var value = parts.get(name);
-    return value != null ? new String(value, StandardCharsets.UTF_8) : null;
   }
 }

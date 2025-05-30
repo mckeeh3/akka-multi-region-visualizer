@@ -1,5 +1,15 @@
 document.addEventListener('DOMContentLoaded', () => {
   // --- Configuration ---
+  // User's session ID
+  function getSessionId() {
+    let sessionId = sessionStorage.getItem('sessionId');
+    if (sessionId == null || sessionId == undefined || sessionId == '') {
+      sessionId = crypto.randomUUID();
+      sessionStorage.setItem('sessionId', sessionId);
+    }
+    return sessionId;
+  }
+
   // Grid dimensions will be calculated dynamically based on viewport size
   let gridRows = 0; // Will be calculated dynamically
   let gridCols = 0; // Will be calculated dynamically
@@ -1856,13 +1866,14 @@ document.addEventListener('DOMContentLoaded', () => {
       fetch(`${origin}/grid-cell/voice-command`, {
         method: 'POST',
         headers: {
-          // Custom headers for viewport information
+          // Custom headers for viewport information and user session ID
           'X-Viewport-Top-Left-Row': viewportY,
           'X-Viewport-Top-Left-Col': viewportX,
           'X-Viewport-Bottom-Right-Row': viewportY + gridRows,
           'X-Viewport-Bottom-Right-Col': viewportX + gridCols,
           'X-Mouse-Row': mouseGridPosition.row,
           'X-Mouse-Col': mouseGridPosition.col,
+          'X-User-Session-Id': getSessionId(),
         },
         body: formData,
       })
@@ -1879,10 +1890,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     processLLMResponse(responseJson) {
       console.debug(`${new Date().toISOString()} `, 'Audio processed: LLM agent response:', responseJson);
-      responseJson.forEach((command) => {
-        console.debug(`${new Date().toISOString()} `, 'Audio processed: LLM agent response command:', command);
-        this.processLLMCommand(command);
-      });
+      // responseJson.forEach((command) => {
+      //   console.debug(`${new Date().toISOString()} `, 'Audio processed: LLM agent response command:', command);
+      //   this.processLLMCommand(command);
+      // });
     }
 
     processLLMCommand(command) {

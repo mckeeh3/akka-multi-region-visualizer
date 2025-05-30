@@ -1,9 +1,11 @@
 package io.example.agent;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -12,64 +14,43 @@ import org.slf4j.LoggerFactory;
 
 import akka.javasdk.client.ComponentClient;
 import io.example.agent.LLMResponseParser.Command;
+import io.example.api.FillRectangle;
+import io.example.application.AgentStepEntity;
 import io.example.application.GridCellEntity;
 import io.example.application.GridCellView;
 import io.example.application.GridCellView.GridCellRow;
+import io.example.domain.AgentStep;
+import io.example.domain.AgentStep.ViewPort;
 import io.example.domain.GridCell;
 import io.example.domain.Predator;
-import io.example.api.FillRectangle;
 
-public class LLMAgent {
-  final Logger log = LoggerFactory.getLogger(LLMAgent.class);
+public class GridAgentTool {
+  static final Logger log = LoggerFactory.getLogger(GridAgentTool.class);
   final ComponentClient componentClient;
-  ViewPort viewport;
   final String region;
+  ViewPort viewport;
 
-  public LLMAgent(ComponentClient componentClient, ViewPort viewport, String region) {
+  public GridAgentTool(ComponentClient componentClient, String region) {
     this.componentClient = componentClient;
-    this.viewport = viewport;
     this.region = region;
+    this.viewport = null;
   }
 
-  public String chat(String contentType, InputStream input) throws LLMException {
-    // Parse the HTTP multipart content data and extract the audio data
-    var parser = new MultipartFormDataParser(contentType, input);
-    try {
-      parser.parse();
-    } catch (IOException e) {
-      log.error("Failed to parse multipart form data", e);
-      throw new LLMException("Failed to parse multipart form data");
-    }
-
-    var audioData = parser.getFile();
-    if (audioData == null) {
-      log.error("No audio data found");
-      throw new LLMException("No audio data found");
-    }
-    log.info("Audio data length: {}", audioData.length);
-
-    // Transcribe the audio to text
-    var audioToText = "";
-    try {
-      audioToText = new AudioToTextTranscription().transcribeAudio(audioData);
-      log.info("Transcription: {}", audioToText);
-    } catch (IOException | InterruptedException e) {
-      log.error("Failed to transcribe audio", e);
-      throw new LLMException("Failed to transcribe audio", e);
-    }
-
-    // Send the transcribed audio to the LLM
+  public void chat(String toolCommand, String sequenceId, int stepNumber, String userSessionId, ViewPort viewport) {
     var llmClient = new OpenAiClient("/grid-agent-tool-system-prompt.txt");
+
+    this.viewport = viewport; // the viewport may be updated by a command
+
     try {
       var userPrompt = "%s\nCurrent UI view port location: top left row %d, col %d, bottom right row %d, col %d\nMouse location: row %d, col %d"
           .formatted(
-              audioToText,
-              viewport.topLeftRow(),
-              viewport.topLeftCol(),
-              viewport.bottomRightRow(),
-              viewport.bottomRightCol(),
-              viewport.mouseRow(),
-              viewport.mouseCol());
+              toolCommand,
+              viewport.topLeft().row(),
+              viewport.topLeft().col(),
+              viewport.bottomRight().row(),
+              viewport.bottomRight().col(),
+              viewport.mouse().row(),
+              viewport.mouse().col());
       log.info("User prompt: {}", userPrompt);
 
       var response = llmClient.chat(userPrompt);
@@ -93,7 +74,11 @@ public class LLMAgent {
         }
       });
 
-      return jsonCommands.toString();
+      var llmResponse = response;
+      var command = AgentStep.Command.ProcessedStep.of(sequenceId, stepNumber, llmResponse, viewport);
+      componentClient.forEventSourcedEntity(command.id())
+          .method(AgentStepEntity::completeStep)
+          .invoke(command);
     } catch (IOException | InterruptedException e) {
       log.error("Voice command: Failed to get LLM response", e);
       throw new LLMException("Failed to get LLM response", e);
@@ -232,11 +217,11 @@ public class LLMAgent {
     var y2 = row + range;
     var pageTokenOffset = "";
 
-    var allGridCells = queryGridCellsInArea(x1, y1, x2, y2, pageTokenOffset);
-    log.info("Found {} grid cells in the rectangle area", allGridCells.size());
+    var activeGridCells = queryGridCellsInArea(x1, y1, x2, y2, pageTokenOffset);
+    log.info("Found {} grid cells in the rectangle area", activeGridCells.size());
 
     var cellId = String.format("%dx%d", row, col);
-    String nextGridCellId = Predator.nextGridCellId(cellId, allGridCells, range);
+    var nextGridCellId = Predator.nextGridCellId(cellId, activeGridCells, range);
     log.info("Predator cell: {}, Next cell: {}", cellId, nextGridCellId);
 
     var predatorId = Predator.parentId();
@@ -262,30 +247,30 @@ public class LLMAgent {
     boolean hasRow = parameters.has("row");
     boolean hasCol = parameters.has("col");
 
-    int viewportWidth = viewport.bottomRightCol() - viewport.topLeftCol();
-    int viewportHeight = viewport.bottomRightRow() - viewport.topLeftRow();
+    int viewportWidth = viewport.bottomRight().col() - viewport.topLeft().col();
+    int viewportHeight = viewport.bottomRight().row() - viewport.topLeft().row();
 
-    int newRow = hasRow ? parameters.get("row").asInt() : viewport.topLeftRow();
+    int newRow = hasRow ? parameters.get("row").asInt() : viewport.topLeft().row();
     newRow = Math.round(newRow / 10.0f) * 10;
-    int newCol = hasCol ? parameters.get("col").asInt() : viewport.topLeftCol();
+    int newCol = hasCol ? parameters.get("col").asInt() : viewport.topLeft().col();
     newCol = Math.round(newCol / 10.0f) * 10;
 
-    boolean rowChanged = hasRow && newRow != viewport.topLeftRow();
-    boolean colChanged = hasCol && newCol != viewport.topLeftCol();
+    boolean rowChanged = hasRow && newRow != viewport.topLeft().row();
+    boolean colChanged = hasCol && newCol != viewport.topLeft().col();
 
     if (rowChanged || colChanged) {
-      int updatedTopLeftRow = rowChanged ? newRow : viewport.topLeftRow();
-      int updatedTopLeftCol = colChanged ? newCol : viewport.topLeftCol();
+      int updatedTopLeftRow = rowChanged ? newRow : viewport.topLeft().row();
+      int updatedTopLeftCol = colChanged ? newCol : viewport.topLeft().col();
       int updatedBottomRightRow = updatedTopLeftRow + viewportHeight;
       int updatedBottomRightCol = updatedTopLeftCol + viewportWidth;
 
-      var updatedViewport = new ViewPort(
+      var updatedViewport = ViewPort.of(
           updatedTopLeftRow,
           updatedTopLeftCol,
           updatedBottomRightRow,
           updatedBottomRightCol,
-          viewport.mouseRow(),
-          viewport.mouseCol());
+          viewport.mouse().row(),
+          viewport.mouse().col());
 
       log.info("Viewport moved \n_from {} \n_to   {}", viewport, updatedViewport);
       this.viewport = updatedViewport;
@@ -298,8 +283,8 @@ public class LLMAgent {
     var amount = parameters.get("amount").asInt();
     amount = Math.round(amount / 10.0f) * 10;
 
-    int viewportWidth = viewport.bottomRightCol() - viewport.topLeftCol();
-    int viewportHeight = viewport.bottomRightRow() - viewport.topLeftRow();
+    int viewportWidth = viewport.bottomRight().col() - viewport.topLeft().col();
+    int viewportHeight = viewport.bottomRight().row() - viewport.topLeft().row();
 
     // Calculate delta changes based on direction
     int deltaCol = 0;
@@ -317,51 +302,27 @@ public class LLMAgent {
     }
 
     if (deltaCol != 0 || deltaRow != 0) {
-      int newTopLeftCol = viewport.topLeftCol() + deltaCol;
-      int newTopLeftRow = viewport.topLeftRow() + deltaRow;
+      int newTopLeftCol = viewport.topLeft().col() + deltaCol;
+      int newTopLeftRow = viewport.topLeft().row() + deltaRow;
       int newBottomRightCol = newTopLeftCol + viewportWidth;
       int newBottomRightRow = newTopLeftRow + viewportHeight;
 
-      var updatedViewport = new ViewPort(
+      var updatedViewport = ViewPort.of(
           newTopLeftRow,
           newTopLeftCol,
           newBottomRightRow,
           newBottomRightCol,
-          viewport.mouseRow(),
-          viewport.mouseCol());
+          viewport.mouse().row(),
+          viewport.mouse().col());
       log.info("Viewport moved \n_from {} \n_to   {}", viewport, updatedViewport);
       this.viewport = updatedViewport;
     }
-  }
-
-  void showCellDetails(Command command) {
-    var parameters = command.getParameters();
-    var x = parameters.get("x").asInt();
-    var y = parameters.get("y").asInt();
-    log.info("Show cell details at x {} and y {}", x, y);
-  }
-
-  void showTimingOverlay(Command command) {
-    var parameters = command.getParameters();
-    var x = parameters.get("x").asInt();
-    var y = parameters.get("y").asInt();
-    log.info("Show timing overlay at x {} and y {}", x, y);
   }
 
   void ambiguousTool(Command command) {
     var parameters = command.getParameters();
     var message = parameters.get("message").asText();
     log.info("Ambiguous tool: {}", message);
-  }
-
-  public static class LLMException extends RuntimeException {
-    public LLMException(String message) {
-      super(message);
-    }
-
-    public LLMException(String message, Throwable cause) {
-      super(message, cause);
-    }
   }
 
   List<GridCellRow> queryGridCellsInArea(int x1, int y1, int x2, int y2, String pageTokenOffset) {
@@ -390,11 +351,60 @@ public class LLMAgent {
         .toList();
   }
 
-  public record ViewPort(
-      int topLeftRow,
-      int topLeftCol,
-      int bottomRightRow,
-      int bottomRightCol,
-      int mouseRow,
-      int mouseCol) {}
+  public static class LLMException extends RuntimeException {
+    public LLMException(String message) {
+      super(message);
+    }
+
+    public LLMException(String message, Throwable cause) {
+      super(message, cause);
+    }
+  }
+
+  /**
+   * Runs the agent in a virtual thread to process audio transcription asynchronously.
+   *
+   * This method processes agent steps, which are tool commands prompts.
+   *
+   * <ol>
+   * <li>Creating a virtual thread to handle the tool commands</li>
+   * <li>Processing the tool commands to extract text content</li>
+   * <li>Updates an AgentStep entity setting the step status to 'processed'</li>
+   * </ol>
+   *
+   * @param userPrompt      The tool commands prompt
+   * @param sequenceId      The unique identifier for the processing flow
+   * @param userSessionId   The user's web app session ID
+   * @param viewport        The current viewport information for context
+   * @param componentClient The Akka component client for entity interactions
+   * @param region          The region where the component client is running
+   * @return A CompletionStage that completes with the sequence ID when processing starts
+   */
+
+  public static CompletionStage<Void> chat(
+      String userPrompt,
+      String sequenceId,
+      int stepNumber,
+      String userSessionId,
+      AgentStep.ViewPort viewport,
+      ComponentClient componentClient,
+      String region) {
+
+    var future = new CompletableFuture<Void>();
+
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      executor.submit(() -> {
+        try {
+          var agent = new GridAgentTool(componentClient, region);
+          agent.chat(userPrompt, sequenceId, stepNumber, userSessionId, viewport);
+          future.complete(null);
+        } catch (Exception e) {
+          log.error("Error processing tool commands in virtual thread", e);
+          future.completeExceptionally(e);
+        }
+        return null;
+      });
+    }
+    return future;
+  }
 }

@@ -30,10 +30,12 @@ import akka.javasdk.http.HttpException;
 import akka.javasdk.http.HttpResponses;
 import akka.stream.Materializer;
 import akka.stream.javadsl.Source;
+import io.example.agent.AgentAudioToText;
 import io.example.agent.LLMAgent;
 import io.example.application.GridCellEntity;
 import io.example.application.GridCellView;
 import io.example.application.GridCellView.GridCellRow;
+import io.example.domain.AgentStep;
 import io.example.domain.GridCell;
 import io.example.domain.Predator;
 
@@ -239,7 +241,7 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
     return Done.done();
   }
 
-  @Post("/voice-command")
+  @Post("/voice-command-old")
   public CompletionStage<String> voiceCommandAsync(HttpRequest request) {
     log.info("Voice command: Content-type: {}", request.entity().getContentType());
 
@@ -284,30 +286,37 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
         });
   }
 
-  List<GridCellRow> queryGridCellsInArea(int x1, int y1, int x2, int y2, String pageTokenOffset) {
-    return Stream.generate(new Supplier<GridCellView.PagedGridCells>() {
-      String currentPageToken = pageTokenOffset;
-      boolean hasMore = true;
+  @Post("/voice-command")
+  public CompletionStage<String> voiceCommandNext(HttpRequest request) {
+    var contentType = request.entity().getContentType().toString();
+    log.info("Voice command: Content-type: {}", contentType);
 
-      @Override
-      public GridCellView.PagedGridCells get() {
-        if (!hasMore) {
-          return null;
-        }
+    if (contentType == null
+        || !contentType.startsWith("multipart/form-data")
+        || !(contentType.split("boundary=").length == 2)) {
+      log.error("Voice command: Content-type is null or not multipart/form-data");
+      throw HttpException.badRequest("Content-type must be multipart/form-data");
+    }
 
-        var pagedGridCells = componentClient.forView()
-            .method(GridCellView::queryActiveGridCells)
-            .invoke(new GridCellView.PagedGridCellsRequest(x1, y1, x2, y2, currentPageToken));
+    var viewport = viewportFromHttpHeaders(request);
+    log.info("Voice command: Viewport: {}", viewport);
 
-        currentPageToken = pagedGridCells.nextPageToken();
-        hasMore = pagedGridCells.hasMore();
+    var userSessionId = request.getHeader("X-User-Session-Id").map(header -> header.value()).orElse("unknown");
+    log.info("Voice command: User session ID: {}", userSessionId);
 
-        return pagedGridCells;
-      }
-    })
-        .takeWhile(pagedGridCells -> pagedGridCells != null)
-        .flatMap(pagedGridCells -> pagedGridCells.gridCells().stream())
-        .toList();
+    return request.entity().toStrict(Duration.ofSeconds(10).toMillis(), materializer)
+        .thenCompose(strict -> {
+          log.info("Voice command: Strict: {}", strict.getData().size());
+          var bytes = strict.getData().toArray();
+          var input = new ByteArrayInputStream(bytes);
+
+          try {
+            return AgentAudioToText.convertAudioToText(componentClient, viewport, contentType, input, userSessionId);
+          } catch (AgentAudioToText.AudioToTextException e) {
+            log.error("Voice command: LLM agent error", e);
+            throw HttpException.badRequest(e.getMessage());
+          }
+        });
   }
 
   @Get("/config")
@@ -334,6 +343,47 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
 
   String region() {
     return requestContext().selfRegion().isEmpty() ? "local-development" : requestContext().selfRegion();
+  }
+
+  List<GridCellRow> queryGridCellsInArea(int x1, int y1, int x2, int y2, String pageTokenOffset) {
+    return Stream.generate(new Supplier<GridCellView.PagedGridCells>() {
+      String currentPageToken = pageTokenOffset;
+      boolean hasMore = true;
+
+      @Override
+      public GridCellView.PagedGridCells get() {
+        if (!hasMore) {
+          return null;
+        }
+
+        var pagedGridCells = componentClient.forView()
+            .method(GridCellView::queryActiveGridCells)
+            .invoke(new GridCellView.PagedGridCellsRequest(x1, y1, x2, y2, currentPageToken));
+
+        currentPageToken = pagedGridCells.nextPageToken();
+        hasMore = pagedGridCells.hasMore();
+
+        return pagedGridCells;
+      }
+    })
+        .takeWhile(pagedGridCells -> pagedGridCells != null)
+        .flatMap(pagedGridCells -> pagedGridCells.gridCells().stream())
+        .toList();
+  }
+
+  public static AgentStep.ViewPort viewportFromHttpHeaders(HttpRequest request) {
+    var viewportTopLeftRow = request.getHeader("X-Viewport-Top-Left-Row").map(header -> Integer.parseInt(header.value())).orElse(0);
+    var viewportTopLeftCol = request.getHeader("X-Viewport-Top-Left-Col").map(header -> Integer.parseInt(header.value())).orElse(0);
+    var viewportBottomRightRow = request.getHeader("X-Viewport-Bottom-Right-Row").map(header -> Integer.parseInt(header.value())).orElse(0);
+    var viewportBottomRightCol = request.getHeader("X-Viewport-Bottom-Right-Col").map(header -> Integer.parseInt(header.value())).orElse(0);
+    var mouseRow = request.getHeader("X-Mouse-Row").map(header -> Integer.parseInt(header.value())).orElse(0);
+    var mouseCol = request.getHeader("X-Mouse-Col").map(header -> Integer.parseInt(header.value())).orElse(0);
+
+    var topLeft = new AgentStep.Location(viewportTopLeftRow, viewportTopLeftCol);
+    var bottomRight = new AgentStep.Location(viewportBottomRightRow, viewportBottomRightCol);
+    var mouse = new AgentStep.Location(mouseRow, mouseCol);
+
+    return new AgentStep.ViewPort(topLeft, bottomRight, mouse);
   }
 
   record UpdateGridCellRequest(String id, String status, Instant clientAt, Integer centerX, Integer centerY, Integer radius) {}

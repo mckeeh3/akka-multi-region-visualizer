@@ -47,6 +47,8 @@ public class OpenAiClient {
   }
 
   public String chat(String userMessage) throws IOException, InterruptedException {
+    log.info("User prompt: {}", userMessage);
+
     var request = new OpenAiRequest(
         "gpt-4o-mini",
         List.of(

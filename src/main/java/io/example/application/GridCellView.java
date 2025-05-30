@@ -16,7 +16,7 @@ import io.example.domain.GridCell;
 
 @ComponentId("grid-cell-view")
 public class GridCellView extends View {
-  private static final Logger log = LoggerFactory.getLogger(GridCellView.class);
+  static final Logger log = LoggerFactory.getLogger(GridCellView.class);
 
   @Query("""
       SELECT *
@@ -78,7 +78,7 @@ public class GridCellView extends View {
       };
     }
 
-    private GridCellRow onEvent(GridCell.Event.StatusUpdated event) {
+    GridCellRow onEvent(GridCell.Event.StatusUpdated event) {
       log.info("Region: {}, Event: {}\n_State: {}", region(updateContext()), event, rowState());
 
       var rc = event.id().split("x"); // RxC / YxX
