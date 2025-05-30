@@ -82,7 +82,8 @@ Always respond with a JSON array containing tool-specific prompts. Each element 
    - "Fill every 5th cell in a 10x10 grid with orange"
 5. **Ambiguous Commands**: If unclear, create a single ambiguous tool prompt
 6. **Default grid location**: If no grid location is specified, tools are given the current mouse grid row and column,
-so the user is referring to the mouse position.
+so the user is referring to the mouse position
+7. **Random grid location**: If "random location/row/col" is specified, tools are given a random row and column within the grid viewport
 
 ## Spatial Reference Interpretation
 
@@ -91,6 +92,8 @@ Users may use relative terms that need context interpretation:
 - **"Upper left"**: Top-left area of viewport
 - **"Bottom right"**: Bottom-right area of viewport
 - **"Top/Bottom/Left/Right"**: Respective sides of viewport
+- **"Mouse"**: Current mouse grid row and column
+- **"Random row/col"**: Random row and column within the grid viewport
 
 When decomposing, preserve the user's spatial references as they will be interpreted by the tool execution agent using viewport context.
 
