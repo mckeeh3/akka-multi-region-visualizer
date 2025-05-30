@@ -1863,7 +1863,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       console.info(`${new Date().toISOString()} `, 'Processing audio...');
 
-      fetch(`${origin}/grid-cell/voice-command`, {
+      fetch(`${origin}/agent/voice-command`, {
         method: 'POST',
         headers: {
           // Custom headers for viewport information and user session ID
@@ -1878,10 +1878,11 @@ document.addEventListener('DOMContentLoaded', () => {
         body: formData,
       })
         .then((response) => response.text())
-        .then((responseText) => JSON.parse(responseText))
-        .then((responseJson) => {
-          this.processLLMResponse(responseJson);
-        })
+        .then((responseText) => console.info(`${new Date().toISOString()} `, 'Audio processed: LLM agent response:', responseText))
+        // .then((responseText) => JSON.parse(responseText))
+        // .then((responseJson) => {
+        //   this.processLLMResponse(responseJson);
+        // })
         .catch((error) => {
           console.error(`${new Date().toISOString()} `, 'Error processing audio:', error);
           // this.showError('Failed to process audio');

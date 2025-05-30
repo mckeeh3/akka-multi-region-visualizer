@@ -1,12 +1,10 @@
 package io.example.api;
 
-import java.io.ByteArrayInputStream;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -16,13 +14,11 @@ import org.slf4j.LoggerFactory;
 import com.typesafe.config.Config;
 
 import akka.Done;
-import akka.http.javadsl.model.HttpRequest;
 import akka.http.javadsl.model.HttpResponse;
 import akka.http.javadsl.model.StatusCodes;
 import akka.javasdk.annotations.Acl;
 import akka.javasdk.annotations.http.Get;
 import akka.javasdk.annotations.http.HttpEndpoint;
-import akka.javasdk.annotations.http.Post;
 import akka.javasdk.annotations.http.Put;
 import akka.javasdk.client.ComponentClient;
 import akka.javasdk.http.AbstractHttpEndpoint;
@@ -30,22 +26,19 @@ import akka.javasdk.http.HttpException;
 import akka.javasdk.http.HttpResponses;
 import akka.stream.Materializer;
 import akka.stream.javadsl.Source;
-import io.example.agent.GridAgentAudioToText;
-import io.example.agent.LLMAgent;
 import io.example.application.GridCellEntity;
 import io.example.application.GridCellView;
 import io.example.application.GridCellView.GridCellRow;
-import io.example.domain.AgentStep;
 import io.example.domain.GridCell;
 import io.example.domain.Predator;
 
 @Acl(allow = @Acl.Matcher(principal = Acl.Principal.INTERNET))
 @HttpEndpoint("/grid-cell")
 public class GridCellEndpoint extends AbstractHttpEndpoint {
-  private final Logger log = LoggerFactory.getLogger(GridCellEndpoint.class);
-  private final ComponentClient componentClient;
-  private final Materializer materializer;
-  private final Config config;
+  final Logger log = LoggerFactory.getLogger(GridCellEndpoint.class);
+  final ComponentClient componentClient;
+  final Materializer materializer;
+  final Config config;
 
   public GridCellEndpoint(ComponentClient componentClient, Materializer materializer, Config config) {
     this.componentClient = componentClient;
@@ -241,84 +234,6 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
     return Done.done();
   }
 
-  @Post("/voice-command-old")
-  public CompletionStage<String> voiceCommandAsync(HttpRequest request) {
-    log.info("Voice command: Content-type: {}", request.entity().getContentType());
-
-    var viewportTopLeftRow = request.getHeader("X-Viewport-Top-Left-Row").map(header -> Integer.parseInt(header.value())).orElse(0);
-    var viewportTopLeftCol = request.getHeader("X-Viewport-Top-Left-Col").map(header -> Integer.parseInt(header.value())).orElse(0);
-    var viewportBottomRightRow = request.getHeader("X-Viewport-Bottom-Right-Row").map(header -> Integer.parseInt(header.value())).orElse(0);
-    var viewportBottomRightCol = request.getHeader("X-Viewport-Bottom-Right-Col").map(header -> Integer.parseInt(header.value())).orElse(0);
-    var mouseRow = request.getHeader("X-Mouse-Row").map(header -> Integer.parseInt(header.value())).orElse(0);
-    var mouseCol = request.getHeader("X-Mouse-Col").map(header -> Integer.parseInt(header.value())).orElse(0);
-
-    var viewport = new LLMAgent.ViewPort(
-        viewportTopLeftCol,
-        viewportTopLeftRow,
-        viewportBottomRightCol,
-        viewportBottomRightRow,
-        mouseRow,
-        mouseCol);
-    log.info("Voice command: Viewport: {}", viewport);
-
-    var contentType = request.entity().getContentType().toString();
-    if (contentType == null
-        || !contentType.startsWith("multipart/form-data")
-        || !(contentType.split("boundary=").length == 2)) {
-      log.error("Voice command: Content-type is null or not multipart/form-data");
-      throw HttpException.badRequest("Content-type must be multipart/form-data");
-    }
-
-    var llmAgent = new LLMAgent(componentClient, viewport, region());
-
-    return request.entity().toStrict(Duration.ofSeconds(10).toMillis(), materializer)
-        .thenApply(strict -> {
-          log.info("Voice command: Strict: {}", strict.getData().size());
-          var bytes = strict.getData().toArray();
-          var input = new ByteArrayInputStream(bytes);
-
-          try {
-            return llmAgent.chat(contentType, input);
-          } catch (LLMAgent.LLMException e) {
-            log.error("Voice command: LLM agent error", e);
-            throw HttpException.badRequest(e.getMessage());
-          }
-        });
-  }
-
-  @Post("/voice-command")
-  public CompletionStage<String> voiceCommandNext(HttpRequest request) {
-    var contentType = request.entity().getContentType().toString();
-    log.info("Voice command: Content-type: {}", contentType);
-
-    if (contentType == null
-        || !contentType.startsWith("multipart/form-data")
-        || !(contentType.split("boundary=").length == 2)) {
-      log.error("Voice command: Content-type is null or not multipart/form-data");
-      throw HttpException.badRequest("Content-type must be multipart/form-data");
-    }
-
-    var viewport = viewportFromHttpHeaders(request);
-    log.info("Voice command: Viewport: {}", viewport);
-
-    var userSessionId = request.getHeader("X-User-Session-Id").map(header -> header.value()).orElse("unknown");
-    log.info("Voice command: User session ID: {}", userSessionId);
-
-    return request.entity().toStrict(Duration.ofSeconds(10).toMillis(), materializer)
-        .thenCompose(strict -> {
-          log.info("Voice command: Audio request size: {}", strict.getData().size());
-          var bytes = strict.getData().toArray();
-          var input = new ByteArrayInputStream(bytes);
-
-          try {
-            return GridAgentAudioToText.convertAudioToText(componentClient, viewport, contentType, input, userSessionId);
-          } catch (GridAgentAudioToText.AudioToTextException e) {
-            log.error("Voice command: LLM agent error", e);
-            throw HttpException.badRequest(e.getMessage());
-          }
-        });
-  }
-
   @Get("/config")
   public Config getConfig() {
     return config;
@@ -369,21 +284,6 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
         .takeWhile(pagedGridCells -> pagedGridCells != null)
         .flatMap(pagedGridCells -> pagedGridCells.gridCells().stream())
         .toList();
-  }
-
-  public static AgentStep.ViewPort viewportFromHttpHeaders(HttpRequest request) {
-    var viewportTopLeftRow = request.getHeader("X-Viewport-Top-Left-Row").map(header -> Integer.parseInt(header.value())).orElse(0);
-    var viewportTopLeftCol = request.getHeader("X-Viewport-Top-Left-Col").map(header -> Integer.parseInt(header.value())).orElse(0);
-    var viewportBottomRightRow = request.getHeader("X-Viewport-Bottom-Right-Row").map(header -> Integer.parseInt(header.value())).orElse(0);
-    var viewportBottomRightCol = request.getHeader("X-Viewport-Bottom-Right-Col").map(header -> Integer.parseInt(header.value())).orElse(0);
-    var mouseRow = request.getHeader("X-Mouse-Row").map(header -> Integer.parseInt(header.value())).orElse(0);
-    var mouseCol = request.getHeader("X-Mouse-Col").map(header -> Integer.parseInt(header.value())).orElse(0);
-
-    var topLeft = new AgentStep.Location(viewportTopLeftRow, viewportTopLeftCol);
-    var bottomRight = new AgentStep.Location(viewportBottomRightRow, viewportBottomRightCol);
-    var mouse = new AgentStep.Location(mouseRow, mouseCol);
-
-    return new AgentStep.ViewPort(topLeft, bottomRight, mouse);
   }
 
   record UpdateGridCellRequest(String id, String status, Instant clientAt, Integer centerX, Integer centerY, Integer radius) {}
