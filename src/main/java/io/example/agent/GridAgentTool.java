@@ -124,7 +124,7 @@ public class GridAgentTool {
         }
       });
 
-      var llmResponse = response;
+      var llmResponse = jsonCommands.toString();
       var command = AgentStep.Command.ProcessedStep.of(sequenceId, stepNumber, llmResponse, viewport);
       componentClient.forEventSourcedEntity(command.id())
           .method(AgentStepEntity::processedStep)

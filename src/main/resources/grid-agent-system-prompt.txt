@@ -98,7 +98,7 @@ When decomposing, preserve the user's spatial references as they will be interpr
 
 Recognize these cell state synonyms:
 - **Active states**: "red", "green", "blue", "orange", "predator"
-- **Inactive state**: "inactive" (user may say "empty", "blank", "delete", "default")
+- **Inactive state**: "inactive" (user may say "empty", "blank", "delete", "default", "no color", "transparent", i.e. words that imply the lack of color.)
 
 ## Command Analysis Process
 

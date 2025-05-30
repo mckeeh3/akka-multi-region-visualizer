@@ -51,6 +51,7 @@ public interface AgentStep {
               command.id,
               command.sequenceId,
               command.stepNumber,
+              Status.pending,
               command.llmPrompt,
               command.llmNextPrompt,
               command.viewport,
@@ -67,6 +68,7 @@ public interface AgentStep {
               id,
               sequenceId,
               stepNumber,
+              Status.processed,
               command.llmResponse,
               command.viewport));
     }
@@ -80,7 +82,8 @@ public interface AgentStep {
           new Event.StepConsumed(
               id,
               sequenceId,
-              stepNumber));
+              stepNumber,
+              Status.consumed));
     }
 
     // ============================================================
@@ -94,7 +97,7 @@ public interface AgentStep {
           event.llmPrompt,
           "",
           event.llmNextPrompt,
-          Status.pending);
+          event.status);
     }
 
     public State onEvent(Event.StepProcessed event) {
@@ -105,7 +108,7 @@ public interface AgentStep {
           llmPrompt,
           event.llmResponse,
           llmNextPrompt,
-          Status.processed);
+          event.status);
     }
 
     public State onEvent(Event.StepConsumed event) {
@@ -116,7 +119,7 @@ public interface AgentStep {
           llmPrompt,
           llmResponse,
           llmNextPrompt,
-          Status.consumed);
+          event.status);
     }
   }
 
@@ -180,6 +183,7 @@ public interface AgentStep {
         String id,
         String sequenceId,
         int stepNumber,
+        Status status,
         String llmPrompt,
         String llmNextPrompt,
         ViewPort viewport,
@@ -190,6 +194,7 @@ public interface AgentStep {
         String id,
         String sequenceId,
         int stepNumber,
+        Status status,
         String llmResponse,
         ViewPort viewport) implements Event {}
 
@@ -197,7 +202,8 @@ public interface AgentStep {
     public record StepConsumed(
         String id,
         String sequenceId,
-        int stepNumber) implements Event {}
+        int stepNumber,
+        Status status) implements Event {}
   }
 
   public record Location(int row, int col) {}

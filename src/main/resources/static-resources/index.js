@@ -4,7 +4,13 @@ document.addEventListener('DOMContentLoaded', () => {
   function getSessionId() {
     let sessionId = sessionStorage.getItem('sessionId');
     if (sessionId == null || sessionId == undefined || sessionId == '') {
-      sessionId = crypto.randomUUID();
+      // Generate a random ID of 5 characters (0-9, a-z)
+      sessionId = Array(5).fill(0)
+        .map(() => {
+          const chars = '0123456789abcdefghijklmnopqrstuvwxyz';
+          return chars.charAt(Math.floor(Math.random() * chars.length));
+        })
+        .join('');
       sessionStorage.setItem('sessionId', sessionId);
     }
     return sessionId;

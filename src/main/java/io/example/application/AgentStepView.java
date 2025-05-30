@@ -31,9 +31,9 @@ public class AgentStepView extends View {
       SELECT *
         FROM agent_step_view
         WHERE userSessionId = :userSessionId
-        AND completed = true
+        AND status != 'consumed'
       """, streamUpdates = true)
-  public QueryStreamEffect<AgentStepRow> getCompletedAgentSteps(String userSessionId) {
+  public QueryStreamEffect<AgentStepRow> getActiveAgentSteps(String userSessionId) {
     return queryStreamResult();
   }
 
@@ -41,9 +41,12 @@ public class AgentStepView extends View {
   public static class AgentStepBySequence extends TableUpdater<AgentStepRow> {
 
     public Effect<AgentStepRow> onEvent(AgentStep.Event event) {
+      log.info("Event: {}", event);
+
       return switch (event) {
         case AgentStep.Event.StepCreated e -> effects().updateRow(onEvent(e));
         case AgentStep.Event.StepProcessed e -> effects().updateRow(onEvent(e));
+        case AgentStep.Event.StepConsumed e -> effects().updateRow(onEvent(e));
         default -> effects().ignore();
       };
     }
@@ -53,22 +56,34 @@ public class AgentStepView extends View {
           event.id(),
           event.sequenceId(),
           event.stepNumber(),
+          event.status().toString(),
           event.llmPrompt(),
           "",
-          false,
           event.viewport(),
           event.userSessionId());
     }
 
     AgentStepRow onEvent(AgentStep.Event.StepProcessed event) {
       return new AgentStepRow(
-          event.id(),
-          event.sequenceId(),
-          event.stepNumber(),
+          rowState().id(),
+          rowState().sequenceId(),
+          rowState().stepNumber(),
+          event.status().toString(),
           rowState().llmPrompt(),
           event.llmResponse(),
-          true,
           event.viewport(),
+          rowState().userSessionId());
+    }
+
+    AgentStepRow onEvent(AgentStep.Event.StepConsumed event) {
+      return new AgentStepRow(
+          rowState().id(),
+          rowState().sequenceId(),
+          rowState().stepNumber(),
+          event.status().toString(),
+          rowState().llmPrompt(),
+          rowState().llmResponse(),
+          rowState().viewport(),
           rowState().userSessionId());
     }
   }
@@ -77,9 +92,9 @@ public class AgentStepView extends View {
       String id,
       String sequenceId,
       int stepNumber,
+      String status,
       String llmPrompt,
       String llmResponse,
-      boolean completed,
       ViewPort viewport,
       String userSessionId) {}
 

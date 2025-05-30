@@ -8,14 +8,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import akka.http.javadsl.model.HttpRequest;
+import akka.http.javadsl.model.HttpResponse;
 import akka.javasdk.annotations.Acl;
+import akka.javasdk.annotations.http.Get;
 import akka.javasdk.annotations.http.HttpEndpoint;
 import akka.javasdk.annotations.http.Post;
 import akka.javasdk.client.ComponentClient;
 import akka.javasdk.http.AbstractHttpEndpoint;
 import akka.javasdk.http.HttpException;
+import akka.javasdk.http.HttpResponses;
 import akka.stream.Materializer;
 import io.example.agent.GridAgentAudioToText;
+import io.example.application.AgentStepView;
 import io.example.domain.AgentStep;
 
 @Acl(allow = @Acl.Matcher(principal = Acl.Principal.INTERNET))
@@ -61,6 +65,14 @@ public class AgentEndpoint extends AbstractHttpEndpoint {
             throw HttpException.badRequest(e.getMessage());
           }
         });
+  }
+
+  @Get("/agent-steps-stream/{userSessionId}")
+  public HttpResponse getAgentStepsStream(String userSessionId) {
+    return HttpResponses.serverSentEvents(
+        componentClient.forView()
+            .stream(AgentStepView::getActiveAgentSteps)
+            .source(userSessionId));
   }
 
   static AgentStep.ViewPort viewportFromHttpHeaders(HttpRequest request) {
