@@ -16,14 +16,21 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class OpenAiClient {
-  private static final Logger log = LoggerFactory.getLogger(OpenAiClient.class);
+  static final Logger log = LoggerFactory.getLogger(OpenAiClient.class);
 
-  private final String openaiApiKey;
-  private final HttpClient client;
-  private final ObjectMapper objectMapper;
-  private final String systemPrompt;
+  final String openaiModel;
+  final String openaiApiKey;
+  final HttpClient client;
+  final ObjectMapper objectMapper;
+  final String systemPrompt;
 
   public OpenAiClient(String systemPromptPath) {
+    this(systemPromptPath, "gpt-4o-mini");
+  }
+
+  public OpenAiClient(String systemPromptPath, String openaiModel) {
+    this.openaiModel = openaiModel;
+
     openaiApiKey = System.getenv("OPENAI_API_KEY");
     if (openaiApiKey == null || openaiApiKey.isEmpty()) {
       throw new IllegalStateException("OPENAI_API_KEY environment variable is not set");
@@ -50,12 +57,10 @@ public class OpenAiClient {
     log.info("User prompt: {}", userMessage);
 
     var request = new OpenAiRequest(
-        "gpt-4o-mini",
+        openaiModel,
         List.of(
             new OpenAiRequest.Message("system", systemPrompt),
-            new OpenAiRequest.Message("user", userMessage)),
-        10000,
-        0.7);
+            new OpenAiRequest.Message("user", userMessage)));
 
     var jsonRequest = objectMapper.writeValueAsString(request);
 
@@ -68,6 +73,7 @@ public class OpenAiClient {
 
     var response = client.send(httpRequest, HttpResponse.BodyHandlers.ofString());
     if (response.statusCode() != 200) {
+      log.error("LLM response failure, status code: {}\n{}", response.statusCode(), response.body());
       throw new IOException("LLM response failure, status code: " + response.statusCode());
     }
 
@@ -86,9 +92,7 @@ public class OpenAiClient {
 
   public record OpenAiRequest(
       String model,
-      List<Message> messages,
-      @JsonProperty("max_tokens") Integer maxTokens,
-      Double temperature) {
+      List<Message> messages) {
 
     public record Message(
         String role,

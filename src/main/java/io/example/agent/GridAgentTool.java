@@ -87,7 +87,7 @@ public class GridAgentTool {
   }
 
   public void chat(String toolCommand, String sequenceId, int stepNumber, String userSessionId, ViewPort viewport) {
-    var llmClient = new OpenAiClient("/grid-agent-tool-system-prompt.txt");
+    var llmClient = new OpenAiClient("/grid-agent-tool-system-prompt.txt", "o3-mini");
 
     this.viewport = viewport; // the viewport may be updated by a command
 

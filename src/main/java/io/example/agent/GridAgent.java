@@ -72,7 +72,7 @@ public class GridAgent {
   }
 
   List<String> chat(String userPrompt) {
-    var llmClient = new OpenAiClient("/grid-agent-system-prompt.txt");
+    var llmClient = new OpenAiClient("/grid-agent-system-prompt.txt", "o3-mini");
     try {
       var response = llmClient.chat(userPrompt);
       log.info("LLM response: {}", response);
