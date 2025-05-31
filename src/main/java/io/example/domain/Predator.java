@@ -10,6 +10,48 @@ import org.slf4j.LoggerFactory;
 import io.example.application.GridCellView;
 import io.example.application.GridCellView.GridCellRow;
 
+/**
+ * The Predator class implements the hunting behavior for predator entities in the Akka Multi-Region Visualizer grid.
+ * Predators move across the grid seeking out and consuming prey cells (active cells) according to a set of
+ * sophisticated hunting algorithms that simulate natural predator-prey dynamics.
+ *
+ * <h2>Core Functionality</h2>
+ * <ol>
+ * <li><b>Target Selection</b>: Identifies the most attractive prey cells based on their intensity and proximity</li>
+ * <li><b>Path Finding</b>: Determines the optimal next move toward selected prey using short and long-range strategies</li>
+ * <li><b>Movement Logic</b>: Implements both deterministic and non-deterministic movement patterns to create
+ * realistic hunting behavior</li>
+ * <li><b>Range-Based Hunting</b>: Adapts hunting strategies based on the predator's detection range</li>
+ * </ol>
+ *
+ * <h2>Hunting Strategies</h2>
+ * <ul>
+ * <li><b>Short Range</b>: When prey is nearby, predators move directly toward the highest-intensity prey,
+ * with preference for immediate neighbors</li>
+ * <li><b>Long Range</b>: When no prey is in short range, predators use a more sophisticated algorithm that
+ * considers the collective influence of all prey cells in range</li>
+ * <li><b>Random Selection</b>: To avoid deterministic behavior, predators may randomly select among equally
+ * attractive prey cells</li>
+ * </ul>
+ *
+ * <h2>Technical Details</h2>
+ * <ul>
+ * <li>Uses vector mathematics to determine movement direction toward prey</li>
+ * <li>Implements distance calculations to prioritize prey based on proximity</li>
+ * <li>Applies intensity weighting to prefer higher-value prey cells</li>
+ * <li>Provides logging for debugging and visualization of predator decision-making</li>
+ * </ul>
+ *
+ * <h2>Integration Points</h2>
+ * <ul>
+ * <li>Works with the GridCellView to access the current state of the grid</li>
+ * <li>Interacts with the Point and DirectionVector utility classes for spatial calculations</li>
+ * <li>Integrates with the grid visualization system to display predator movement</li>
+ * </ul>
+ *
+ * This class is central to the emergent behavior observed in the grid visualization, creating dynamic
+ * patterns as predators chase and consume prey cells across the multi-region environment.
+ */
 public class Predator {
   static final Logger log = LoggerFactory.getLogger(Predator.class);
 

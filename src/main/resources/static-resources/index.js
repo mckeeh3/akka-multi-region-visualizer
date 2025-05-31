@@ -5,7 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let sessionId = sessionStorage.getItem('sessionId');
     if (sessionId == null || sessionId == undefined || sessionId == '') {
       // Generate a random ID of 5 characters (0-9, a-z)
-      sessionId = Array(5).fill(0)
+      sessionId = Array(5)
+        .fill(0)
         .map(() => {
           const chars = '0123456789abcdefghijklmnopqrstuvwxyz';
           return chars.charAt(Math.floor(Math.random() * chars.length));
@@ -1868,6 +1869,7 @@ document.addEventListener('DOMContentLoaded', () => {
       formData.append('audio', audioBlob, 'voice-command.wav');
 
       console.info(`${new Date().toISOString()} `, 'Processing audio...');
+      updateCommandStatus('Processing voice command...', 0);
 
       fetch(`${origin}/agent/voice-command`, {
         method: 'POST',
@@ -1883,33 +1885,64 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         body: formData,
       })
-        .then((response) => response.text())
-        .then((responseText) => console.info(`${new Date().toISOString()} `, 'Audio processed: LLM agent response:', responseText))
-        // .then((responseText) => JSON.parse(responseText))
-        // .then((responseJson) => {
-        //   this.processLLMResponse(responseJson);
-        // })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
+          }
+          return response.text();
+        })
+        .then((responseText) => {
+          console.info(`${new Date().toISOString()} `, 'Audio processed: LLM agent response:', responseText);
+          updateCommandStatus('Voice command received: ' + responseText, 5000);
+          // The actual processing of commands will happen through the agent step stream
+          // No need to parse the response here as we'll get updates via SSE
+        })
         .catch((error) => {
           console.error(`${new Date().toISOString()} `, 'Error processing audio:', error);
-          // this.showError('Failed to process audio');
+          updateCommandStatus('Error processing voice command', 5000);
+        })
+        .finally(() => {
+          // Re-enable the record button
+          this.recordButton.disabled = false;
         });
     }
 
     processLLMResponse(responseJson) {
       console.debug(`${new Date().toISOString()} `, 'Audio processed: LLM agent response:', responseJson);
-      // responseJson.forEach((command) => {
-      //   console.debug(`${new Date().toISOString()} `, 'Audio processed: LLM agent response command:', command);
-      //   this.processLLMCommand(command);
-      // });
+      if (Array.isArray(responseJson)) {
+        responseJson.forEach((command) => {
+          console.debug(`${new Date().toISOString()} `, 'Processing command:', command);
+          if (typeof command === 'string') {
+            try {
+              const parsedCommand = JSON.parse(command);
+              this.processLLMCommand(parsedCommand);
+            } catch (e) {
+              console.error(`${new Date().toISOString()} `, 'Error parsing command JSON:', e);
+            }
+          } else {
+            this.processLLMCommand(command);
+          }
+        });
+      }
     }
 
     processLLMCommand(command) {
+      if (!command || !command.tool) {
+        console.warn(`${new Date().toISOString()} `, 'Invalid command format:', command);
+        return;
+      }
+
+      console.debug(`${new Date().toISOString()} `, 'Processing command tool:', command.tool);
       switch (command.tool) {
         case 'absoluteViewportNavigation':
           this.absoluteViewportNavigation(command);
           break;
         case 'relativeViewportNavigation':
           this.relativeViewportNavigation(command);
+          break;
+        default:
+          console.info(`${new Date().toISOString()} `, 'Command will be handled by backend:', command.tool);
+          // Other commands like drawing cells, rectangles, etc. are handled by the backend
           break;
       }
     }
@@ -1991,4 +2024,44 @@ document.addEventListener('DOMContentLoaded', () => {
       }, 0);
     }, 250); // Wait 250ms after resize ends before recalculating
   });
+
+  // Connect to agent step stream for the current session
+  connectToAgentStepStream();
+
+  /**
+   * Connects to the agent step stream to receive real-time updates about voice command processing
+   */
+  function connectToAgentStepStream() {
+    const sessionId = getSessionId();
+    const agentStepStream = new EventSource(`${origin}/agent/agent-steps-stream/${sessionId}`);
+
+    agentStepStream.onmessage = (event) => {
+      // Skip empty messages (keep-alive polling)
+      if (!event.data || event.data.trim() === '') {
+        return;
+      }
+
+      try {
+        const step = JSON.parse(event.data);
+        console.info(`${new Date().toISOString()} `, 'Agent step update:', step);
+
+        // Process the step based on its status and content
+        if (step.status === 'processed' && step.llmResponse) {
+          // This is a processed step with LLM response
+          console.info(`${new Date().toISOString()} `, 'Processed step with LLM response:', step.llmResponse);
+        }
+
+        // Update UI to show the current step being processed
+        updateCommandStatus(`Processing: ${step.userPrompt || step.llmPrompt || 'Voice command'}`, 5000);
+      } catch (error) {
+        console.error(`${new Date().toISOString()} `, 'Error processing agent step:', error, 'Raw data:', event.data);
+      }
+    };
+
+    agentStepStream.onerror = (error) => {
+      console.error(`${new Date().toISOString()} `, 'Agent step stream error:', error);
+      // Try to reconnect after a delay
+      setTimeout(() => connectToAgentStepStream(), 5000);
+    };
+  }
 }); // End DOMContentLoaded
