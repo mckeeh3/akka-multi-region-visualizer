@@ -50,6 +50,18 @@ public class AgentStepToAgentConsumer extends Consumer {
     log.info("Region: {}, Event: {}", region(), event);
 
     {
+      var command = AgentStep.Command.ProcessedStep.of(
+          event.sequenceId(),
+          event.stepNumber(),
+          event.llmNextPrompt(),
+          event.viewport());
+
+      componentClient.forEventSourcedEntity(command.id())
+          .method(AgentStepEntity::processedStep)
+          .invoke(command);
+    }
+
+    {
       var llmPrompt = event.llmNextPrompt();
       var llmNextPrompt = "(series of tool prompts)";
       var stepOne = 1;
@@ -63,18 +75,6 @@ public class AgentStepToAgentConsumer extends Consumer {
 
       componentClient.forEventSourcedEntity(command.id())
           .method(AgentStepEntity::createStep)
-          .invoke(command);
-    }
-
-    {
-      var command = AgentStep.Command.ProcessedStep.of(
-          event.sequenceId(),
-          event.stepNumber(),
-          event.llmNextPrompt(),
-          event.viewport());
-
-      componentClient.forEventSourcedEntity(command.id())
-          .method(AgentStepEntity::processedStep)
           .invoke(command);
     }
   }

@@ -1205,6 +1205,26 @@ document.addEventListener('DOMContentLoaded', () => {
       event.preventDefault(); // Prevent default browser action
       voiceCommand.toggleMicrophone();
     }
+
+    // Handle toggle agent message viewer
+    if (event.key === 'a') {
+      event.preventDefault(); // Prevent default browser action
+      toggleAgentMessageOverlay();
+    }
+
+    // Handle agent message navigation with arrow keys when overlay is visible
+    if (document.querySelector('.agent-message-overlay')) {
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        navigateAgentMessages(-1); // Previous message
+      } else if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        navigateAgentMessages(1); // Next message
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        removeAgentMessageOverlay();
+      }
+    }
   }
 
   /**
@@ -2028,6 +2048,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Connect to agent step stream for the current session
   connectToAgentStepStream();
 
+  // Store agent step messages in a FIFO queue with a maximum size
+  const agentStepMessages = [];
+  const agentStepMessagesMax = 100; // Maximum number of messages to store
+
   /**
    * Connects to the agent step stream to receive real-time updates about voice command processing
    */
@@ -2044,6 +2068,9 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const step = JSON.parse(event.data);
         console.info(`${new Date().toISOString()} `, 'Agent step update:', step);
+
+        // Add the message to our FIFO queue
+        addAgentStepMessage(step);
 
         // Process the step based on its status and content
         if (step.status === 'processed' && step.llmResponse) {
@@ -2063,5 +2090,210 @@ document.addEventListener('DOMContentLoaded', () => {
       // Try to reconnect after a delay
       setTimeout(() => connectToAgentStepStream(), 5000);
     };
+  }
+
+  /**
+   * Adds a message to the agent step message queue, maintaining the maximum size
+   * @param {Object} message - The agent step message to add
+   */
+  function addAgentStepMessage(message) {
+    if (!message.timestamp) {
+      message.timestamp = new Date().toISOString();
+    }
+
+    agentStepMessages.push(message);
+
+    if (agentStepMessages.length > agentStepMessagesMax) {
+      agentStepMessages.shift();
+    }
+    console.debug(`${new Date().toISOString()} `, `Agent step message queue size: ${agentStepMessages.length}`);
+  }
+
+  /**
+   * Gets the current list of agent step messages
+   * @returns {Array} The current list of agent step messages
+   */
+  function getAgentStepMessages() {
+    return [...agentStepMessages]; // Return a copy to prevent external modification
+  }
+
+  // Track the current index in the agent message list for navigation
+  let currentAgentMessageIndex = -1;
+
+  /**
+   * Toggles the agent message overlay visibility
+   */
+  function toggleAgentMessageOverlay() {
+    const existingOverlay = document.querySelector('.agent-message-overlay');
+    if (existingOverlay) {
+      removeAgentMessageOverlay();
+    } else {
+      showAgentMessageOverlay();
+    }
+  }
+
+  /**
+   * Removes the agent message overlay
+   */
+  function removeAgentMessageOverlay() {
+    const overlay = document.querySelector('.agent-message-overlay');
+    if (overlay) {
+      document.body.removeChild(overlay);
+      currentAgentMessageIndex = -1;
+    }
+  }
+
+  /**
+   * Shows the agent message overlay with the latest message
+   */
+  function showAgentMessageOverlay() {
+    removeAgentMessageOverlay();
+
+    const messages = getAgentStepMessages();
+    if (messages.length === 0) {
+      updateCommandStatus('No agent messages available', 3000);
+      return;
+    }
+
+    // Start with the most recent message
+    currentAgentMessageIndex = messages.length - 1;
+    displayAgentMessage(currentAgentMessageIndex);
+  }
+
+  /**
+   * Navigates through agent messages
+   * @param {number} direction - Direction to navigate: -1 for previous, 1 for next
+   */
+  function navigateAgentMessages(direction) {
+    const messages = getAgentStepMessages();
+    if (messages.length === 0) return;
+
+    // Calculate new index with wrap-around
+    const newIndex = (currentAgentMessageIndex + direction + messages.length) % messages.length;
+    currentAgentMessageIndex = newIndex;
+
+    // Update the display
+    displayAgentMessage(currentAgentMessageIndex);
+  }
+
+  /**
+   * Displays a specific agent message in the overlay
+   * @param {number} index - Index of the message to display
+   */
+  function displayAgentMessage(index) {
+    const messages = getAgentStepMessages();
+    if (index < 0 || index >= messages.length) return;
+
+    const message = messages[index];
+
+    // Create or update overlay
+    let overlay = document.querySelector('.agent-message-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.className = 'agent-message-overlay';
+      overlay.style.position = 'fixed';
+      overlay.style.background = 'rgba(10,20,40,0.98)';
+      overlay.style.color = '#a7ecff';
+      overlay.style.zIndex = '10000';
+      overlay.style.display = 'flex';
+      overlay.style.flexDirection = 'column';
+      overlay.style.justifyContent = 'flex-start';
+      overlay.style.alignItems = 'center';
+      overlay.style.fontSize = '0.75em';
+      overlay.style.border = '2px solid #be43a4';
+      overlay.style.borderRadius = '7px';
+      overlay.style.boxShadow = '0 0 16px #be43a4';
+      overlay.style.padding = '14px 18px';
+      overlay.style.maxWidth = '500px';
+      overlay.style.maxHeight = '80vh';
+      overlay.style.overflowY = 'auto';
+      overlay.style.right = '20px';
+      overlay.style.top = '20px';
+      document.body.appendChild(overlay);
+    } else {
+      // Clear existing content
+      overlay.innerHTML = '';
+    }
+
+    // Add header with navigation info
+    const header = document.createElement('div');
+    header.style.width = '100%';
+    header.style.marginBottom = '10px';
+    header.style.display = 'flex';
+    header.style.justifyContent = 'space-between';
+    header.style.alignItems = 'center';
+
+    const title = document.createElement('div');
+    title.textContent = 'Agent Message';
+    title.style.fontWeight = 'bold';
+    title.style.fontSize = '1.2em';
+    title.style.color = '#6fffc8';
+
+    const navigation = document.createElement('div');
+    navigation.textContent = `${index + 1}/${messages.length}`;
+    navigation.style.color = '#fff';
+
+    header.appendChild(title);
+    header.appendChild(navigation);
+    overlay.appendChild(header);
+
+    // Add navigation instructions
+    const instructions = document.createElement('div');
+    instructions.textContent = 'Use ↑/↓ arrows to navigate, ESC or A to close';
+    instructions.style.fontSize = '0.9em';
+    instructions.style.color = '#999';
+    instructions.style.marginBottom = '10px';
+    instructions.style.width = '100%';
+    instructions.style.textAlign = 'center';
+    overlay.appendChild(instructions);
+
+    // Add timestamp if available
+    if (message.timestamp) {
+      const timestamp = document.createElement('div');
+      timestamp.textContent = new Date(message.timestamp).toLocaleString();
+      timestamp.style.fontSize = '0.9em';
+      timestamp.style.color = '#999';
+      timestamp.style.marginBottom = '10px';
+      timestamp.style.width = '100%';
+      timestamp.style.textAlign = 'right';
+      overlay.appendChild(timestamp);
+    }
+
+    // Add message content as formatted JSON
+    const content = document.createElement('pre');
+    content.style.width = '100%';
+    content.style.overflow = 'auto';
+    content.style.fontFamily = 'monospace';
+    content.style.fontSize = '1.2em';
+    content.style.color = '#fff';
+    content.style.backgroundColor = 'rgba(0,0,0,0.2)';
+    content.style.padding = '10px';
+    content.style.borderRadius = '4px';
+    content.style.margin = '0';
+
+    // Format JSON nicely with 2-space indentation
+    try {
+      // Create a deep copy of the message to modify
+      const formattedMessage = JSON.parse(JSON.stringify(message));
+
+      // Check if llmResponse exists and might contain JSON
+      if (formattedMessage.llmResponse && typeof formattedMessage.llmResponse === 'string') {
+        try {
+          // Try to parse the llmResponse as JSON
+          const parsedResponse = JSON.parse(formattedMessage.llmResponse);
+          // If successful, replace the string with the parsed object
+          formattedMessage.llmResponse = parsedResponse;
+        } catch (jsonError) {
+          // Not valid JSON, keep as string
+          console.debug('llmResponse is not valid JSON:', jsonError);
+        }
+      }
+
+      content.textContent = JSON.stringify(formattedMessage, null, 2);
+    } catch (e) {
+      content.textContent = 'Error formatting message: ' + e.message;
+    }
+
+    overlay.appendChild(content);
   }
 }); // End DOMContentLoaded

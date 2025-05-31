@@ -79,16 +79,6 @@ public class GridAgent {
 
       var toolCommands = parseJsonResponse(response);
 
-      IntStream.range(0, toolCommands.size())
-          .forEach(step -> {
-            var llmPrompt = toolCommands.get(step);
-            var llmNextPrompt = step + 1 < toolCommands.size() ? toolCommands.get(step + 1) : "";
-            var command = AgentStep.Command.CreateStep.of(sequenceId, step + 2, llmPrompt, llmNextPrompt, viewport, userSessionId);
-            componentClient.forEventSourcedEntity(command.id())
-                .method(AgentStepEntity::createStep)
-                .invoke(command);
-          });
-
       {
         var command = AgentStep.Command.ProcessedStep.of(
             sequenceId,
@@ -99,6 +89,18 @@ public class GridAgent {
         componentClient.forEventSourcedEntity(command.id())
             .method(AgentStepEntity::processedStep)
             .invoke(command);
+      }
+
+      {
+        IntStream.range(0, toolCommands.size())
+            .forEach(step -> {
+              var llmPrompt = toolCommands.get(step);
+              var llmNextPrompt = step + 1 < toolCommands.size() ? toolCommands.get(step + 1) : "";
+              var command = AgentStep.Command.CreateStep.of(sequenceId, step + 2, llmPrompt, llmNextPrompt, viewport, userSessionId);
+              componentClient.forEventSourcedEntity(command.id())
+                  .method(AgentStepEntity::createStep)
+                  .invoke(command);
+            });
       }
 
       return toolCommands;
