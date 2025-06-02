@@ -843,7 +843,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function connectToGridCellStream() {
     if (gridCellEventSource && gridCellEventSource.readyState !== EventSource.CLOSED) {
-      console.info(`${new Date().toISOString()} `, 'EventSource already open or connecting.');
+      console.info(`${new Date().toISOString()} `, 'Grid cell SSE EventSource already open or connecting.');
       return;
     }
 
@@ -852,7 +852,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const x2 = x1 + gridCols; // End of viewport X offset
     const y2 = y1 + gridRows; // End of viewport Y offset
     const url = `${viewStreamUrl}/${x1}/${y1}/${x2}/${y2}`;
-    console.info(`${new Date().toISOString()} `, `Attempting to connect SSE to ${url}...`);
+    console.info(`${new Date().toISOString()} `, `Grid cell SSE Attempting to connect to ${url}...`);
     // updateConnectionStatus('Connecting...', '');
     gridCellEventSource = new EventSource(url);
 
@@ -876,20 +876,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     gridCellEventSource.onerror = (event) => {
       // console.error(`${new Date().toISOString()} `, `SSE error:`, event);
-      console.error(`${new Date().toISOString()} `, `SSE error, EventSource readyState: ${readyStateMap[gridCellEventSource.readyState]}`);
+      console.error(`${new Date().toISOString()} `, `Grid cell SSE error, EventSource readyState: ${readyStateMap[gridCellEventSource.readyState]}`);
       if (gridCellEventSource.readyState === EventSource.CONNECTING) {
         return;
       }
-      console.error('SSE error:', event);
+      console.error('Grid cell SSE error:', event);
       // updateConnectionStatus('Error', 'error');
 
       if (gridCellEventSource.readyState === EventSource.CLOSED) {
-        console.info(`${new Date().toISOString()} `, 'SSE connection closed.');
+        console.info(`${new Date().toISOString()} `, 'Grid cell SSE connection closed.');
         // updateConnectionStatus('Disconnected', 'error');
         gridCellEventSource = null; // Clear the instance
 
         // Optional: Attempt to reconnect after a delay
-        console.info(`${new Date().toISOString()} `, 'Attempting to reconnect in 5 seconds...');
+        console.info(`${new Date().toISOString()} `, 'Grid cell SSE Attempting to reconnect in 5 seconds...');
         setTimeout(connectToGridCellStream, 5000);
       }
     };
@@ -2041,34 +2041,41 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 250); // Wait 250ms after resize ends before recalculating
   });
 
-  // Connect to agent step stream for the current session
-  connectToAgentStepStream();
-
   // Store agent step messages in a FIFO queue with a maximum size
   const agentStepMessages = [];
   const agentStepMessagesMax = 100; // Maximum number of messages to store
+  let agentStepEventSource = null; // EventSource instance
+
+  // Connect to agent step stream for the current session
+  connectToAgentStepStream();
 
   /**
    * Connects to the agent step stream to receive real-time updates about voice command processing
    */
   function connectToAgentStepStream() {
     if (agentStepEventSource && agentStepEventSource.readyState !== EventSource.CLOSED) {
-      console.info(`${new Date().toISOString()} `, 'Agent step stream already open or connecting.');
+      console.info(`${new Date().toISOString()} `, 'Agent step SSE stream already open or connecting.');
       return;
     }
 
     const sessionId = getSessionId();
     const url = `${origin}/agent/agent-steps-stream/${sessionId}`;
-    console.info(`${new Date().toISOString()} `, `Attempting to connect SSE to ${url}...`);
+    console.info(`${new Date().toISOString()} `, `Agent step SSE Attempting to connect SSE to ${url}...`);
     updateConnectionStatus('Connecting...', '');
-    const agentStepStream = new EventSource(url);
+    agentStepEventSource = new EventSource(url);
 
-    agentStepStream.onopen = (event) => {
-      console.info(`${new Date().toISOString()} `, `Agent step SSE connection established, readyState: ${readyStateMap[agentStepStream.readyState]}.`);
+    const readyStateMap = {
+      0: '(0) Connecting',
+      1: '(1) Open',
+      2: '(2) Closed',
+    };
+
+    agentStepEventSource.onopen = (event) => {
+      console.info(`${new Date().toISOString()} `, `Agent step SSE connection established, readyState: ${readyStateMap[agentStepEventSource.readyState]}.`);
       updateConnectionStatus('Connected', 'connected');
     };
 
-    agentStepStream.onmessage = (event) => {
+    agentStepEventSource.onmessage = (event) => {
       // Skip empty messages (keep-alive polling)
       if (!event.data || event.data.trim() === '') {
         return;
@@ -2084,31 +2091,31 @@ document.addEventListener('DOMContentLoaded', () => {
         // Process the step based on its status and content
         if (step.status === 'processed' && step.llmResponse) {
           // This is a processed step with LLM response
-          console.info(`${new Date().toISOString()} `, 'Processed step with LLM response:', step.llmResponse);
+          console.info(`${new Date().toISOString()} `, 'Agent step processed step with LLM response:', step.llmResponse);
         }
 
         // Update UI to show the current step being processed
         updateCommandStatus(`Processing: ${step.userPrompt || step.llmPrompt || 'Voice command'}`, 5000);
       } catch (error) {
-        console.error(`${new Date().toISOString()} `, 'Error processing agent step:', error, 'Raw data:', event.data);
+        console.error(`${new Date().toISOString()} `, 'Agent step Error processing agent step:', error, 'Raw data:', event.data);
       }
     };
 
-    agentStepStream.onerror = (event) => {
-      console.error(`${new Date().toISOString()} `, `SSE error, EventSource readyState: ${readyStateMap[agentStepStream.readyState]}`);
-      if (agentStepStream.readyState === EventSource.CONNECTING) {
+    agentStepEventSource.onerror = (event) => {
+      console.error(`${new Date().toISOString()} `, `Agent step SSE error, EventSource readyState: ${readyStateMap[agentStepEventSource.readyState]}`);
+      if (agentStepEventSource.readyState === EventSource.CONNECTING) {
         return;
       }
-      console.error('SSE error:', event);
+      console.error(`${new Date().toISOString()} `, 'Agent step SSE error:', event);
       updateConnectionStatus('Error', 'error');
 
-      if (agentStepStream.readyState === EventSource.CLOSED) {
-        console.info(`${new Date().toISOString()} `, 'SSE connection closed.');
+      if (agentStepEventSource.readyState === EventSource.CLOSED) {
+        console.info(`${new Date().toISOString()} `, 'Agent step SSE connection closed.');
         updateConnectionStatus('Disconnected', 'error');
-        agentStepStream = null; // Clear the instance
+        agentStepEventSource = null; // Clear the instance
 
         // Optional: Attempt to reconnect after a delay
-        console.info(`${new Date().toISOString()} `, 'Attempting to reconnect in 5 seconds...');
+        console.info(`${new Date().toISOString()} `, 'Agent step SSE Attempting to reconnect in 5 seconds...');
         setTimeout(connectToAgentStepStream, 5000);
       }
     };
