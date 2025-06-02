@@ -1899,8 +1899,8 @@ document.addEventListener('DOMContentLoaded', () => {
           'X-Viewport-Top-Left-Col': viewportX,
           'X-Viewport-Bottom-Right-Row': viewportY + gridRows,
           'X-Viewport-Bottom-Right-Col': viewportX + gridCols,
-          'X-Mouse-Row': mouseGridPosition.row,
-          'X-Mouse-Col': mouseGridPosition.col,
+          'X-Mouse-Row': viewportY + mouseGridPosition.row, // Set relative position to grid absolute position
+          'X-Mouse-Col': viewportX + mouseGridPosition.col, // Set relative position to grid absolute position
           'X-User-Session-Id': getSessionId(),
         },
         body: formData,
@@ -2270,6 +2270,8 @@ document.addEventListener('DOMContentLoaded', () => {
     content.style.padding = '10px';
     content.style.borderRadius = '4px';
     content.style.margin = '0';
+    content.style.whiteSpace = 'pre-wrap';       /* Preserve formatting but allow wrapping */
+    content.style.overflowWrap = 'break-word';  /* Break long words if needed */
 
     // Format JSON nicely with 2-space indentation
     try {

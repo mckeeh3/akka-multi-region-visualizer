@@ -71,9 +71,18 @@ public class GridAgent {
     objectMapper = new ObjectMapper();
   }
 
-  List<String> chat(String userPrompt) {
+  List<String> chat(String prompt) {
     var llmClient = new OpenAiClient("/grid-agent-system-prompt.txt", "o3-mini");
     try {
+      var userPrompt = "%s\nCurrent UI view port location: top left row %d, col %d, bottom right row %d, col %d\nMouse location: row %d, col %d"
+          .formatted(
+              prompt,
+              viewport.topLeft().row(),
+              viewport.topLeft().col(),
+              viewport.bottomRight().row(),
+              viewport.bottomRight().col(),
+              viewport.mouse().row(),
+              viewport.mouse().col());
       var response = llmClient.chat(userPrompt);
       log.info("LLM response: {}", response);
 
