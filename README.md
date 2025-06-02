@@ -89,6 +89,90 @@ This latency visualization is one of the main features of this demo app, providi
 
 ---
 
+## Deploying the App
+
+### Multi-Region Routes
+
+The frontend uses the multi-region routes to connect to the backend to get a list of each region's hostname.
+These host names are used to connect to the backend to get the grid cell timing data use in the UI timing overlay.
+
+<img src="src/main/resources/static-resources/images/help-cell-timings-overlay.png" alt="Cell Timings Overlay" width="500px" />
+
+The multi-region routes are fetched from the server using the `/grid-cell/multi-region-routes` endpoint.
+This endpoint first checks for an environment variable `MULTI_REGION_ROUTES` and if it is set, it returns the value.
+If the environment variable is not set, it checks the Akka configuration for the `multi-region.routes` setting and returns the value.
+
+For both the environment variable and the Akka configuration, the value should be a pipe-separated ('|') list of host names.
+For local development, it is not required to set the environment variable or the Akka configuration.
+For Akka platform deployment, the environment variable should be set to the list of host names of the Akka platform regions.
+
+For Akka platform deployment, host names are created using the Akka Console or the CLI. With the CLI, the host names are created using the `akka services expose` command.
+
+```bash
+akka services expose <service-name> --enable-cors --once-per-region
+```
+
+You can list the host names using the `akka routes list --all-regions` command.
+
+Once, the host names are created, you can set the environment variable `MULTI_REGION_ROUTES` to the list of host names.
+
+```bash
+export MULTI_REGION_ROUTES="<host-name-1>|<host-name-2>|<host-name-3>"
+```
+
+Next, create an Akka secret for the environment variable `MULTI_REGION_ROUTES`.
+
+```bash
+akka secrets create generic multi-region-routes --literal MULTI_REGION_ROUTES="<host-name-1>|<host-name-2>|<host-name-3>"
+```
+
+### Open AI API Key
+
+The Open AI API key is required to use the Grid Agent to generate the grid cell data.
+
+```bash
+export OPENAI_API_KEY="<openai-api-key>"
+```
+
+Next, create an Akka secret for the environment variable `OPENAI_API_KEY`.
+
+```bash
+akka secrets create generic openai-api-key --literal OPENAI_API_KEY="<openai-api-key>"
+```
+
+### Deploy and Apply the Service Descriptor
+
+The service descriptor is applied using the `akka services apply` command.
+
+```bash
+akka services apply -f service-descriptor.yaml
+```
+
+Here is the content of the service descriptor file:
+
+```yaml
+name: akka-multi-region-visualizer
+service:
+  env:
+    - name: OPENAI_API_KEY
+      valueFrom:
+        secretKeyRef:
+          key: OPENAI_API_KEY
+          name: openai-api
+    - name: MULTI_REGION_ROUTES
+      valueFrom:
+        secretKeyRef:
+          key: MULTI-REGION-ROUTES
+          name: multi-region-routes
+  image: acr.aws-us-east-2.akka.io/<your-user-name>/<your-project-name>/akka-multi-region-visualizer:1.0.0
+  replication:
+    mode: replicated-read
+    replicatedRead:
+      primarySelectionMode: request-region
+```
+
+Use this when you are deploying the service to the Akka platform, and your project is configured with multiple regions.
+
 ## Summary
 
 **Purpose:**

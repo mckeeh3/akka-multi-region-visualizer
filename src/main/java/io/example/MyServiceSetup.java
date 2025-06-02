@@ -23,5 +23,8 @@ public class MyServiceSetup implements ServiceSetup {
     config.entrySet().stream()
         .filter(entry -> entry.getKey().startsWith("akka.javasdk"))
         .forEach(entry -> log.info("{} = {}", entry.getKey(), entry.getValue()));
+
+    log.info("Multi-region routes: {}", System.getenv("MULTI_REGION_ROUTES"));
+    log.info("OpenAI API key: {}", System.getenv("OPENAI_API_KEY") != null ? "********" : "not set");
   }
 }

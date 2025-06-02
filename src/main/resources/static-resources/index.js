@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- State ---
   let hoveredCellId = null; // ID of the currently hovered cell ('cell-R-C')
-  let eventSource = null; // EventSource instance
+  let gridCellEventSource = null; // EventSource instance
   let gridCellListInterval = null; // Interval timer for fetching grid cell list
 
   // Selection state
@@ -435,8 +435,8 @@ document.addEventListener('DOMContentLoaded', () => {
       createBottomAxis();
     }, 0);
 
-    closeStream();
-    connectToStream();
+    closeGridCellStream();
+    connectToGridCellStream();
   }
 
   /**
@@ -806,10 +806,10 @@ document.addEventListener('DOMContentLoaded', () => {
   /**
    * Establishes and manages the Server-Sent Events (SSE) connection.
    */
-  function closeStream() {
-    if (eventSource) {
-      eventSource.close();
-      eventSource = null;
+  function closeGridCellStream() {
+    if (gridCellEventSource) {
+      gridCellEventSource.close();
+      gridCellEventSource = null;
       updateConnectionStatus('Disconnected', 'error');
       console.info(`${new Date().toISOString()} `, 'EventSource closed.');
     }
@@ -841,8 +841,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  function connectToStream() {
-    if (eventSource && eventSource.readyState !== EventSource.CLOSED) {
+  function connectToGridCellStream() {
+    if (gridCellEventSource && gridCellEventSource.readyState !== EventSource.CLOSED) {
       console.info(`${new Date().toISOString()} `, 'EventSource already open or connecting.');
       return;
     }
@@ -853,8 +853,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const y2 = y1 + gridRows; // End of viewport Y offset
     const url = `${viewStreamUrl}/${x1}/${y1}/${x2}/${y2}`;
     console.info(`${new Date().toISOString()} `, `Attempting to connect SSE to ${url}...`);
-    updateConnectionStatus('Connecting...', '');
-    eventSource = new EventSource(url);
+    // updateConnectionStatus('Connecting...', '');
+    gridCellEventSource = new EventSource(url);
 
     const readyStateMap = {
       0: '(0) Connecting',
@@ -862,35 +862,35 @@ document.addEventListener('DOMContentLoaded', () => {
       2: '(2) Closed',
     };
 
-    eventSource.onopen = (event) => {
-      console.info(`${new Date().toISOString()} `, `SSE connection established, readyState: ${readyStateMap[eventSource.readyState]}.`);
-      updateConnectionStatus('Connected', 'connected');
+    gridCellEventSource.onopen = (event) => {
+      console.info(`${new Date().toISOString()} `, `Grid cell SSE connection established, readyState: ${readyStateMap[gridCellEventSource.readyState]}.`);
+      // updateConnectionStatus('Connected', 'connected');
     };
 
-    eventSource.onmessage = (event) => {
+    gridCellEventSource.onmessage = (event) => {
       if (event.data) {
         // console.debug(`${new Date().toISOString()} SSE message: ${event.data}`);
         handleGridCellData(event.data);
       }
     };
 
-    eventSource.onerror = (event) => {
+    gridCellEventSource.onerror = (event) => {
       // console.error(`${new Date().toISOString()} `, `SSE error:`, event);
-      console.error(`${new Date().toISOString()} `, `SSE error, EventSource readyState: ${readyStateMap[eventSource.readyState]}`);
-      if (eventSource.readyState === EventSource.CONNECTING) {
+      console.error(`${new Date().toISOString()} `, `SSE error, EventSource readyState: ${readyStateMap[gridCellEventSource.readyState]}`);
+      if (gridCellEventSource.readyState === EventSource.CONNECTING) {
         return;
       }
       console.error('SSE error:', event);
-      updateConnectionStatus('Error', 'error');
+      // updateConnectionStatus('Error', 'error');
 
-      if (eventSource.readyState === EventSource.CLOSED) {
+      if (gridCellEventSource.readyState === EventSource.CLOSED) {
         console.info(`${new Date().toISOString()} `, 'SSE connection closed.');
-        updateConnectionStatus('Disconnected', 'error');
-        eventSource = null; // Clear the instance
+        // updateConnectionStatus('Disconnected', 'error');
+        gridCellEventSource = null; // Clear the instance
 
         // Optional: Attempt to reconnect after a delay
         console.info(`${new Date().toISOString()} `, 'Attempting to reconnect in 5 seconds...');
-        setTimeout(connectToStream, 5000);
+        setTimeout(connectToGridCellStream, 5000);
       }
     };
   }
@@ -1005,8 +1005,8 @@ document.addEventListener('DOMContentLoaded', () => {
       updateCommandStatus(`Viewport moved to x:${viewportX}, y:${viewportY}`, 2000);
 
       // Close and reconnect SSE stream to match new viewport
-      closeStream();
-      connectToStream();
+      closeGridCellStream();
+      connectToGridCellStream();
     }
   }
 
@@ -1111,10 +1111,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const bottomRightX = parseInt(bottomRightXy[1]);
         const bottomRightY = parseInt(bottomRightXy[0]);
         sendFillRectangle(topLeftX, topLeftY, bottomRightX, bottomRightY, colorChar);
-        // Apply to all selected cells
-        // currentSelection.forEach((id) => {
-        //   sendCellUpdate(id, colorChar, command, radius);
-        // });
 
         // Clear selection after applying
         clearSelection();
@@ -1391,7 +1387,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resolve(routes);
       } else {
         // Otherwise fetch routes from the server
-        fetch('/grid-cell/routes')
+        fetch('/grid-cell/multi-region-routes')
           .then((resp) => resp.json())
           .then((routes) => {
             console.info(`${new Date().toISOString()} `, `Fetched multi-region routes: ${routes}`);
@@ -2020,7 +2016,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateGridPositionDisplay(); // Update grid position display
   createGrid();
   fetchGridCellList(); // Fetch initial state
-  connectToStream(); // Connect to stream for updates
+  connectToGridCellStream(); // Connect to stream for updates
   // connectToTimeStream(); // Connect to time stream for updates
   document.addEventListener('keydown', handleGlobalKeyDown);
   document.addEventListener('keyup', handleGlobalKeyUp);
@@ -2056,8 +2052,21 @@ document.addEventListener('DOMContentLoaded', () => {
    * Connects to the agent step stream to receive real-time updates about voice command processing
    */
   function connectToAgentStepStream() {
+    if (agentStepEventSource && agentStepEventSource.readyState !== EventSource.CLOSED) {
+      console.info(`${new Date().toISOString()} `, 'Agent step stream already open or connecting.');
+      return;
+    }
+
     const sessionId = getSessionId();
-    const agentStepStream = new EventSource(`${origin}/agent/agent-steps-stream/${sessionId}`);
+    const url = `${origin}/agent/agent-steps-stream/${sessionId}`;
+    console.info(`${new Date().toISOString()} `, `Attempting to connect SSE to ${url}...`);
+    updateConnectionStatus('Connecting...', '');
+    const agentStepStream = new EventSource(url);
+
+    agentStepStream.onopen = (event) => {
+      console.info(`${new Date().toISOString()} `, `Agent step SSE connection established, readyState: ${readyStateMap[agentStepStream.readyState]}.`);
+      updateConnectionStatus('Connected', 'connected');
+    };
 
     agentStepStream.onmessage = (event) => {
       // Skip empty messages (keep-alive polling)
@@ -2085,10 +2094,23 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     };
 
-    agentStepStream.onerror = (error) => {
-      console.error(`${new Date().toISOString()} `, 'Agent step stream error:', error);
-      // Try to reconnect after a delay
-      setTimeout(() => connectToAgentStepStream(), 5000);
+    agentStepStream.onerror = (event) => {
+      console.error(`${new Date().toISOString()} `, `SSE error, EventSource readyState: ${readyStateMap[agentStepStream.readyState]}`);
+      if (agentStepStream.readyState === EventSource.CONNECTING) {
+        return;
+      }
+      console.error('SSE error:', event);
+      updateConnectionStatus('Error', 'error');
+
+      if (agentStepStream.readyState === EventSource.CLOSED) {
+        console.info(`${new Date().toISOString()} `, 'SSE connection closed.');
+        updateConnectionStatus('Disconnected', 'error');
+        agentStepStream = null; // Clear the instance
+
+        // Optional: Attempt to reconnect after a delay
+        console.info(`${new Date().toISOString()} `, 'Attempting to reconnect in 5 seconds...');
+        setTimeout(connectToAgentStepStream, 5000);
+      }
     };
   }
 
@@ -2270,8 +2292,8 @@ document.addEventListener('DOMContentLoaded', () => {
     content.style.padding = '10px';
     content.style.borderRadius = '4px';
     content.style.margin = '0';
-    content.style.whiteSpace = 'pre-wrap';       /* Preserve formatting but allow wrapping */
-    content.style.overflowWrap = 'break-word';  /* Break long words if needed */
+    content.style.whiteSpace = 'pre-wrap'; /* Preserve formatting but allow wrapping */
+    content.style.overflowWrap = 'break-word'; /* Break long words if needed */
 
     // Format JSON nicely with 2-space indentation
     try {

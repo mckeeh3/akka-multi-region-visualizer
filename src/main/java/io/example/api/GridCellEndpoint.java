@@ -184,15 +184,28 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
     return region();
   }
 
-  @Get("/routes")
+  @Get("/multi-region-routes")
   public List<String> getRoutes() {
     if (region().equals("local-development")) {
       var port = config.getInt("akka.javasdk.dev-mode.http-port");
       return List.of("localhost:" + port);
     }
+
+    // First try to get from environment variable
+    var splitOn = "\\|";
+    try {
+      var routes = System.getenv("MULTI_REGION_ROUTES");
+      if (routes != null && !routes.isEmpty()) {
+        return List.of(routes.split(splitOn));
+      }
+    } catch (Exception e) {
+      log.error("Failed to get routes from environment variable", e);
+    }
+
+    // Then try to get from config
     try {
       var routes = config.getString("multi-region-routes");
-      return List.of(routes.split(","));
+      return List.of(routes.split(splitOn));
     } catch (Exception e) {
       log.error("Failed to get routes from config", e);
       throw HttpException.error(StatusCodes.INTERNAL_SERVER_ERROR, e.getMessage());
