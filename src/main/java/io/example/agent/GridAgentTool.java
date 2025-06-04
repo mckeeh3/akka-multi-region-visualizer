@@ -454,7 +454,6 @@ public class GridAgentTool {
         } catch (Exception e) {
           log.error("Error processing tool commands in virtual thread", e);
           future.completeExceptionally(e);
-          // throw new LLMException("Error processing tool commands", e);
         }
         return null;
       });

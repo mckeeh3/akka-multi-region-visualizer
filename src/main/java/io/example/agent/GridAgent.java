@@ -204,7 +204,6 @@ public class GridAgent {
         } catch (Exception e) {
           log.error("Error processing user prompt in virtual thread", e);
           future.completeExceptionally(e);
-          // throw new GridAgentException("Error processing user prompt", e);
         }
         return null;
       });

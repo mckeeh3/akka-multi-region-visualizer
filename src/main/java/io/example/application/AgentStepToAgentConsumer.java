@@ -90,7 +90,12 @@ public class AgentStepToAgentConsumer extends Consumer {
         event.sequenceId(),
         event.userSessionId(),
         event.viewport(),
-        componentClient);
+        componentClient)
+        .exceptionally(e -> {
+          var message = "Failed to process grid agent step " + event.stepNumber();
+          log.warn("{}\n_Region: {}, Event: {}\n_Exception: {}", message, region(), event, e);
+          throw new RuntimeException(message, e);
+        });
   }
 
   void processStepNext(AgentStep.Event.StepCreated event) {
@@ -102,7 +107,12 @@ public class AgentStepToAgentConsumer extends Consumer {
         event.userSessionId(),
         event.viewport(),
         componentClient,
-        region());
+        region())
+        .exceptionally(e -> {
+          var message = "Failed to process grid tool agent step " + event.stepNumber();
+          log.warn("{}\n_Region: {}, Event: {}\n_Exception: {}", message, region(), event, e);
+          throw new RuntimeException(message, e);
+        });
   }
 
   String region() {
