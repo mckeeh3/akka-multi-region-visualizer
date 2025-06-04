@@ -7,18 +7,21 @@ import java.util.concurrent.CompletionStage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import akka.Done;
 import akka.http.javadsl.model.HttpRequest;
 import akka.http.javadsl.model.HttpResponse;
 import akka.javasdk.annotations.Acl;
 import akka.javasdk.annotations.http.Get;
 import akka.javasdk.annotations.http.HttpEndpoint;
 import akka.javasdk.annotations.http.Post;
+import akka.javasdk.annotations.http.Put;
 import akka.javasdk.client.ComponentClient;
 import akka.javasdk.http.AbstractHttpEndpoint;
 import akka.javasdk.http.HttpException;
 import akka.javasdk.http.HttpResponses;
 import akka.stream.Materializer;
 import io.example.agent.GridAgentAudioToText;
+import io.example.application.AgentStepEntity;
 import io.example.application.AgentStepView;
 import io.example.domain.AgentStep;
 
@@ -60,11 +63,20 @@ public class AgentEndpoint extends AbstractHttpEndpoint {
 
           try {
             return GridAgentAudioToText.convertAudioToText(componentClient, viewport, contentType, input, userSessionId);
-          } catch (GridAgentAudioToText.AudioToTextException e) {
+          } catch (GridAgentAudioToText.GridAgentAudioToTextException e) {
             log.error("Voice command: LLM agent error", e);
             throw HttpException.badRequest(e.getMessage());
           }
         });
+  }
+
+  @Put("/agent-step-consumed")
+  public Done agentStepConsumed(AgentStep.Command.ConsumedStep command) {
+    log.info("Agent step consumed: {}", command);
+
+    return componentClient.forEventSourcedEntity(command.id())
+        .method(AgentStepEntity::consumeStep)
+        .invoke(command);
   }
 
   @Get("/agent-steps-stream/{userSessionId}")
@@ -73,6 +85,13 @@ public class AgentEndpoint extends AbstractHttpEndpoint {
         componentClient.forView()
             .stream(AgentStepView::getActiveAgentSteps)
             .source(userSessionId));
+  }
+
+  @Get("/agent-steps/{sequenceId}")
+  public AgentStepView.AgentSteps getSequenceAgentSteps(String sequenceId) {
+    return componentClient.forView()
+        .method(AgentStepView::getSequenceAgentSteps)
+        .invoke(sequenceId);
   }
 
   static AgentStep.ViewPort viewportFromHttpHeaders(HttpRequest request) {

@@ -125,13 +125,14 @@ public class GridAgentTool {
       });
 
       var llmResponse = jsonCommands.toString();
+      log.info("JSON commands: {}\n_LLM response: {}", jsonCommands, llmResponse);
       var command = AgentStep.Command.ProcessedStep.of(sequenceId, stepNumber, llmResponse, viewport);
       componentClient.forEventSourcedEntity(command.id())
           .method(AgentStepEntity::processedStep)
           .invoke(command);
     } catch (IOException | InterruptedException e) {
       log.error("Voice command: Failed to get LLM response", e);
-      throw new LLMException("Failed to get LLM response", e);
+      throw new GridAgentToolException("Failed to get LLM response", e);
     }
   }
 
@@ -208,6 +209,7 @@ public class GridAgentTool {
           row,
           Math.min(30, radius),
           region);
+
       componentClient.forEventSourcedEntity(cellId)
           .method(GridCellEntity::updateSpanStatus)
           .invoke(spanCommand);
@@ -221,6 +223,7 @@ public class GridAgentTool {
           row,
           Math.min(30, radius),
           region);
+
       componentClient.forEventSourcedEntity(cellId)
           .method(GridCellEntity::updateFillStatus)
           .invoke(fillCommand);
@@ -401,12 +404,12 @@ public class GridAgentTool {
         .toList();
   }
 
-  public static class LLMException extends RuntimeException {
-    public LLMException(String message) {
+  public static class GridAgentToolException extends RuntimeException {
+    public GridAgentToolException(String message) {
       super(message);
     }
 
-    public LLMException(String message, Throwable cause) {
+    public GridAgentToolException(String message, Throwable cause) {
       super(message, cause);
     }
   }
@@ -451,6 +454,7 @@ public class GridAgentTool {
         } catch (Exception e) {
           log.error("Error processing tool commands in virtual thread", e);
           future.completeExceptionally(e);
+          // throw new LLMException("Error processing tool commands", e);
         }
         return null;
       });

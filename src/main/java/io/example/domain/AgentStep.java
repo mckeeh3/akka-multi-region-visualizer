@@ -95,7 +95,7 @@ public interface AgentStep {
           event.sequenceId,
           event.stepNumber,
           event.llmPrompt,
-          "",
+          llmResponse,
           event.llmNextPrompt,
           event.status);
     }

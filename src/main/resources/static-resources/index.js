@@ -2083,8 +2083,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       try {
         const step = JSON.parse(event.data);
-        console.info(`${new Date().toISOString()} `, 'Agent step update:', step);
-
         // Add the message to our FIFO queue
         addAgentStepMessage(step);
 
@@ -2129,12 +2127,42 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!message.timestamp) {
       message.timestamp = new Date().toISOString();
     }
+    const existingMessage = agentStepMessages.find((m) => m.id === message.id && m.status === message.status);
+    if (existingMessage) {
+      console.debug(`${new Date().toISOString()} `, `Agent step message with id ${message.id} already exists, skipping`);
+      return;
+    }
+
+    console.info(`${new Date().toISOString()} `, 'Agent step update:', message);
 
     agentStepMessages.push(message);
 
     if (agentStepMessages.length > agentStepMessagesMax) {
       agentStepMessages.shift();
     }
+
+    const putAgentStepConsumed = (message) => {
+      console.info(`${new Date().toISOString()} `, 'Consuming agent step:', message);
+      fetch(`/agent/agent-step-consumed`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: message.id,
+          sequenceId: message.sequenceId,
+          stepNumber: message.stepNumber,
+        }),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`${new Date().toISOString()} `, `Error consuming agent step ${message.id}: ${response.status}`);
+          }
+        })
+        .catch((error) => console.error(`${new Date().toISOString()} `, `Error consuming agent step ${message.id}:`, error));
+    };
+    putAgentStepConsumed(message);
+
     console.debug(`${new Date().toISOString()} `, `Agent step message queue size: ${agentStepMessages.length}`);
   }
 

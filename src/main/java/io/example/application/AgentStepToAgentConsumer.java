@@ -3,6 +3,8 @@ package io.example.application;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import akka.javasdk.annotations.ComponentId;
 import akka.javasdk.annotations.Consume;
 import akka.javasdk.client.ComponentClient;
@@ -50,10 +52,12 @@ public class AgentStepToAgentConsumer extends Consumer {
     log.info("Region: {}, Event: {}", region(), event);
 
     {
+      var objectMapper = new ObjectMapper();
+      var llmResponse = objectMapper.convertValue(event.llmNextPrompt(), String.class);
       var command = AgentStep.Command.ProcessedStep.of(
           event.sequenceId(),
           event.stepNumber(),
-          event.llmNextPrompt(),
+          llmResponse,
           event.viewport());
 
       componentClient.forEventSourcedEntity(command.id())

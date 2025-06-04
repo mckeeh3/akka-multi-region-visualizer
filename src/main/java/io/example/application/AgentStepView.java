@@ -23,7 +23,7 @@ public class AgentStepView extends View {
         WHERE sequenceId = :sequenceId
         ORDER BY stepNumber ASC
       """)
-  public QueryEffect<AgentSteps> getAllAgentSteps(String sequenceId) {
+  public QueryEffect<AgentSteps> getSequenceAgentSteps(String sequenceId) {
     return queryResult();
   }
 

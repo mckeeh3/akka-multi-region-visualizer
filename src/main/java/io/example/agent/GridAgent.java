@@ -87,12 +87,13 @@ public class GridAgent {
       log.info("LLM response: {}", response);
 
       var toolCommands = parseJsonResponse(response);
+      var jsonToolCommands = objectMapper.writeValueAsString(toolCommands);
 
       {
         var command = AgentStep.Command.ProcessedStep.of(
             sequenceId,
             1,
-            response,
+            jsonToolCommands,
             viewport);
 
         componentClient.forEventSourcedEntity(command.id())
@@ -115,16 +116,16 @@ public class GridAgent {
       return toolCommands;
     } catch (IOException | InterruptedException e) {
       log.error("Voice command: Failed to get LLM response", e);
-      throw new AgentUserPromptException("Failed to get LLM response", e);
+      throw new GridAgentException("Failed to get LLM response", e);
     }
   }
 
-  public static class AgentUserPromptException extends RuntimeException {
-    public AgentUserPromptException(String message) {
+  public static class GridAgentException extends RuntimeException {
+    public GridAgentException(String message) {
       super(message);
     }
 
-    public AgentUserPromptException(String message, Throwable cause) {
+    public GridAgentException(String message, Throwable cause) {
       super(message, cause);
     }
   }
@@ -203,6 +204,7 @@ public class GridAgent {
         } catch (Exception e) {
           log.error("Error processing user prompt in virtual thread", e);
           future.completeExceptionally(e);
+          // throw new GridAgentException("Error processing user prompt", e);
         }
         return null;
       });

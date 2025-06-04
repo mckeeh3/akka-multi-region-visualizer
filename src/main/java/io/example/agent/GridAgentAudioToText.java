@@ -24,8 +24,8 @@ import io.example.domain.AgentStep;
 
 /**
  * The GridAgentAudioToText class serves as the entry point for voice command processing in the Akka Multi-Region
- * Visualizer application. It handles the conversion of audio recordings from the web interface into text that can
- * be processed by subsequent components in the voice command pipeline.
+ * Visualizer application. It handles the conversion of audio recordings from the web interface into text that can be
+ * processed by subsequent components in the voice command pipeline.
  *
  * <h2>Core Functionality</h2>
  * <ol>
@@ -34,8 +34,8 @@ import io.example.domain.AgentStep;
  * <li><b>Multipart Form Handling</b>: Parses multipart form data to extract audio content from HTTP requests.</li>
  * <li><b>Agent Step Creation</b>: Initiates the voice command processing pipeline by creating the first AgentStep
  * entity (step zero) with the transcribed text.</li>
- * <li><b>Asynchronous Processing</b>: Manages the audio transcription process asynchronously using virtual threads
- * to ensure responsive user experience.</li>
+ * <li><b>Asynchronous Processing</b>: Manages the audio transcription process asynchronously using virtual threads to
+ * ensure responsive user experience.</li>
  * </ol>
  *
  * <h2>Technical Details</h2>
@@ -123,13 +123,13 @@ public class GridAgentAudioToText {
       parser.parse();
     } catch (IOException e) {
       log.error("Failed to parse multipart form data", e);
-      throw new AudioToTextException("Failed to parse multipart form data");
+      throw new GridAgentAudioToTextException("Failed to parse multipart form data");
     }
 
     var audioData = parser.getFile();
     if (audioData == null) {
       log.error("No audio data found");
-      throw new AudioToTextException("No audio data found");
+      throw new GridAgentAudioToTextException("No audio data found");
     }
     log.info("Audio data length: {}", audioData.length);
 
@@ -149,7 +149,7 @@ public class GridAgentAudioToText {
       return command.sequenceId();
     } catch (IOException | InterruptedException e) {
       log.error("Failed to transcribe audio", e);
-      throw new AudioToTextException("Failed to transcribe audio", e);
+      throw new GridAgentAudioToTextException("Failed to transcribe audio", e);
     }
   }
 
@@ -231,6 +231,7 @@ public class GridAgentAudioToText {
         } catch (Exception e) {
           log.error("Error processing audio in virtual thread", e);
           future.completeExceptionally(e);
+          // throw new GridAgentAudioToTextException("Error processing audio", e);
         }
         return null;
       });
@@ -239,12 +240,12 @@ public class GridAgentAudioToText {
     return future;
   }
 
-  public class AudioToTextException extends RuntimeException {
-    public AudioToTextException(String message) {
+  public static class GridAgentAudioToTextException extends RuntimeException {
+    public GridAgentAudioToTextException(String message) {
       super(message);
     }
 
-    public AudioToTextException(String message, Throwable cause) {
+    public GridAgentAudioToTextException(String message, Throwable cause) {
       super(message, cause);
     }
   }
