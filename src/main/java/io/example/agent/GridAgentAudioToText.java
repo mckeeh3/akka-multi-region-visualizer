@@ -103,7 +103,7 @@ public class GridAgentAudioToText {
       throw new IllegalStateException("OPENAI_API_KEY environment variable is not set");
     }
 
-    this.client = HttpClient.newHttpClient();
+    this.client = java.net.http.HttpClient.newHttpClient();
     this.objectMapper = new ObjectMapper();
   }
 
@@ -154,17 +154,17 @@ public class GridAgentAudioToText {
   }
 
   public String transcribeAudio(byte[] audioData) throws IOException, InterruptedException {
-    String boundary = UUID.randomUUID().toString();
-    ByteArrayOutputStream requestBody = new ByteArrayOutputStream();
+    var boundary = UUID.randomUUID().toString();
+    var requestBody = new ByteArrayOutputStream();
 
     // Add model part
-    String modelPart = "--" + boundary + "\r\n" +
+    var modelPart = "--" + boundary + "\r\n" +
         "Content-Disposition: form-data; name=\"model\"\r\n\r\n" +
         "whisper-1\r\n";
     requestBody.write(modelPart.getBytes(StandardCharsets.UTF_8));
 
     // Add file part
-    String filePart = "--" + boundary + "\r\n" +
+    var filePart = "--" + boundary + "\r\n" +
         "Content-Disposition: form-data; name=\"file\"; filename=\"audio.wav\"\r\n" +
         "Content-Type: audio/wav\r\n\r\n";
     requestBody.write(filePart.getBytes(StandardCharsets.UTF_8));

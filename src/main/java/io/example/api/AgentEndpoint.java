@@ -62,7 +62,12 @@ public class AgentEndpoint extends AbstractHttpEndpoint {
           var input = new ByteArrayInputStream(bytes);
 
           try {
-            return GridAgentAudioToText.convertAudioToText(componentClient, viewport, contentType, input, userSessionId);
+            return GridAgentAudioToText.convertAudioToText(
+                componentClient,
+                viewport,
+                contentType,
+                input,
+                userSessionId);
           } catch (GridAgentAudioToText.GridAgentAudioToTextException e) {
             log.error("Voice command: LLM agent error", e);
             throw HttpException.badRequest(e.getMessage());
