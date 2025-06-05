@@ -180,10 +180,38 @@ This app visualizes a massive, distributed grid of cells, allowing users to inte
 
 ---
 
-## Accessing the UI
+## Running Locally
 
-When running the app [locally](https://doc.akka.io/java/running-locally.html), you can access the UI at `http://localhost:8080`.
+To run the app locally, follow these steps:
 
-When running the app on an Akka platform, after the app is [deployed](https://doc.akka.io/operations/services/deploy-service.html), create a [route](https://doc.akka.io/operations/services/invoke-service.html). The app UI will be accessible atthe route UR://the-service-route-hostname.
+1. Clone the repository:
+
+```bash
+git clone https://github.com/mckeeh3/akka/akka-multi-region-visualizer.git
+```
+
+2. Navigate to the project directory:
+
+```bash
+cd akka-multi-region-visualizer
+```
+
+3. Build the project:
+
+```bash
+./mvn clean compile
+```
+
+4. Run the app:
+
+```bash
+./mvn exec:java
+```
+
+### Accessing the UI
+
+When running the app [locally](https://doc.akka.io/java/running-locally.html), you can access the UI at `http://localhost:9000`.
+
+When running the app on an Akka platform, after the app is [deployed](https://doc.akka.io/operations/services/deploy-service.html), create a [route](https://doc.akka.io/operations/services/invoke-service.html). The app UI will be accessible at the route URL: `http://the-service-route-hostname`.
 
 Click the Help link to access the help page.
