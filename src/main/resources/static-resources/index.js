@@ -434,9 +434,6 @@ document.addEventListener('DOMContentLoaded', () => {
       createLeftAxis();
       createBottomAxis();
     }, 0);
-
-    closeGridCellStream();
-    connectToGridCellStream();
   }
 
   /**
@@ -674,51 +671,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  /**
-   * Fetches a page of grid cells and processes them
-   * @param {string} pageToken - The page token for pagination ('start' for first page)
-   */
-  async function fetchGridCellData(pageToken) {
-    try {
-      const x1 = viewportX; // Current viewport X offset
-      const y1 = viewportY; // Current viewport Y offset
-      const x2 = x1 + gridCols; // End of viewport X offset
-      const y2 = y1 + gridRows; // End of viewport Y offset
-      const url = `${origin}/grid-cell/paginated-list/${x1}/${y1}/${x2}/${y2}/${pageToken}`;
-      // console.info(`Fetching grid cell data from ${url}...`);
-
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        console.error(`HTTP error! Status: ${response.status}`, await response.text());
-        return;
-      }
-
-      const data = await response.json();
-
-      if (data && data.gridCells && Array.isArray(data.gridCells)) {
-        // console.info(`Received ${data.cells.length} cells from page ${pageToken}`);
-
-        // Process each cell through the handleStreamMessage function
-        data.gridCells.forEach((cell) => {
-          // Convert the grid cell object to a JSON string as handleStreamMessage expects
-          const gridCellJson = JSON.stringify(cell);
-          handleGridCellData(gridCellJson);
-        });
-
-        // Check if there are more pages to fetch
-        if (data.hasMore && data.nextPageToken) {
-          // Fetch the next page
-          await fetchGridCellData(data.nextPageToken);
-        }
-      } else {
-        console.error('Invalid response format:', data);
-      }
-    } catch (error) {
-      console.error(`Error fetching grid cell page ${pageToken}:`, error);
-    }
-  }
-
   async function queryGridCellData(region, pageToken) {
     try {
       const x1 = region.topLeft.col + viewportX; // Current viewport X offset
@@ -801,98 +753,6 @@ document.addEventListener('DOMContentLoaded', () => {
     subdivideRegion(topLeftRow, topLeftCol, topLeftRow + rows - 1, topLeftCol + cols - 1);
 
     return regions;
-  }
-
-  /**
-   * Establishes and manages the Server-Sent Events (SSE) connection.
-   */
-  function closeGridCellStream() {
-    if (gridCellEventSource) {
-      gridCellEventSource.close();
-      gridCellEventSource = null;
-      updateConnectionStatus('Disconnected', 'error');
-      console.info(`${new Date().toISOString()} `, 'EventSource closed.');
-    }
-  }
-
-  /**
-   * Connects to the /grid-cell/current-time event stream and logs messages.
-   */
-  function connectToTimeStream() {
-    const url = `${origin}/grid-cell/current-time`;
-    const timeSource = new EventSource(url);
-    console.log(`${new Date().toISOString()} `, `Connecting to time stream at ${url}`);
-
-    timeSource.onopen = () => {
-      console.log(`${new Date().toISOString()} `, 'Time stream connection established.');
-    };
-
-    timeSource.onmessage = (event) => {
-      if (event.data) {
-        console.log(`${new Date().toISOString()} `, '[Time Stream]', event.data);
-      }
-    };
-
-    timeSource.onerror = (event) => {
-      console.log(`${new Date().toISOString()} `, 'Time stream error:', event);
-      if (timeSource.readyState === EventSource.CLOSED) {
-        console.log(`${new Date().toISOString()} `, 'Time stream connection closed.');
-      }
-    };
-  }
-
-  function connectToGridCellStream() {
-    if (gridCellEventSource && gridCellEventSource.readyState !== EventSource.CLOSED) {
-      console.info(`${new Date().toISOString()} `, 'Grid cell SSE EventSource already open or connecting.');
-      return;
-    }
-
-    const x1 = viewportX; // Current viewport X offset
-    const y1 = viewportY; // Current viewport Y offset
-    const x2 = x1 + gridCols; // End of viewport X offset
-    const y2 = y1 + gridRows; // End of viewport Y offset
-    const url = `${viewStreamUrl}/${x1}/${y1}/${x2}/${y2}`;
-    console.info(`${new Date().toISOString()} `, `Grid cell SSE Attempting to connect to ${url}...`);
-    // updateConnectionStatus('Connecting...', '');
-    gridCellEventSource = new EventSource(url);
-
-    const readyStateMap = {
-      0: '(0) Connecting',
-      1: '(1) Open',
-      2: '(2) Closed',
-    };
-
-    gridCellEventSource.onopen = (event) => {
-      console.info(`${new Date().toISOString()} `, `Grid cell SSE connection established, readyState: ${readyStateMap[gridCellEventSource.readyState]}.`);
-      // updateConnectionStatus('Connected', 'connected');
-    };
-
-    gridCellEventSource.onmessage = (event) => {
-      if (event.data) {
-        // console.debug(`${new Date().toISOString()} SSE message: ${event.data}`);
-        handleGridCellData(event.data);
-      }
-    };
-
-    gridCellEventSource.onerror = (event) => {
-      // console.error(`${new Date().toISOString()} `, `SSE error:`, event);
-      console.error(`${new Date().toISOString()} `, `Grid cell SSE error, EventSource readyState: ${readyStateMap[gridCellEventSource.readyState]}`);
-      if (gridCellEventSource.readyState === EventSource.CONNECTING) {
-        return;
-      }
-      console.error('Grid cell SSE error:', event);
-      // updateConnectionStatus('Error', 'error');
-
-      if (gridCellEventSource.readyState === EventSource.CLOSED) {
-        console.info(`${new Date().toISOString()} `, 'Grid cell SSE connection closed.');
-        // updateConnectionStatus('Disconnected', 'error');
-        gridCellEventSource = null; // Clear the instance
-
-        // Optional: Attempt to reconnect after a delay
-        console.info(`${new Date().toISOString()} `, 'Grid cell SSE Attempting to reconnect in 5 seconds...');
-        setTimeout(connectToGridCellStream, 5000);
-      }
-    };
   }
 
   /**
@@ -1003,10 +863,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Show a notification
       updateCommandStatus(`Viewport moved to x:${viewportX}, y:${viewportY}`, 2000);
-
-      // Close and reconnect SSE stream to match new viewport
-      closeGridCellStream();
-      connectToGridCellStream();
     }
   }
 
@@ -1095,7 +951,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const colorChar = event.key.toLowerCase();
       const radius = commandBuffer.length == 0 ? 0 : parseInt(commandBuffer);
       const cellElement = document.getElementById(hoveredCellId);
-      const hasElapsedTime = cellElement.classList.contains('has-elapsed-time');
+      const hasElapsedTime = cellElement != null && cellElement.classList.contains('has-elapsed-time');
       const command =
         radius == 0 //
           ? 'update-status' //
@@ -2016,8 +1872,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateGridPositionDisplay(); // Update grid position display
   createGrid();
   fetchGridCellList(); // Fetch initial state
-  connectToGridCellStream(); // Connect to stream for updates
-  // connectToTimeStream(); // Connect to time stream for updates
+
   document.addEventListener('keydown', handleGlobalKeyDown);
   document.addEventListener('keyup', handleGlobalKeyUp);
 
