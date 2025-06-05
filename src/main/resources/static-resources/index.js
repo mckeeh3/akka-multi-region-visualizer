@@ -2281,7 +2281,7 @@ document.addEventListener('DOMContentLoaded', () => {
     header.style.alignItems = 'center';
 
     const title = document.createElement('div');
-    title.textContent = 'Agent Message';
+    title.textContent = 'Agent Step';
     title.style.fontWeight = 'bold';
     title.style.fontSize = '1.2em';
     title.style.color = '#6fffc8';

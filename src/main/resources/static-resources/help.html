@@ -32,12 +32,14 @@
       }
 
       p,
-      ul {
+      ul,
+      ol {
         margin-bottom: 15px;
         line-height: 1.6;
       }
 
-      ul {
+      ul,
+      ol {
         padding-left: 25px;
       }
 
@@ -415,6 +417,74 @@
       </div>
 
       <div class="section">
+        <h2>AI Agent</h2>
+        <p>
+          The grid visualizer includes an AI-powered agent that can understand and execute voice commands to manipulate the grid. This feature allows for natural language interaction with the grid
+          system.
+        </p>
+
+        <h3>How to Use the AI Agent:</h3>
+        <ul>
+          <li><strong>Activate Recording</strong>: Click the record button in the top left of the web UI or press the <span class="key">m</span> key to start recording your voice command.</li>
+          <li><strong>Speak Your Command</strong>: Give instructions like "create a blue square at the center" or "place three red cells in a row".</li>
+          <li><strong>Stop Recording</strong>: Click the record button or press <span class="key">m</span> again to stop recording.</li>
+          <li><strong>Processing</strong>: Your audio is sent to the backend where it's processed through a three-stage AI pipeline.</li>
+          <li><strong>Results</strong>: Watch as your commands are interpreted and executed on the grid in real-time.</li>
+        </ul>
+
+        <h3>AI Agent Processing Pipeline:</h3>
+        <ol>
+          <li>
+            <strong>Stage 1: Audio Transcription</strong>
+            <ul>
+              <li>The audio recording is transcribed to text</li>
+              <li>This text becomes the basis for further processing</li>
+            </ul>
+          </li>
+          <li>
+            <strong>Stage 2: Command Interpretation</strong>
+            <ul>
+              <li>The transcribed text is augmented with system context from the grid-agent-system-prompt</li>
+              <li>Additional context like viewport coordinates and mouse position is included</li>
+              <li>An LLM analyzes this enhanced prompt to identify specific grid-related actions</li>
+              <li>The output is a structured list of actionable grid operations</li>
+            </ul>
+          </li>
+          <li>
+            <strong>Stage 3: Tool Selection & Execution</strong>
+            <ul>
+              <li>Each action from Stage 2 is processed individually</li>
+              <li>The action is enhanced with another system prompt that instructs the LLM to identify specific tools</li>
+              <li>The LLM generates a list of tool invocations that will accomplish the requested action</li>
+              <li>These tools are executed by the agent to manipulate the grid</li>
+            </ul>
+          </li>
+        </ol>
+
+        <p>
+          This multi-stage approach allows for flexible and intuitive interaction with the grid system. You can create complex patterns, manipulate multiple cells, or perform advanced operations using
+          natural language rather than keyboard commands.
+        </p>
+
+        <p>
+          <strong>Example Commands:</strong>
+        </p>
+        <ul>
+          <li>"Create a 5x5 red square at my current position"</li>
+          <li>"Draw a blue circle with radius 10"</li>
+          <li>"Place three predators in a triangle pattern"</li>
+          <li>"Clear all cells in the visible area"</li>
+        </ul>
+
+        <h3>Viewing the AI Agent Pipeline Steps</h3>
+        <p>The AI agent pipeline steps are visible in the web interface by pressing the <span class="key">m</span> key.</p>
+
+        <div style="text-align: center; margin: 1em">
+          <img src="/static/images/grid-agent-steps-overlay.png" alt="Grid Agent Steps Overlay" width="500px" />
+        </div>
+
+        <p>Use the up and down arrow keys to navigate through the pipeline steps. Press the <span class="key">m</span> key or escape key to exit the pipeline steps view.</p>
+
         <h2>How the Akka Service Works</h2>
         <p>This application demonstrates several key features of Akka's architecture and capabilities:</p>
 
