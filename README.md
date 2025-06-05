@@ -199,19 +199,116 @@ cd akka-multi-region-visualizer
 3. Build the project:
 
 ```bash
-./mvn clean compile
+mvn clean compile
 ```
 
 4. Run the app:
 
 ```bash
-./mvn exec:java
+mvn exec:java
 ```
 
 ### Accessing the UI
 
 When running the app [locally](https://doc.akka.io/java/running-locally.html), you can access the UI at `http://localhost:9000`.
 
+## Running on Akka Platform
+
+### Deploying the Service
+
+To deploy the service to the Akka platform, follow these steps:
+
+1. Build the project locally:
+
+Follow the instructions above in Running Locally to build the project.
+
+2. Create an Akka Project:
+
+Follow the instructions in [Create a new project](https://doc.akka.io/operations/projects/create-project.html) to create an Akka Project.
+
+3. Create a Docker image:
+
+```bash
+mvn clean install -DskipTests
+```
+
+4. Set the OpenAI API key:
+
+```bash
+export OPENAI_API_KEY="<your-openai-api-key>"
+```
+
+5. Set the multi-region routes:
+
+Initially, you can set the multi-region routes to an empty string for the first deployment. Once deployed, follow the steps
+below to create routes for each region.
+
+```bash
+export MULTI_REGION_ROUTES=""
+```
+
+6. Create the Akka secrets for the multi-region routes and the OpenAI API key:
+
+```bash
+akka secrets create generic multi-region-routes --literal MULTI_REGION_ROUTES="$MULTI_REGION_ROUTES"
+```
+
+```bash
+akka secrets create generic openai-api-key --literal OPENAI_API_KEY="$OPENAI_API_KEY"
+```
+
+7. Do initial deployment:
+
+```bash
+akka services deploy akka-multi-region-visualizer akka-multi-region-visualizer:1.0.0 --push \
+  --secret-env OPENAI_API_KEY=openai-api/OPENAI_API_KEY \
+  --secret-env MULTI_REGION_ROUTES=multi-region-routes/MULTI_REGION_ROUTES
+```
+
+8. Create routes for each region using the `akka services expose` command.
+
+```bash
+akka services expose akka-multi-region-visualizer --enable-cors --once-per-region
+```
+
+Then list the routes using the `akka routes list --all-regions` command.
+
+```bash
+akka routes list --all-regions
+```
+
+The output will look something like this:
+
+```bash
+Region: aws-us-east-2
+NAME                           HOSTNAME                                          PATHS                             CORS ENABLED   STATUS   SYNC STATUS
+akka-multi-region-visualizer   lingering-dawn-1234.aws-us-east-2.akka.services   /->akka-multi-region-visualizer   true           Ready    Regional
+
+Region: aws-eu-central-1
+NAME                           HOSTNAME                                             PATHS                             CORS ENABLED   STATUS   SYNC STATUS
+akka-multi-region-visualizer   lingering-dawn-1234.aws-eu-central-1.akka.services   /->akka-multi-region-visualizer   true           Ready    Regional
+
+Region: gcp-us-east1
+NAME                           HOSTNAME                                         PATHS                             CORS ENABLED   STATUS   SYNC STATUS
+akka-multi-region-visualizer   lingering-dawn-1234.gcp-us-east1.akka.services   /->akka-multi-region-visualizer   true           Ready    Regional
+```
+
+Once the routes are created, you can set the multi-region routes to the list of host names.
+
+```bash
+export MULTI_REGION_ROUTES="<host-name-1>|<host-name-2>|<host-name-3>"
+```
+
+9. Deploy the service again using the service descriptor:
+
+```bash
+akka services apply -f service-descriptor.yaml
+```
+
+This will update the `MULTI_REGION_ROUTES` environment variable and set multi-region replication to `request-region`.
+
+### Accessing the UI
+
 When running the app on an Akka platform, after the app is [deployed](https://doc.akka.io/operations/services/deploy-service.html), create a [route](https://doc.akka.io/operations/services/invoke-service.html). The app UI will be accessible at the route URL: `http://the-service-route-hostname`.
 
-Click the Help link to access the help page.
+Click the Help link at the top of the page to access the help page.
