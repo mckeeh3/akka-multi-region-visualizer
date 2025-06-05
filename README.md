@@ -212,7 +212,9 @@ mvn exec:java
 
 When running the app [locally](https://doc.akka.io/java/running-locally.html), you can access the UI at `http://localhost:9000`.
 
-## Running on Akka Platform
+Click the Help link at the top of the page to access instruction on how to use the app.
+
+## Running on the Akka Platform
 
 ### Deploying the Service
 
@@ -307,8 +309,9 @@ akka services apply -f service-descriptor.yaml
 
 This will update the `MULTI_REGION_ROUTES` environment variable and set multi-region replication to `request-region`.
 
-### Accessing the UI
+### Accessing the UI from the Akka Platform
 
-When running the app on an Akka platform, after the app is [deployed](https://doc.akka.io/operations/services/deploy-service.html), create a [route](https://doc.akka.io/operations/services/invoke-service.html). The app UI will be accessible at the route URL: `http://the-service-route-hostname`.
+When running the app on an Akka platform, after the app is [deployed](https://doc.akka.io/operations/services/deploy-service.html),
+and the routes are created, you can access the UI using any of the route host names: `http://<route-host-name>`.
 
-Click the Help link at the top of the page to access the help page.
+Click the Help link at the top of the page to access instruction on how to use the app.
