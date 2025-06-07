@@ -17,11 +17,14 @@ public class GridCellEntityTest {
   @Test
   void testCreateShape() {
     var testKit = EventSourcedTestKit.of(GridCellEntity::new);
-    var id = "1x2";
+    var centerX = 10;
+    var centerY = 20;
+    var radius = 5;
+    var id = "%dx%d".formatted(centerY, centerX); // RxC, YxX
     var status = GridCell.Status.green;
     var now = Instant.now();
     var region = "test";
-    var shape = GridCell.Shape.ofCircle(10, 20, 5);
+    var shape = GridCell.Shape.ofCircle(centerX, centerY, radius);
     var command = new GridCell.Command.CreateShape(id, status, now, now, shape, region);
     var result = testKit.method(GridCellEntity::createShape).invoke(command);
 
@@ -114,7 +117,7 @@ public class GridCellEntityTest {
   }
 
   @Test
-  void testSpanWhenSersorStatusMatchesSpanStatus() {
+  void testSpanWhenSensorStatusMatchesSpanStatus() {
     var testKit = EventSourcedTestKit.of(GridCellEntity::new);
     var id = "2x3";
     var status = GridCell.Status.green;

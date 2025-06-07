@@ -312,9 +312,6 @@ public interface GridCell {
       if (status.equals(command.status())) {
         return List.of();
       }
-      // if (!insideRadius(command.id, command.centerX, command.centerY, command.radius)) {
-      // return List.of();
-      // }
       if (!insideShape(command.id, command.shape)) {
         return List.of();
       }
@@ -359,9 +356,6 @@ public interface GridCell {
       if (status.equals(command.status)) {
         return List.of();
       }
-      // if (!insideRadius(command.id, command.centerX, command.centerY, command.radius)) {
-      // return List.of();
-      // }
       if (!insideShape(command.id, command.shape)) {
         return List.of();
       }
@@ -733,7 +727,9 @@ public interface GridCell {
     }
 
     public static Shape ofRectangle(int topLeftX, int topLeftY, int bottomRightX, int bottomRightY) {
-      return new Shape(topLeftX, topLeftY, 0, bottomRightX - topLeftX, bottomRightY - topLeftY);
+      var width = Math.abs(bottomRightX - topLeftX) + 1;
+      var height = Math.abs(bottomRightY - topLeftY) + 1;
+      return new Shape(topLeftX, topLeftY, 0, width, height);
     }
 
     public boolean isCircle() {
@@ -748,11 +744,17 @@ public interface GridCell {
       return radius == 0 && width == 0 && height == 0;
     }
 
+    // Returns true if the given point is inside the shape
+    // Radius is limited to min(30, radius)
+    // Width and height are limited to min(30, width) and min(30, height)
     public boolean isInsideShape(int x, int y) {
       if (isCircle()) {
-        return Math.pow(x - locationX, 2) + Math.pow(y - locationY, 2) <= Math.pow(radius, 2);
+        var maxRadius = Math.min(30, radius);
+        return Math.pow(x - locationX, 2) + Math.pow(y - locationY, 2) <= Math.pow(maxRadius, 2);
       } else if (isRectangle()) {
-        return x >= locationX && x < locationX + width && y >= locationY && y < locationY + height;
+        var maxWidth = Math.min(30, width);
+        var maxHeight = Math.min(30, height);
+        return x >= locationX && x < locationX + maxWidth && y >= locationY && y < locationY + maxHeight;
       }
       return false;
     }

@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 
 import akka.javasdk.client.ComponentClient;
 import io.example.agent.LLMResponseParser.Command;
-import io.example.api.FillRectangle;
 import io.example.application.AgentStepEntity;
 import io.example.application.GridCellEntity;
 import io.example.application.GridCellView;
@@ -166,16 +165,19 @@ public class GridAgentTool {
     var status = parameters.get("status").asText();
     log.info("Draw rectangle from row {} and column {} to row {} and column {} with status {}", row1, col1, row2, col2, status);
 
-    var request = new FillRectangle.Request(
-        col1,
-        row1,
-        col2,
-        row2,
-        region,
+    var cellId = String.format("%dx%d", row1, col1);
+    var shape = GridCell.Shape.ofRectangle(col1, row1, col2, row2);
+    var createShapeCommand = new GridCell.Command.CreateShape(
+        cellId,
+        GridCell.Status.valueOf(status.toLowerCase()),
         Instant.now(),
         Instant.now(),
-        GridCell.Status.valueOf(status.toLowerCase()));
-    FillRectangle.fillRectangle(request, componentClient);
+        shape,
+        region);
+
+    componentClient.forEventSourcedEntity(cellId)
+        .method(GridCellEntity::createShape)
+        .invoke(createShapeCommand);
   }
 
   void drawCircle(Command command) {
@@ -187,51 +189,18 @@ public class GridAgentTool {
     log.info("Draw circle at row {} and column {} with status {} and radius {}", row, col, status, radius);
 
     var cellId = String.format("%dx%d", row, col);
-    var cellActive = false;
-    try {
-      var cellState = componentClient.forEventSourcedEntity(cellId)
-          .method(GridCellEntity::get)
-          .invoke();
-      cellActive = !cellState.status().equals(GridCell.Status.inactive) && !cellState.status().equals(GridCell.Status.predator);
-    } catch (Exception ignore) {
-      cellActive = false;
-    }
+    var shape = GridCell.Shape.ofCircle(col, row, Math.min(30, radius));
+    var createShapeCommand = new GridCell.Command.CreateShape(
+        cellId,
+        GridCell.Status.valueOf(status.toLowerCase()),
+        Instant.now(),
+        Instant.now(),
+        shape,
+        region);
 
-    log.info("Cell {} is active: {}", cellId, cellActive);
-
-    if (cellActive) {
-      var shape = GridCell.Shape.ofCircle(col, row, Math.min(30, radius));
-      var spanCommand = new GridCell.Command.SpanCells(
-          cellId,
-          GridCell.Status.valueOf(status.toLowerCase()),
-          Instant.now(),
-          Instant.now(),
-          col,
-          row,
-          Math.min(30, radius),
-          shape,
-          region);
-
-      componentClient.forEventSourcedEntity(cellId)
-          .method(GridCellEntity::updateSpanStatus)
-          .invoke(spanCommand);
-    } else {
-      var shape = GridCell.Shape.ofCircle(col, row, Math.min(30, radius));
-      var fillCommand = new GridCell.Command.FillCells(
-          cellId,
-          GridCell.Status.valueOf(status.toLowerCase()),
-          Instant.now(),
-          Instant.now(),
-          col,
-          row,
-          Math.min(30, radius),
-          shape,
-          region);
-
-      componentClient.forEventSourcedEntity(cellId)
-          .method(GridCellEntity::updateFillStatus)
-          .invoke(fillCommand);
-    }
+    componentClient.forEventSourcedEntity(cellId)
+        .method(GridCellEntity::createShape)
+        .invoke(createShapeCommand);
   }
 
   void clearLikeColorCells(Command command) {
