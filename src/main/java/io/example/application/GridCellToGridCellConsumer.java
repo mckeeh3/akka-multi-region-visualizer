@@ -90,7 +90,7 @@ public class GridCellToGridCellConsumer extends Consumer {
   Effect onEvent(GridCell.Event.SpanToNeighbor event) {
     log.info("Region: {}, Event: {}", region(), event);
 
-    var command = new GridCell.Command.SpanStatus(
+    var command = new GridCell.Command.SpanCells(
         event.id(),
         event.status(),
         event.clientAt(),
@@ -98,6 +98,7 @@ public class GridCellToGridCellConsumer extends Consumer {
         event.centerX(),
         event.centerY(),
         event.radius(),
+        event.shape(),
         region());
     componentClient.forEventSourcedEntity(event.id())
         .method(GridCellEntity::updateSpanStatus)
@@ -109,7 +110,7 @@ public class GridCellToGridCellConsumer extends Consumer {
   Effect onEvent(GridCell.Event.FillToNeighbor event) {
     log.info("Region: {}, Event: {}", region(), event);
 
-    var command = new GridCell.Command.FillStatus(
+    var command = new GridCell.Command.FillCells(
         event.id(),
         event.status(),
         event.clientAt(),
@@ -117,6 +118,7 @@ public class GridCellToGridCellConsumer extends Consumer {
         event.centerX(),
         event.centerY(),
         event.radius(),
+        event.shape(),
         region());
     componentClient.forEventSourcedEntity(event.id())
         .method(GridCellEntity::updateFillStatus)
@@ -128,7 +130,7 @@ public class GridCellToGridCellConsumer extends Consumer {
   Effect onEvent(GridCell.Event.ClearToNeighbor event) {
     log.info("Region: {}, Event: {}", region(), event);
 
-    var command = new GridCell.Command.ClearStatus(
+    var command = new GridCell.Command.ClearCells(
         event.id(),
         event.status());
     componentClient.forEventSourcedEntity(event.id())
@@ -141,7 +143,7 @@ public class GridCellToGridCellConsumer extends Consumer {
   Effect onEvent(GridCell.Event.EraseToNeighbor event) {
     log.info("Region: {}, Event: {}", region(), event);
 
-    var command = new GridCell.Command.EraseStatus(event.id());
+    var command = new GridCell.Command.EraseCells(event.id());
     componentClient.forEventSourcedEntity(event.id())
         .method(GridCellEntity::updateEraseStatus)
         .invoke(command);

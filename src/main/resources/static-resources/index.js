@@ -440,13 +440,13 @@ document.addEventListener('DOMContentLoaded', () => {
    * Sends the update command to the backend via HTTP PUT.
    * @param {string} id The cell's entity ID (e.g., "RxC" format)
    * @param {string} colorChar The action key ('r', 'g', 'b', 'd')
-   * @param {string} command The command to send ('update-status', 'span-status', 'fill-status', 'clear-status', 'erase-status')
+   * @param {string} commandPath The command path to send ('create-shape', 'clear-cells', 'erase-cells')
    * @param {number} radius The radius for span and fill commands
    */
-  async function sendCellUpdate(id, colorChar, command, radius) {
+  async function sendCellUpdate(id, colorChar, commandPath, radius = 0, width = 0, height = 0) {
     // Use 'RxC' as the service ID format (no conversion needed)
     const serverFormatId = id;
-    const apiUrl = `${origin}/grid-cell/${command}`;
+    const apiUrl = `${origin}/grid-cell/${commandPath}`;
     const statusMap = { r: 'red', g: 'green', b: 'blue', o: 'orange', p: 'predator', d: 'inactive' };
     const status = statusMap[colorChar];
     const centerX = parseInt(id.split('x')[1]);
@@ -471,14 +471,27 @@ document.addEventListener('DOMContentLoaded', () => {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            id: serverFormatId,
-            status: status,
-            clientAt: clientAt,
-            centerX: centerX,
-            centerY: centerY,
-            radius: radius,
-          }),
+          body: JSON.stringify(
+            commandPath === 'create-shape'
+              ? {
+                  id: serverFormatId,
+                  status: status,
+                  clientAt: clientAt,
+                  locationX: centerX,
+                  locationY: centerY,
+                  radius: radius,
+                  width: width,
+                  height: height,
+                }
+              : {
+                  id: serverFormatId,
+                  status: status,
+                  clientAt: clientAt,
+                  centerX: centerX,
+                  centerY: centerY,
+                  radius: radius,
+                }
+          ),
         });
 
         if (response.ok) {
@@ -524,80 +537,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
-  }
-
-  /**
-   * Sends a request to fill a rectangle with a specific color/status
-   * @param {number} x1 - Starting X coordinate
-   * @param {number} y1 - Starting Y coordinate
-   * @param {number} x2 - Ending X coordinate
-   * @param {number} y2 - Ending Y coordinate
-   * @param {string} colorChar - Color character ('r', 'g', 'b', 'o', 'p', 'd')
-   * @returns {Promise<boolean>} - True if successful, false otherwise
-   */
-  async function sendFillRectangle(x1, y1, x2, y2, colorChar) {
-    const apiUrl = `${origin}/grid-cell/fill-rectangle`;
-    const statusMap = { r: 'red', g: 'green', b: 'blue', o: 'orange', p: 'predator', d: 'inactive' };
-    const status = statusMap[colorChar];
-    const clientAt = new Date().toISOString();
-    const maxRetries = 5;
-    const retryDelay = 200; // ms
-    let attempt = 0;
-    let success = false;
-    let lastError = null;
-
-    while (attempt < maxRetries && !success) {
-      attempt++;
-      if (attempt > 1) {
-        console.warn(`${new Date().toISOString()} `, `Retrying PUT to ${apiUrl} for rectangle (${x1},${y1})-(${x2},${y2}), status: ${status}`);
-      } else {
-        console.info(`${new Date().toISOString()} `, `Sending PUT to ${apiUrl} for rectangle (${x1},${y1})-(${x2},${y2}), status: ${status}`);
-      }
-
-      try {
-        const response = await fetch(apiUrl, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            x1: x1,
-            y1: y1,
-            x2: x2,
-            y2: y2,
-            status: status,
-            clientAt: clientAt,
-            endpointAt: clientAt, // Server will override this
-            region: 'client-side', // Server will override this with actual region
-          }),
-        });
-
-        if (response.ok) {
-          console.info(`${new Date().toISOString()} `, `Fill rectangle request for (${x1},${y1})-(${x2},${y2}) sent successfully.`);
-          success = true;
-        } else {
-          const errorText = await response.text();
-          lastError = `HTTP error for rectangle! Status: ${response.status} ${errorText}`;
-          console.error(`${new Date().toISOString()} `, lastError);
-          if (attempt < maxRetries) {
-            await new Promise((res) => setTimeout(res, retryDelay));
-          }
-        }
-      } catch (error) {
-        lastError = error;
-        console.error(`${new Date().toISOString()} `, `Error sending rectangle fill:`, error);
-        if (attempt < maxRetries) {
-          await new Promise((res) => setTimeout(res, retryDelay));
-        }
-      }
-    }
-
-    if (!success) {
-      console.error(`${new Date().toISOString()} `, `Failed to fill rectangle after ${maxRetries} attempts. Last error:`, lastError);
-      return false;
-    }
-
-    return true;
   }
 
   /**
@@ -952,21 +891,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const radius = commandBuffer.length == 0 ? 0 : parseInt(commandBuffer);
       const cellElement = document.getElementById(hoveredCellId);
       const hasElapsedTime = cellElement != null && cellElement.classList.contains('has-elapsed-time');
-      const command =
-        radius == 0 //
-          ? 'update-status' //
-          : hasElapsedTime //
-          ? 'span-status' //
-          : 'fill-status'; //
+      const commandPath = 'create-shape';
 
       if (currentSelection.length > 0) {
+        // Rectangle selection mode
         const topLeftXy = currentSelection[0].split('x'); // RxC, YxX
         const topLeftX = parseInt(topLeftXy[1]);
         const topLeftY = parseInt(topLeftXy[0]);
         const bottomRightXy = currentSelection[currentSelection.length - 1].split('x');
         const bottomRightX = parseInt(bottomRightXy[1]);
         const bottomRightY = parseInt(bottomRightXy[0]);
-        sendFillRectangle(topLeftX, topLeftY, bottomRightX, bottomRightY, colorChar);
+        const width = Math.abs(bottomRightX - topLeftX) + 1;
+        const height = Math.abs(bottomRightY - topLeftY) + 1;
+        const id = topLeftY + 'x' + topLeftX; // RxC, YxX
+        sendCellUpdate(id, colorChar, commandPath, 0, width, height);
 
         // Clear selection after applying
         clearSelection();
@@ -974,7 +912,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (hoveredCellId) {
         // Extract "RxC" from "cell-RxC"
         const id = hoveredCellId.substring(5); // Remove "cell-" prefix
-        sendCellUpdate(id, colorChar, command, radius);
+        sendCellUpdate(id, colorChar, commandPath, radius);
       }
     }
 
@@ -985,7 +923,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const hasElapsedTime = cellElement.classList.contains('has-elapsed-time');
 
       if (hasElapsedTime) {
-        const command = 'clear-status';
+        const commandPath = 'clear-cells';
         const id = hoveredCellId.substring(5); // Remove "cell-" prefix
         const colorChar = cellElement.classList.contains('cell-red')
           ? 'r'
@@ -998,9 +936,8 @@ document.addEventListener('DOMContentLoaded', () => {
           : cellElement.classList.contains('cell-predator')
           ? 'p'
           : '';
-        const radius = 0;
         if (colorChar.length > 0) {
-          sendCellUpdate(id, colorChar, command, radius);
+          sendCellUpdate(id, colorChar, commandPath);
         }
       }
     }
@@ -1012,10 +949,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const hasElapsedTime = cellElement.classList.contains('has-elapsed-time');
 
       if (hasElapsedTime) {
-        const command = 'erase-status';
+        const commandPath = 'erase-cells';
         const id = hoveredCellId.substring(5); // Remove "cell-" prefix
-        const radius = 0;
-        sendCellUpdate(id, '', command, radius);
+        sendCellUpdate(id, '', commandPath);
       }
     }
 

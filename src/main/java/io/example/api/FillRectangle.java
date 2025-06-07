@@ -46,7 +46,7 @@ public class FillRectangle {
         Exception lastException = null;
 
         var id = "%dx%d".formatted(grid.y, grid.x); // RxC / YxX
-        var command = new GridCell.Command.UpdateStatus(
+        var command = new GridCell.Command.UpdateCell(
             id,
             request.status(),
             request.clientAt(),

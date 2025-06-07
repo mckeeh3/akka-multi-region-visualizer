@@ -145,7 +145,7 @@ public class GridAgentTool {
 
     var cellId = String.format("%dx%d", row, col);
     var cellStatus = GridCell.Status.valueOf(status.toLowerCase());
-    var cellCommand = new GridCell.Command.UpdateStatus(
+    var cellCommand = new GridCell.Command.UpdateCell(
         cellId,
         cellStatus,
         Instant.now(),
@@ -200,7 +200,8 @@ public class GridAgentTool {
     log.info("Cell {} is active: {}", cellId, cellActive);
 
     if (cellActive) {
-      var spanCommand = new GridCell.Command.SpanStatus(
+      var shape = GridCell.Shape.ofCircle(col, row, Math.min(30, radius));
+      var spanCommand = new GridCell.Command.SpanCells(
           cellId,
           GridCell.Status.valueOf(status.toLowerCase()),
           Instant.now(),
@@ -208,13 +209,15 @@ public class GridAgentTool {
           col,
           row,
           Math.min(30, radius),
+          shape,
           region);
 
       componentClient.forEventSourcedEntity(cellId)
           .method(GridCellEntity::updateSpanStatus)
           .invoke(spanCommand);
     } else {
-      var fillCommand = new GridCell.Command.FillStatus(
+      var shape = GridCell.Shape.ofCircle(col, row, Math.min(30, radius));
+      var fillCommand = new GridCell.Command.FillCells(
           cellId,
           GridCell.Status.valueOf(status.toLowerCase()),
           Instant.now(),
@@ -222,6 +225,7 @@ public class GridAgentTool {
           col,
           row,
           Math.min(30, radius),
+          shape,
           region);
 
       componentClient.forEventSourcedEntity(cellId)
@@ -238,7 +242,7 @@ public class GridAgentTool {
     log.info("Clear like color cells at row {} and column {} with status {}", row, col, status);
 
     var cellId = String.format("%dx%d", row, col);
-    var clearCommand = new GridCell.Command.ClearStatus(cellId, GridCell.Status.valueOf(status.toLowerCase()));
+    var clearCommand = new GridCell.Command.ClearCells(cellId, GridCell.Status.valueOf(status.toLowerCase()));
     componentClient.forEventSourcedEntity(cellId)
         .method(GridCellEntity::updateClearStatus)
         .invoke(clearCommand);
@@ -251,7 +255,7 @@ public class GridAgentTool {
     log.info("Erase all active cells at row {} and column {}", row, col);
 
     var cellId = String.format("%dx%d", row, col);
-    var eraseCommand = new GridCell.Command.EraseStatus(cellId);
+    var eraseCommand = new GridCell.Command.EraseCells(cellId);
     componentClient.forEventSourcedEntity(cellId)
         .method(GridCellEntity::updateEraseStatus)
         .invoke(eraseCommand);

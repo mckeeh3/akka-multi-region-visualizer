@@ -27,7 +27,15 @@ public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.
     return GridCell.State.empty();
   }
 
-  public Effect<Done> updateStatus(GridCell.Command.UpdateStatus command) {
+  public Effect<Done> createShape(GridCell.Command.CreateShape command) {
+    log.info("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
+
+    return effects()
+        .persistAll(currentState().onCommand(command.withRegion(selfRegion)).stream().toList())
+        .thenReply(newState -> done());
+  }
+
+  public Effect<Done> updateStatus(GridCell.Command.UpdateCell command) {
     log.info("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
 
     return effects()
@@ -59,7 +67,7 @@ public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.
         .thenReply(newState -> done());
   }
 
-  public Effect<Done> updateSpanStatus(GridCell.Command.SpanStatus command) {
+  public Effect<Done> updateSpanStatus(GridCell.Command.SpanCells command) {
     log.info("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
 
     return effects()
@@ -67,7 +75,7 @@ public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.
         .thenReply(newState -> done());
   }
 
-  public Effect<Done> updateFillStatus(GridCell.Command.FillStatus command) {
+  public Effect<Done> updateFillStatus(GridCell.Command.FillCells command) {
     log.info("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
 
     return effects()
@@ -75,7 +83,7 @@ public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.
         .thenReply(newState -> done());
   }
 
-  public Effect<Done> updateClearStatus(GridCell.Command.ClearStatus command) {
+  public Effect<Done> updateClearStatus(GridCell.Command.ClearCells command) {
     log.info("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
 
     return effects()
@@ -83,7 +91,7 @@ public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.
         .thenReply(newState -> done());
   }
 
-  public Effect<Done> updateEraseStatus(GridCell.Command.EraseStatus command) {
+  public Effect<Done> updateEraseStatus(GridCell.Command.EraseCells command) {
     log.info("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
 
     return effects()

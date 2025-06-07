@@ -42,9 +42,58 @@ public interface GridCell {
     }
 
     // ============================================================
+    // Command.CreateShape
+    // ============================================================
+    public List<Event> onCommand(Command.CreateShape command) {
+      var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
+      var newUpdatedAt = Instant.now();
+      var newCreated = isEmpty() ? command.region : created;
+
+      if (command.shape().isSingleCell()) {
+        return List.of(new Event.StatusUpdated(
+            command.id,
+            command.status,
+            newCreatedAt,
+            newUpdatedAt,
+            command.clientAt,
+            command.endpointAt,
+            newCreated,
+            command.region));
+      }
+
+      // If first cell is inactive, fill the shape, which fills only empty (no color) cells
+      // Otherwise, span the shape, which spans only active (has color) cells
+      if (status.equals(Status.inactive)) {
+        var fillCommand = new Command.FillCells(
+            command.id,
+            command.status,
+            command.clientAt,
+            command.endpointAt,
+            0,
+            0,
+            0,
+            command.shape(),
+            command.region);
+        return onCommand(fillCommand);
+      } else {
+        var spanCommand = new Command.SpanCells(
+            command.id,
+            command.status,
+            command.clientAt,
+            command.endpointAt,
+            0,
+            0,
+            0,
+            command.shape(),
+            command.region);
+        return onCommand(spanCommand);
+      }
+    }
+
+    // ============================================================
     // Command.UpdateStatus
     // ============================================================
-    public Optional<Event> onCommand(Command.UpdateStatus command) {
+    public Optional<Event> onCommand(Command.UpdateCell command) {
       if (!isEmpty() && status.equals(command.status)) {
         return Optional.empty();
       }
@@ -52,6 +101,7 @@ public interface GridCell {
       var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
       var newUpdatedAt = Instant.now();
       var newCreated = isEmpty() ? command.region : created;
+
       return Optional.of(new Event.StatusUpdated(
           command.id,
           command.status,
@@ -255,14 +305,17 @@ public interface GridCell {
     // ============================================================
     // Command.SpanStatus
     // ============================================================
-    public List<Event> onCommand(Command.SpanStatus command) {
+    public List<Event> onCommand(Command.SpanCells command) {
       if (isEmpty() || status.equals(Status.inactive)) {
         return List.of();
       }
       if (status.equals(command.status())) {
         return List.of();
       }
-      if (!insideRadius(command.id, command.centerX, command.centerY, command.radius)) {
+      // if (!insideRadius(command.id, command.centerX, command.centerY, command.radius)) {
+      // return List.of();
+      // }
+      if (!insideShape(command.id, command.shape)) {
         return List.of();
       }
 
@@ -288,6 +341,7 @@ public interface GridCell {
               command.centerX,
               command.centerY,
               command.radius,
+              command.shape,
               newCreated,
               command.region))
           .toList();
@@ -298,14 +352,17 @@ public interface GridCell {
     // ============================================================
     // Command.FillStatus
     // ============================================================
-    public List<Event> onCommand(Command.FillStatus command) {
+    public List<Event> onCommand(Command.FillCells command) {
       if (!isEmpty() && !status.equals(Status.inactive)) {
         return List.of();
       }
       if (status.equals(command.status)) {
         return List.of();
       }
-      if (!insideRadius(command.id, command.centerX, command.centerY, command.radius)) {
+      // if (!insideRadius(command.id, command.centerX, command.centerY, command.radius)) {
+      // return List.of();
+      // }
+      if (!insideShape(command.id, command.shape)) {
         return List.of();
       }
 
@@ -331,6 +388,7 @@ public interface GridCell {
               command.centerX,
               command.centerY,
               command.radius,
+              command.shape,
               newCreated,
               command.region))
           .toList();
@@ -341,7 +399,7 @@ public interface GridCell {
     // ============================================================
     // Command.ClearStatus
     // ============================================================
-    public List<Event> onCommand(Command.ClearStatus command) {
+    public List<Event> onCommand(Command.ClearCells command) {
       if (isEmpty() || status.equals(Status.inactive)) {
         return List.of();
       }
@@ -370,7 +428,7 @@ public interface GridCell {
     // ============================================================
     // Command.EraseStatus
     // ============================================================
-    public List<Event> onCommand(Command.EraseStatus command) {
+    public List<Event> onCommand(Command.EraseCells command) {
       if (isEmpty() || status.equals(Status.inactive)) {
         return List.of();
       }
@@ -432,6 +490,13 @@ public interface GridCell {
       return this;
     }
 
+    static boolean insideShape(String id, Shape shape) {
+      var rc = id.split("x"); // RxC / YxX
+      var x = Integer.parseInt(rc[1]);
+      var y = Integer.parseInt(rc[0]);
+      return shape.isInsideShape(x, y);
+    }
+
     // Radius is limited to min(50, radius)
     static boolean insideRadius(String id, int centerX, int centerY, int radius) {
       var rc = id.split("x"); // RxC / YxX
@@ -460,15 +525,29 @@ public interface GridCell {
   // Commands
   // ============================================================
   public sealed interface Command {
-    public record UpdateStatus(
+
+    public record CreateShape(
+        String id,
+        Status status,
+        Instant clientAt,
+        Instant endpointAt,
+        Shape shape,
+        String region) implements Command {
+
+      public CreateShape withRegion(String newRegion) {
+        return new CreateShape(id, status, clientAt, endpointAt, shape, newRegion);
+      }
+    }
+
+    public record UpdateCell(
         String id,
         Status status,
         Instant clientAt,
         Instant endpointAt,
         String region) implements Command {
 
-      public UpdateStatus withRegion(String newRegion) {
-        return new UpdateStatus(id, status, clientAt, endpointAt, newRegion);
+      public UpdateCell withRegion(String newRegion) {
+        return new UpdateCell(id, status, clientAt, endpointAt, newRegion);
       }
     }
 
@@ -516,7 +595,7 @@ public interface GridCell {
       }
     }
 
-    public record SpanStatus(
+    public record SpanCells(
         String id,
         Status status,
         Instant clientAt,
@@ -524,14 +603,15 @@ public interface GridCell {
         Integer centerX,
         Integer centerY,
         Integer radius,
+        Shape shape,
         String region) implements Command {
 
-      public SpanStatus withRegion(String newRegion) {
-        return new SpanStatus(id, status, clientAt, endpointAt, centerX, centerY, radius, newRegion);
+      public SpanCells withRegion(String newRegion) {
+        return new SpanCells(id, status, clientAt, endpointAt, centerX, centerY, radius, shape, newRegion);
       }
     }
 
-    public record FillStatus(
+    public record FillCells(
         String id,
         Status status,
         Instant clientAt,
@@ -539,27 +619,28 @@ public interface GridCell {
         Integer centerX,
         Integer centerY,
         Integer radius,
+        Shape shape,
         String region) implements Command {
 
-      public FillStatus withRegion(String newRegion) {
-        return new FillStatus(id, status, clientAt, endpointAt, centerX, centerY, radius, newRegion);
+      public FillCells withRegion(String newRegion) {
+        return new FillCells(id, status, clientAt, endpointAt, centerX, centerY, radius, shape, newRegion);
       }
     }
 
-    public record ClearStatus(
+    public record ClearCells(
         String id,
         Status status) implements Command {
 
-      public ClearStatus withRegion(String newRegion) {
-        return new ClearStatus(id, status);
+      public ClearCells withRegion(String newRegion) {
+        return new ClearCells(id, status);
       }
     }
 
-    public record EraseStatus(
+    public record EraseCells(
         String id) implements Command {
 
-      public EraseStatus withRegion(String newRegion) {
-        return new EraseStatus(id);
+      public EraseCells withRegion(String newRegion) {
+        return new EraseCells(id);
       }
     }
   }
@@ -613,6 +694,7 @@ public interface GridCell {
         Integer centerX,
         Integer centerY,
         Integer radius,
+        Shape shape,
         String created,
         String updated) implements Event {}
 
@@ -625,6 +707,7 @@ public interface GridCell {
         Integer centerX,
         Integer centerY,
         Integer radius,
+        Shape shape,
         String created,
         String updated) implements Event {}
 
@@ -636,5 +719,42 @@ public interface GridCell {
     @TypeName("erase-to-neighbor")
     public record EraseToNeighbor(
         String id) implements Event {}
+  }
+
+  public record Shape(
+      int locationX,
+      int locationY,
+      int radius,
+      int width,
+      int height) {
+
+    public static Shape ofCircle(int centerX, int centerY, int radius) {
+      return new Shape(centerX, centerY, radius, 0, 0);
+    }
+
+    public static Shape ofRectangle(int topLeftX, int topLeftY, int bottomRightX, int bottomRightY) {
+      return new Shape(topLeftX, topLeftY, 0, bottomRightX - topLeftX, bottomRightY - topLeftY);
+    }
+
+    public boolean isCircle() {
+      return radius > 0;
+    }
+
+    public boolean isRectangle() {
+      return width > 0 && height > 0;
+    }
+
+    public boolean isSingleCell() {
+      return radius == 0 && width == 0 && height == 0;
+    }
+
+    public boolean isInsideShape(int x, int y) {
+      if (isCircle()) {
+        return Math.pow(x - locationX, 2) + Math.pow(y - locationY, 2) <= Math.pow(radius, 2);
+      } else if (isRectangle()) {
+        return x >= locationX && x < locationX + width && y >= locationY && y < locationY + height;
+      }
+      return false;
+    }
   }
 }

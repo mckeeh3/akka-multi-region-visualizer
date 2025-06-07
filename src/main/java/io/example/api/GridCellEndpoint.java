@@ -46,6 +46,24 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
     this.config = config;
   }
 
+  @Put("/create-shape")
+  public Done createShape(CreateShapeRequest request) {
+    log.info("Region: {}, {}", region(), request);
+
+    var shape = new GridCell.Shape(request.locationX(), request.locationY(), request.radius(), request.width(), request.height());
+    var command = new GridCell.Command.CreateShape(
+        request.id(),
+        GridCell.Status.valueOf(request.status()),
+        request.clientAt(),
+        Instant.now(),
+        shape,
+        region());
+
+    return componentClient.forEventSourcedEntity(request.id())
+        .method(GridCellEntity::createShape)
+        .invoke(command);
+  }
+
   @Put("/update-status")
   public Done updateStatus(UpdateGridCellRequest request) {
     log.info("Region: {}, {}", region(), request);
@@ -53,7 +71,7 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
     var status = GridCell.Status.valueOf(request.status());
     var clientAt = request.clientAt();
     var endpointAt = Instant.now();
-    var command = new GridCell.Command.UpdateStatus(
+    var command = new GridCell.Command.UpdateCell(
         request.id(),
         status,
         clientAt,
@@ -65,76 +83,23 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
         .invoke(command);
   }
 
-  @Put("/span-status")
-  public Done spanStatus(UpdateGridCellRequest request) {
+  @Put("/clear-cells")
+  public Done clearCells(UpdateGridCellRequest request) {
     log.info("Region: {}, {}", region(), request);
 
     var status = GridCell.Status.valueOf(request.status());
-    var clientAt = request.clientAt();
-    var endpointAt = Instant.now();
-    var command = new GridCell.Command.SpanStatus(
-        request.id(),
-        status,
-        clientAt,
-        endpointAt,
-        request.centerX(),
-        request.centerY(),
-        Math.min(30, request.radius()),
-        region());
-
-    return componentClient.forEventSourcedEntity(command.id())
-        .method(GridCellEntity::updateSpanStatus)
-        .invoke(command);
-  }
-
-  @Put("/fill-status")
-  public Done fillStatus(UpdateGridCellRequest request) {
-    log.info("Region: {}, {}", region(), request);
-
-    var status = GridCell.Status.valueOf(request.status());
-    var clientAt = request.clientAt();
-    var endpointAt = Instant.now();
-    var command = new GridCell.Command.FillStatus(
-        request.id(),
-        status,
-        clientAt,
-        endpointAt,
-        request.centerX(),
-        request.centerY(),
-        Math.min(30, request.radius()),
-        region());
-
-    return componentClient.forEventSourcedEntity(command.id())
-        .method(GridCellEntity::updateFillStatus)
-        .invoke(command);
-  }
-
-  @Put("/fill-rectangle")
-  public Done fillRectangle(FillRectangle.Request request) {
-    log.info("Region: {}, {}", region(), request);
-
-    FillRectangle.fillRectangle(request, componentClient);
-
-    return Done.done();
-  }
-
-  @Put("/clear-status")
-  public Done clearStatus(UpdateGridCellRequest request) {
-    log.info("Region: {}, {}", region(), request);
-
-    var status = GridCell.Status.valueOf(request.status());
-    var command = new GridCell.Command.ClearStatus(request.id(), status);
+    var command = new GridCell.Command.ClearCells(request.id(), status);
 
     return componentClient.forEventSourcedEntity(command.id())
         .method(GridCellEntity::updateClearStatus)
         .invoke(command);
   }
 
-  @Put("/erase-status")
-  public Done eraseStatus(UpdateGridCellRequest request) {
+  @Put("/erase-cells")
+  public Done eraseCells(UpdateGridCellRequest request) {
     log.info("Region: {}, {}", region(), request);
 
-    var command = new GridCell.Command.EraseStatus(request.id());
+    var command = new GridCell.Command.EraseCells(request.id());
 
     return componentClient.forEventSourcedEntity(command.id())
         .method(GridCellEntity::updateEraseStatus)
@@ -298,6 +263,8 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
         .flatMap(pagedGridCells -> pagedGridCells.gridCells().stream())
         .toList();
   }
+
+  record CreateShapeRequest(String id, String status, Instant clientAt, int locationX, int locationY, int radius, int width, int height) {}
 
   record UpdateGridCellRequest(String id, String status, Instant clientAt, Integer centerX, Integer centerY, Integer radius) {}
 
