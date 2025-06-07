@@ -315,6 +315,9 @@ public interface GridCell {
       if (!insideShape(command.id, command.shape)) {
         return List.of();
       }
+      if (isTooSoonToChange(updatedAt)) {
+        return List.of();
+      }
 
       var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
       var newUpdatedAt = Instant.now();
@@ -359,6 +362,9 @@ public interface GridCell {
       if (!insideShape(command.id, command.shape)) {
         return List.of();
       }
+      if (isTooSoonToChange(updatedAt)) {
+        return List.of();
+      }
 
       var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
       var newUpdatedAt = Instant.now();
@@ -400,6 +406,9 @@ public interface GridCell {
       if (!status.equals(command.status)) {
         return List.of();
       }
+      if (isTooSoonToChange(updatedAt)) {
+        return List.of();
+      }
 
       var newUpdatedAt = Instant.now();
       var updateStatusEvent = new Event.StatusUpdated(
@@ -424,6 +433,9 @@ public interface GridCell {
     // ============================================================
     public List<Event> onCommand(Command.EraseCells command) {
       if (isEmpty() || status.equals(Status.inactive)) {
+        return List.of();
+      }
+      if (isTooSoonToChange(updatedAt)) {
         return List.of();
       }
 
@@ -482,6 +494,11 @@ public interface GridCell {
 
     public State onEvent(Event.EraseToNeighbor event) {
       return this;
+    }
+
+    static boolean isTooSoonToChange(Instant lastUpdatedAt) {
+      var now = Instant.now();
+      return now.isBefore(lastUpdatedAt.plusSeconds(10));
     }
 
     static boolean insideShape(String id, Shape shape) {
@@ -752,8 +769,8 @@ public interface GridCell {
         var maxRadius = Math.min(30, radius);
         return Math.pow(x - locationX, 2) + Math.pow(y - locationY, 2) <= Math.pow(maxRadius, 2);
       } else if (isRectangle()) {
-        var maxWidth = Math.min(30, width);
-        var maxHeight = Math.min(30, height);
+        var maxWidth = Math.min(60, width);
+        var maxHeight = Math.min(60, height);
         return x >= locationX && x < locationX + maxWidth && y >= locationY && y < locationY + maxHeight;
       }
       return false;
