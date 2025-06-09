@@ -69,7 +69,7 @@
             <input type="range" id="entityCount" min="1000" max="100000" value="10000" step="1000">
              <p class="text-sm text-gray-400 mt-4">Adjust the slider to simulate changes in the total number of entities and see the cluster structure resize.</p>
              <div class="slider-label mt-4">
-                <label class="font-medium text-gray-300">Nodes per Region</label>
+                <label class="font-medium text-gray-300">Total Active Nodes</label>
                 <span id="nodeCountValue" class="font-semibold text-green-400">1</span>
             </div>
         </div>
@@ -126,6 +126,7 @@
         
         let entityIds = [];
         
+        // *** FIX: Increased max nodes per region to 10 ***
         const baseConfig = {
             name: "Akka System",
             type: 'System',
@@ -136,6 +137,9 @@
                     children: [
                         { name: "us-east-1-Node-1", type: 'Node' }, { name: "us-east-1-Node-2", type: 'Node' },
                         { name: "us-east-1-Node-3", type: 'Node' }, { name: "us-east-1-Node-4", type: 'Node' },
+                        { name: "us-east-1-Node-5", type: 'Node' }, { name: "us-east-1-Node-6", type: 'Node' },
+                        { name: "us-east-1-Node-7", type: 'Node' }, { name: "us-east-1-Node-8", type: 'Node' },
+                        { name: "us-east-1-Node-9", type: 'Node' }, { name: "us-east-1-Node-10", type: 'Node' },
                     ]
                 },
                 {
@@ -143,7 +147,10 @@
                     type: 'Region',
                     children: [
                         { name: "us-west-1-Node-1", type: 'Node' }, { name: "us-west-1-Node-2", type: 'Node' },
-                        { name: "us-west-1-Node-3", type: 'Node' },
+                        { name: "us-west-1-Node-3", type: 'Node' }, { name: "us-west-1-Node-4", type: 'Node' },
+                        { name: "us-west-1-Node-5", type: 'Node' }, { name: "us-west-1-Node-6", type: 'Node' },
+                        { name: "us-west-1-Node-7", type: 'Node' }, { name: "us-west-1-Node-8", type: 'Node' },
+                        { name: "us-west-1-Node-9", type: 'Node' }, { name: "us-west-1-Node-10", type: 'Node' },
                     ]
                 },
                  {
@@ -151,7 +158,10 @@
                     type: 'Region',
                     children: [
                         { name: "eu-central-1-Node-1", type: 'Node' }, { name: "eu-central-1-Node-2", type: 'Node' },
-                        { name: "eu-central-1-Node-3", type: 'Node' },
+                        { name: "eu-central-1-Node-3", type: 'Node' }, { name: "eu-central-1-Node-4", type: 'Node' },
+                        { name: "eu-central-1-Node-5", type: 'Node' }, { name: "eu-central-1-Node-6", type: 'Node' },
+                        { name: "eu-central-1-Node-7", type: 'Node' }, { name: "eu-central-1-Node-8", type: 'Node' },
+                        { name: "eu-central-1-Node-9", type: 'Node' }, { name: "eu-central-1-Node-10", type: 'Node' },
                     ]
                 }
             ]
@@ -239,15 +249,17 @@
             updateEntityIdList(totalEntities);
 
             const displayData = { ...baseConfig, children: [] };
+            let totalActiveNodes = 0; 
             
             baseConfig.children.forEach(regionDef => {
                 const displayRegion = { ...regionDef, children: [] };
                 displayData.children.push(displayRegion);
 
                 const maxNodesInRegion = regionDef.children.length;
-                const numActiveNodes = Math.max(1, Math.min(maxNodesInRegion, Math.ceil(totalEntities / 10000)));
-                const activeNodes = regionDef.children.slice(0, numActiveNodes);
-                document.getElementById('nodeCountValue').textContent = numActiveNodes;
+                const numActiveNodesInRegion = Math.max(1, Math.min(maxNodesInRegion, Math.ceil(totalEntities / 10000)));
+                totalActiveNodes += numActiveNodesInRegion;
+                
+                const activeNodes = regionDef.children.slice(0, numActiveNodesInRegion);
                 
                 const regionalShards = [];
                 for (let i = 0; i < NUM_SHARDS; i++) {
@@ -268,12 +280,14 @@
 
 
                 activeNodes.forEach((nodeDef, nodeIndex) => {
-                    const shardsForThisNode = regionalShards.filter((shard, shardIndex) => shardIndex % numActiveNodes === nodeIndex);
+                    const shardsForThisNode = regionalShards.filter((shard, shardIndex) => shardIndex % numActiveNodesInRegion === nodeIndex);
                     const displayNode = { ...nodeDef, children: shardsForThisNode };
                     displayRegion.children.push(displayNode);
                 });
             });
             
+            document.getElementById('nodeCountValue').textContent = totalActiveNodes;
+
             createHierarchy(displayData, null);
             calculateParentEntities(displayData);
             updateScales(displayData);
@@ -305,7 +319,7 @@
             const radius = Math.cbrt(baseVolume * (node.entities || 1)) / 5;
             
             let scale = Math.max(0.1, radius);
-            if (node.type === 'Entity') scale = 0.6; // *** FIX: Increased entity size ***
+            if (node.type === 'Entity') scale = 0.6; 
             
             if (node.object3D && isFinite(scale)) {
                node.object3D.scale.set(scale, scale, scale);
@@ -345,7 +359,7 @@
                     const distanceVec = new THREE.Vector3().subVectors(parent.position, child.position);
                     const distance = distanceVec.length();
                     let idealDistance = forceParams.restLength + parent.scale.x + child.scale.x;
-                    if(data.type === 'Entity') idealDistance = parent.scale.x + 5; // Give entities a bit more room
+                    if(data.type === 'Entity') idealDistance = parent.scale.x + 5; 
 
                     const displacement = idealDistance - distance;
                     const springForce = forceParams.attraction * displacement;
@@ -360,7 +374,7 @@
                         const distanceSq = distanceVec.lengthSq();
                         if (distanceSq > 0) {
                             let repulsionForce = forceParams.siblingRepulsion;
-                            if (data.type === 'Entity') repulsionForce /= 10; // Weaker repulsion between entities
+                            if (data.type === 'Entity') repulsionForce /= 10;
                             repulsionForce /= distanceSq;
 
                             data.velocity.add(distanceVec.normalize().multiplyScalar(repulsionForce));
@@ -515,7 +529,6 @@
                  isFocusing = false;
             }
             
-            // *** FIX: Only toggle visibility if not clicking an entity ***
             if (clickedEntityType !== 'Entity') {
                  objectMap.forEach(objData => {
                     if (objData.type === 'Shard') {
