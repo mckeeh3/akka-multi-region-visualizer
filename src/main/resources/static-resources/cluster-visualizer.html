@@ -194,7 +194,7 @@
 
         function createHierarchy(dataNode, parentData) {
             const color = getColorForType(dataNode.type);
-            const geometry = dataNode.type === 'Entity' ? new THREE.BoxGeometry(0.2, 0.2, 0.2) : new THREE.SphereGeometry(1, 32, 32);
+            const geometry = dataNode.type === 'Entity' ? new THREE.SphereGeometry(1, 16, 16) : new THREE.SphereGeometry(1, 32, 32);
             const material = new THREE.MeshStandardMaterial({ 
                 color, 
                 transparent: dataNode.type === 'Region', 
@@ -255,7 +255,7 @@
                         name: `Shard ${i}`, 
                         type: 'Shard',
                         isExpanded: false,
-                        children: [], // *** FIX: Use standard children array for entities ***
+                        children: [],
                         entityIds: [] 
                     });
                 }
@@ -305,7 +305,7 @@
             const radius = Math.cbrt(baseVolume * (node.entities || 1)) / 5;
             
             let scale = Math.max(0.1, radius);
-            if (node.type === 'Entity') scale = 0.3; 
+            if (node.type === 'Entity') scale = 0.6; // *** FIX: Increased entity size ***
             
             if (node.object3D && isFinite(scale)) {
                node.object3D.scale.set(scale, scale, scale);
@@ -345,7 +345,7 @@
                     const distanceVec = new THREE.Vector3().subVectors(parent.position, child.position);
                     const distance = distanceVec.length();
                     let idealDistance = forceParams.restLength + parent.scale.x + child.scale.x;
-                    if(data.type === 'Entity') idealDistance = parent.scale.x + 2; 
+                    if(data.type === 'Entity') idealDistance = parent.scale.x + 5; // Give entities a bit more room
 
                     const displacement = idealDistance - distance;
                     const springForce = forceParams.attraction * displacement;
@@ -359,7 +359,10 @@
                         const distanceVec = new THREE.Vector3().subVectors(child.position, sibling.position);
                         const distanceSq = distanceVec.lengthSq();
                         if (distanceSq > 0) {
-                            const repulsionForce = forceParams.siblingRepulsion / distanceSq;
+                            let repulsionForce = forceParams.siblingRepulsion;
+                            if (data.type === 'Entity') repulsionForce /= 10; // Weaker repulsion between entities
+                            repulsionForce /= distanceSq;
+
                             data.velocity.add(distanceVec.normalize().multiplyScalar(repulsionForce));
                         }
                     });
@@ -419,7 +422,7 @@
         function removeEntitiesFromShard(shardData) {
             if (!shardData.isExpanded) return;
 
-            shardData.children.forEach(entityData => { // *** FIX: Use shardData.children ***
+            shardData.children.forEach(entityData => { 
                 if (entityData.object3D) {
                     scene.remove(entityData.object3D);
                     objectMap.delete(entityData.object3D.uuid);
@@ -430,19 +433,18 @@
                     connections.splice(connIndex, 1);
                 }
             });
-            shardData.children = []; // *** FIX: Clear children array ***
+            shardData.children = []; 
             shardData.isExpanded = false;
         }
 
         function showEntitiesForShard(shardData) {
              if (shardData.isExpanded) return;
              
-             // *** FIX: Initialize children array before populating ***
              shardData.children = []; 
              shardData.entityIds.forEach(id => {
                  const entityData = { name: id, type: 'Entity' };
                  createHierarchy(entityData, shardData);
-                 shardData.children.push(entityData); // *** FIX: Add to standard children array ***
+                 shardData.children.push(entityData);
              });
              updateScales(shardData);
              shardData.isExpanded = true;
@@ -483,12 +485,15 @@
 
             let clickedShardName = null;
             let shouldToggle = false;
+            let clickedEntityType = null;
 
             if (intersects.length > 0) {
                  const intersectedData = intersects[0].object.userData;
                  selectedObject = intersects[0].object;
                  selectedObject.material.emissive.setHex(0xcc0000);
                  
+                 clickedEntityType = intersectedData.type;
+
                  document.getElementById('selectedInfo').classList.remove('hidden');
                  document.getElementById('panelTitle').textContent = 'Object Details';
                  document.getElementById('selectedName').textContent = intersectedData.name;
@@ -510,15 +515,18 @@
                  isFocusing = false;
             }
             
-            objectMap.forEach(objData => {
-                if (objData.type === 'Shard') {
-                    if (objData.name === clickedShardName && shouldToggle) {
-                        showEntitiesForShard(objData);
-                    } else {
-                        removeEntitiesFromShard(objData);
+            // *** FIX: Only toggle visibility if not clicking an entity ***
+            if (clickedEntityType !== 'Entity') {
+                 objectMap.forEach(objData => {
+                    if (objData.type === 'Shard') {
+                        if (objData.name === clickedShardName && shouldToggle) {
+                            showEntitiesForShard(objData);
+                        } else {
+                            removeEntitiesFromShard(objData);
+                        }
                     }
-                }
-            });
+                });
+            }
         });
         
         // --- Keyboard Fly Controls ---
