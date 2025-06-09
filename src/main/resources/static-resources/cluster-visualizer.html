@@ -423,7 +423,7 @@
         // --- Helper Functions ---
         function getColorForType(type) {
             switch (type) {
-                case 'System': return 0xffffff;
+                case 'System': return 0x00D4FF; // Light Blue
                 case 'Region': return 0x3B82F6; // Blue
                 case 'Node': return 0x10B981; // Green
                 case 'Shard': return 0xF59E0B; // Amber
@@ -481,9 +481,22 @@
         let targetPosition = new THREE.Vector3();
         let targetLookAt = new THREE.Vector3();
         let isFocusing = false;
-        let selectedEntityReplicas = []; // *** NEW: Track selected entity replicas ***
+        let selectedEntityReplicas = [];
+        
+        const mouseDownPos = new THREE.Vector2();
+        renderer.domElement.addEventListener('mousedown', (event) => {
+            mouseDownPos.set(event.clientX, event.clientY);
+        });
 
-        window.addEventListener('click', (event) => {
+        renderer.domElement.addEventListener('mouseup', (event) => {
+            const deltaX = Math.abs(event.clientX - mouseDownPos.x);
+            const deltaY = Math.abs(event.clientY - mouseDownPos.y);
+            if (deltaX < 5 && deltaY < 5) {
+                handleClick(event);
+            }
+        });
+
+        function handleClick(event) {
             if (event.target.closest('#infoPanel')) return;
 
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -492,7 +505,6 @@
             raycaster.setFromCamera(mouse, camera);
             const intersects = raycaster.intersectObjects(Array.from(objectMap.values()).map(d => d.object3D));
 
-            // *** NEW: Reset previously selected objects ***
             if (selectedObject) {
                  selectedObject.material.emissive.setHex(0x000000);
                  selectedObject = null;
@@ -529,11 +541,10 @@
                      clickedShardName = intersectedData.name;
                      shouldToggle = !intersectedData.isExpanded;
                  } else if (clickedEntityType === 'Entity') {
-                    // *** NEW: If entity is clicked, find and color all replicas ***
                     const clickedEntityId = intersectedData.name;
                     objectMap.forEach(objData => {
                         if (objData.type === 'Entity' && objData.name === clickedEntityId) {
-                           objData.object3D.material.color.set(0xff0000); // Red
+                           objData.object3D.material.color.set(0xff0000); 
                            selectedEntityReplicas.push(objData.object3D);
                         }
                     });
@@ -544,7 +555,6 @@
                  isFocusing = false;
             }
             
-            // *** FIX: Only toggle visibility if not clicking an entity ***
             if (clickedEntityType !== 'Entity') {
                  objectMap.forEach(objData => {
                     if (objData.type === 'Shard') {
@@ -556,7 +566,7 @@
                     }
                 });
             }
-        });
+        };
         
         // --- Keyboard Fly Controls ---
         const keyState = {};
