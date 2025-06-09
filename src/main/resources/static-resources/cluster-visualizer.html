@@ -124,6 +124,9 @@
         let stableFrames = 0; 
         const NUM_SHARDS = 100;
         
+        // *** NEW: Global list of entity IDs ***
+        let entityIds = [];
+        
         const baseConfig = {
             name: "Akka System",
             type: 'System',
@@ -158,6 +161,38 @@
         // --- Hierarchy Creation & Management ---
         const objectMap = new Map();
         const connections = [];
+
+        // *** NEW: Helper functions for Entity IDs and hashing ***
+        function generateEntityId() {
+            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+            let result = '';
+            for (let i = 0; i < 4; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+        
+        function simpleHashCode(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = (hash << 5) - hash + char;
+                hash |= 0; // Convert to 32bit integer
+            }
+            return Math.abs(hash);
+        }
+
+        function updateEntityIdList(newSize) {
+            const currentSize = entityIds.length;
+            if (newSize > currentSize) {
+                for (let i = 0; i < newSize - currentSize; i++) {
+                    entityIds.push(generateEntityId());
+                }
+            } else if (newSize < currentSize) {
+                entityIds = entityIds.slice(0, newSize);
+            }
+        }
+
 
         function createHierarchy(dataNode, parentData) {
             const color = getColorForType(dataNode.type);
@@ -203,6 +238,9 @@
             connections.length = 0;
             objectMap.clear();
 
+            // *** NEW: Update the global entity ID list first ***
+            updateEntityIdList(totalEntities);
+
             const displayData = { ...baseConfig, children: [] };
             
             baseConfig.children.forEach(regionDef => {
@@ -220,17 +258,19 @@
                         name: `${regionDef.name}-Shard-${i}`,
                         type: 'Shard',
                         entities: 0,
-                        assignedNodeName: activeNodes[i % activeNodes.length].name
                     });
                 }
                  
-                for (let i = 0; i < totalEntities; i++) {
-                    const shardIndex = Math.floor(Math.random() * NUM_SHARDS);
+                // *** NEW: Use hash of entity ID to distribute entities ***
+                entityIds.forEach(id => {
+                    const shardIndex = simpleHashCode(id) % NUM_SHARDS;
                     regionalShards[shardIndex].entities++;
-                }
+                });
 
-                activeNodes.forEach(nodeDef => {
-                    const displayNode = { ...nodeDef, children: regionalShards.filter(s => s.assignedNodeName === nodeDef.name) };
+                activeNodes.forEach((nodeDef, nodeIndex) => {
+                    // Evenly distribute the shards among the active nodes in this region
+                    const shardsForThisNode = regionalShards.filter((shard, shardIndex) => shardIndex % numActiveNodes === nodeIndex);
+                    const displayNode = { ...nodeDef, children: shardsForThisNode };
                     displayRegion.children.push(displayNode);
                 });
             });
