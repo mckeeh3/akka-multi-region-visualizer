@@ -1,683 +1,706 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Akka Cluster 3D Visualization</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { margin: 0; background-color: #111827; color: #F9FAFB; overflow: hidden; }
-        canvas { display: block; }
-        #infoPanel {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background-color: rgba(17, 24, 39, 0.8);
-            border: 1px solid rgba(55, 65, 81, 0.8);
-            border-radius: 0.75rem;
-            padding: 1.5rem;
-            width: 300px;
-            font-family: 'Inter', sans-serif;
-            -webkit-backdrop-filter: blur(10px);
-            backdrop-filter: blur(10px);
-            transition: transform 0.3s ease-in-out;
-        }
-        .slider-label {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.5rem;
-        }
-        input[type="range"] {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 100%;
-            height: 8px;
-            background: #374151;
-            border-radius: 5px;
-            outline: none;
-        }
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 20px;
-            height: 20px;
-            background: #3B82F6;
-            cursor: pointer;
-            border-radius: 50%;
-        }
-        input[type="range"]::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
-            background: #3B82F6;
-            cursor: pointer;
-            border-radius: 50%;
-        }
+      body {
+        margin: 0;
+        background-color: #111827;
+        color: #f9fafb;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+      }
+      #infoPanel {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background-color: rgba(17, 24, 39, 0.8);
+        border: 1px solid rgba(55, 65, 81, 0.8);
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        width: 300px;
+        font-family: 'Inter', sans-serif;
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+        transition: transform 0.3s ease-in-out;
+      }
+      .slider-label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+      }
+      input[type='range'] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 8px;
+        background: #374151;
+        border-radius: 5px;
+        outline: none;
+      }
+      input[type='range']::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        background: #3b82f6;
+        cursor: pointer;
+        border-radius: 50%;
+      }
+      input[type='range']::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        background: #3b82f6;
+        cursor: pointer;
+        border-radius: 50%;
+      }
     </style>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
-</head>
-<body>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
     <div id="infoPanel">
-        <h2 id="panelTitle" class="text-xl font-bold mb-4">System Overview</h2>
-        <div id="panelBody">
-             <div class="slider-label">
-                <label for="entityCount" class="font-medium text-gray-300">Total Entities</label>
-                <span id="entityCountValue" class="font-semibold text-blue-400">10000</span>
-            </div>
-            <input type="range" id="entityCount" min="1000" max="100000" value="10000" step="1000">
-             <p class="text-sm text-gray-400 mt-4">Adjust the slider to simulate changes in the total number of entities and see the cluster structure resize.</p>
-             <div class="slider-label mt-4">
-                <label class="font-medium text-gray-300">Total Active Nodes</label>
-                <span id="nodeCountValue" class="font-semibold text-green-400">1</span>
-            </div>
+      <h2 id="panelTitle" class="text-xl font-bold mb-4">System Overview</h2>
+      <div id="panelBody">
+        <div class="slider-label">
+          <label for="entityCount" class="font-medium text-gray-300">Total Entities</label>
+          <span id="entityCountValue" class="font-semibold text-blue-400">10000</span>
         </div>
-         <div id="selectedInfo" class="mt-4 hidden">
-             <h3 id="selectedHeader" class="font-bold text-lg">Selected: <span id="selectedName"></span></h3>
-             <p id="selectedTypeContainer" class="text-gray-400">Type: <span id="selectedType"></span></p>
-             <p id="primaryCountContainer" class="text-gray-400"><span id="primaryCountLabel"></span>: <span id="primaryCountValue"></span></p>
-             <p id="secondaryCountContainer" class="text-gray-400"><span id="secondaryCountLabel"></span>: <span id="secondaryCountValue"></span></p>
+        <input type="range" id="entityCount" min="1000" max="100000" value="10000" step="1000" />
+        <p class="text-sm text-gray-400 mt-4">Adjust the slider to simulate changes in the total number of entities and see the cluster structure resize.</p>
+        <div class="slider-label mt-4">
+          <label class="font-medium text-gray-300">Total Active Nodes</label>
+          <span id="nodeCountValue" class="font-semibold text-green-400">1</span>
         </div>
+      </div>
+      <div id="selectedInfo" class="mt-4 hidden">
+        <h3 id="selectedHeader" class="font-bold text-lg">Selected: <span id="selectedName"></span></h3>
+        <p id="selectedTypeContainer" class="text-gray-400">Type: <span id="selectedType"></span></p>
+        <p id="primaryCountContainer" class="text-gray-400"><span id="primaryCountLabel"></span>: <span id="primaryCountValue"></span></p>
+        <p id="secondaryCountContainer" class="text-gray-400"><span id="secondaryCountLabel"></span>: <span id="secondaryCountValue"></span></p>
+      </div>
     </div>
 
     <script type="importmap">
-        {
-            "imports": {
-                "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
-                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
-            }
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
         }
+      }
     </script>
     <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+      import * as THREE from 'three';
+      import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        // --- Basic Setup ---
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-        
-        // --- Lighting ---
-        const ambientLight = new THREE.AmbientLight(0xcccccc, 1.5);
-        scene.add(ambientLight);
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 2.5);
-        directionalLight.position.set(10, 20, 15);
-        scene.add(directionalLight);
-        const hemisphereLight = new THREE.HemisphereLight( 0x3B82F6, 0x10B981, 1 );
-		scene.add( hemisphereLight );
+      // --- Basic Setup ---
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
 
+      // --- Lighting ---
+      const ambientLight = new THREE.AmbientLight(0xcccccc, 1.5);
+      scene.add(ambientLight);
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 2.5);
+      directionalLight.position.set(10, 20, 15);
+      scene.add(directionalLight);
+      const hemisphereLight = new THREE.HemisphereLight(0x3b82f6, 0x10b981, 1);
+      scene.add(hemisphereLight);
 
-        // --- Controls ---
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        controls.minDistance = 5;
-        controls.maxDistance = 500;
+      // --- Controls ---
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.minDistance = 5;
+      controls.maxDistance = 500;
 
-        camera.position.z = 100;
+      camera.position.z = 100;
 
-        // --- Data Structure ---
-        let totalEntities = 10000;
-        let isSystemStable = false; 
-        let stableFrames = 0; 
-        const NUM_SHARDS = 100;
-        
-        let entityIds = [];
-        
-        const baseConfig = {
-            name: "Akka System",
-            type: 'System',
+      // --- Data Structure ---
+      let totalEntities = 10000;
+      let isSystemStable = false;
+      let stableFrames = 0;
+      const NUM_SHARDS = 100;
+
+      let entityIds = [];
+
+      const baseConfig = {
+        name: 'Akka System',
+        type: 'System',
+        children: [
+          {
+            name: 'us-east-1',
+            type: 'Region',
             children: [
-                {
-                    name: "us-east-1",
-                    type: 'Region',
-                    children: [
-                        { name: "us-east-1-Node-1", type: 'Node' }, { name: "us-east-1-Node-2", type: 'Node' },
-                        { name: "us-east-1-Node-3", type: 'Node' }, { name: "us-east-1-Node-4", type: 'Node' },
-                        { name: "us-east-1-Node-5", type: 'Node' }, { name: "us-east-1-Node-6", type: 'Node' },
-                        { name: "us-east-1-Node-7", type: 'Node' }, { name: "us-east-1-Node-8", type: 'Node' },
-                        { name: "us-east-1-Node-9", type: 'Node' }, { name: "us-east-1-Node-10", type: 'Node' },
-                    ]
-                },
-                {
-                    name: "us-west-1",
-                    type: 'Region',
-                    children: [
-                        { name: "us-west-1-Node-1", type: 'Node' }, { name: "us-west-1-Node-2", type: 'Node' },
-                        { name: "us-west-1-Node-3", type: 'Node' }, { name: "us-west-1-Node-4", type: 'Node' },
-                        { name: "us-west-1-Node-5", type: 'Node' }, { name: "us-west-1-Node-6", type: 'Node' },
-                        { name: "us-west-1-Node-7", type: 'Node' }, { name: "us-west-1-Node-8", type: 'Node' },
-                        { name: "us-west-1-Node-9", type: 'Node' }, { name: "us-west-1-Node-10", type: 'Node' },
-                    ]
-                },
-                 {
-                    name: "eu-central-1",
-                    type: 'Region',
-                    children: [
-                        { name: "eu-central-1-Node-1", type: 'Node' }, { name: "eu-central-1-Node-2", type: 'Node' },
-                        { name: "eu-central-1-Node-3", type: 'Node' }, { name: "eu-central-1-Node-4", type: 'Node' },
-                        { name: "eu-central-1-Node-5", type: 'Node' }, { name: "eu-central-1-Node-6", type: 'Node' },
-                        { name: "eu-central-1-Node-7", type: 'Node' }, { name: "eu-central-1-Node-8", type: 'Node' },
-                        { name: "eu-central-1-Node-9", type: 'Node' }, { name: "eu-central-1-Node-10", type: 'Node' },
-                    ]
-                }
-            ]
-        };
-        
-        // --- Hierarchy Creation & Management ---
-        const objectMap = new Map();
-        const connections = [];
+              { name: 'us-east-1-Node-1', type: 'Node' },
+              { name: 'us-east-1-Node-2', type: 'Node' },
+              { name: 'us-east-1-Node-3', type: 'Node' },
+              { name: 'us-east-1-Node-4', type: 'Node' },
+              { name: 'us-east-1-Node-5', type: 'Node' },
+              { name: 'us-east-1-Node-6', type: 'Node' },
+              { name: 'us-east-1-Node-7', type: 'Node' },
+              { name: 'us-east-1-Node-8', type: 'Node' },
+              { name: 'us-east-1-Node-9', type: 'Node' },
+              { name: 'us-east-1-Node-10', type: 'Node' },
+            ],
+          },
+          {
+            name: 'us-west-1',
+            type: 'Region',
+            children: [
+              { name: 'us-west-1-Node-1', type: 'Node' },
+              { name: 'us-west-1-Node-2', type: 'Node' },
+              { name: 'us-west-1-Node-3', type: 'Node' },
+              { name: 'us-west-1-Node-4', type: 'Node' },
+              { name: 'us-west-1-Node-5', type: 'Node' },
+              { name: 'us-west-1-Node-6', type: 'Node' },
+              { name: 'us-west-1-Node-7', type: 'Node' },
+              { name: 'us-west-1-Node-8', type: 'Node' },
+              { name: 'us-west-1-Node-9', type: 'Node' },
+              { name: 'us-west-1-Node-10', type: 'Node' },
+            ],
+          },
+          {
+            name: 'eu-central-1',
+            type: 'Region',
+            children: [
+              { name: 'eu-central-1-Node-1', type: 'Node' },
+              { name: 'eu-central-1-Node-2', type: 'Node' },
+              { name: 'eu-central-1-Node-3', type: 'Node' },
+              { name: 'eu-central-1-Node-4', type: 'Node' },
+              { name: 'eu-central-1-Node-5', type: 'Node' },
+              { name: 'eu-central-1-Node-6', type: 'Node' },
+              { name: 'eu-central-1-Node-7', type: 'Node' },
+              { name: 'eu-central-1-Node-8', type: 'Node' },
+              { name: 'eu-central-1-Node-9', type: 'Node' },
+              { name: 'eu-central-1-Node-10', type: 'Node' },
+            ],
+          },
+        ],
+      };
 
-        function generateEntityId() {
-            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-            let result = '';
-            for (let i = 0; i < 4; i++) {
-                result += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            return result;
+      // --- Hierarchy Creation & Management ---
+      const objectMap = new Map();
+      const connections = [];
+
+      function generateEntityId() {
+        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+        let result = '';
+        for (let i = 0; i < 4; i++) {
+          result += chars.charAt(Math.floor(Math.random() * chars.length));
         }
-        
-        function simpleHashCode(str) {
-            let hash = 0;
-            for (let i = 0; i < str.length; i++) {
-                const char = str.charCodeAt(i);
-                hash = (hash << 5) - hash + char;
-                hash |= 0; 
-            }
-            return Math.abs(hash);
+        return result;
+      }
+
+      function simpleHashCode(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+          const char = str.charCodeAt(i);
+          hash = (hash << 5) - hash + char;
+          hash |= 0;
+        }
+        return Math.abs(hash);
+      }
+
+      function updateEntityIdList(newSize) {
+        const currentSize = entityIds.length;
+        if (newSize > currentSize) {
+          for (let i = 0; i < newSize - currentSize; i++) {
+            entityIds.push(generateEntityId());
+          }
+        } else if (newSize < currentSize) {
+          entityIds = entityIds.slice(0, newSize);
+        }
+      }
+
+      function createHierarchy(dataNode, parentData) {
+        const color = getColorForType(dataNode.type);
+        const geometry = dataNode.type === 'Entity' ? new THREE.SphereGeometry(1, 16, 16) : new THREE.SphereGeometry(1, 32, 32);
+        const material = new THREE.MeshStandardMaterial({
+          color,
+          transparent: dataNode.type === 'Region',
+          opacity: dataNode.type === 'Region' ? 0.25 : 1.0,
+          metalness: 0.3,
+          roughness: 0.6,
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+
+        dataNode.parent = parentData;
+        mesh.position.set((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5);
+        if (parentData && parentData.object3D) {
+          mesh.position.add(parentData.object3D.position);
         }
 
-        function updateEntityIdList(newSize) {
-            const currentSize = entityIds.length;
-            if (newSize > currentSize) {
-                for (let i = 0; i < newSize - currentSize; i++) {
-                    entityIds.push(generateEntityId());
-                }
-            } else if (newSize < currentSize) {
-                entityIds = entityIds.slice(0, newSize);
-            }
+        mesh.userData = dataNode;
+        dataNode.object3D = mesh;
+        dataNode.velocity = new THREE.Vector3();
+
+        objectMap.set(mesh.uuid, dataNode);
+        scene.add(mesh);
+
+        if (parentData && parentData.object3D) {
+          const lineMaterial = new THREE.LineBasicMaterial({ color: 0x4b5563, transparent: true, opacity: 0.5 });
+          const lineGeometry = new THREE.BufferGeometry().setFromPoints([parentData.object3D.position, mesh.position]);
+          const line = new THREE.Line(lineGeometry, lineMaterial);
+          scene.add(line);
+          connections.push({ from: parentData.object3D, to: mesh, line });
         }
 
+        if (dataNode.children) {
+          dataNode.children.forEach((childData) => createHierarchy(childData, dataNode));
+        }
+      }
 
-        function createHierarchy(dataNode, parentData) {
-            const color = getColorForType(dataNode.type);
-            const geometry = dataNode.type === 'Entity' ? new THREE.SphereGeometry(1, 16, 16) : new THREE.SphereGeometry(1, 32, 32);
-            const material = new THREE.MeshStandardMaterial({ 
-                color, 
-                transparent: dataNode.type === 'Region', 
-                opacity: dataNode.type === 'Region' ? 0.25 : 1.0,
-                metalness: 0.3,
-                roughness: 0.6
+      function rebuildAndDistribute() {
+        connections.forEach((c) => scene.remove(c.line));
+        objectMap.forEach((data) => scene.remove(data.object3D));
+        connections.length = 0;
+        objectMap.clear();
+
+        updateEntityIdList(totalEntities);
+
+        const displayData = { ...baseConfig, children: [] };
+        let totalActiveNodes = 0;
+
+        baseConfig.children.forEach((regionDef) => {
+          const displayRegion = { ...regionDef, children: [] };
+          displayData.children.push(displayRegion);
+
+          const maxNodesInRegion = regionDef.children.length;
+          const numActiveNodesInRegion = Math.max(1, Math.min(maxNodesInRegion, Math.ceil(totalEntities / 10000)));
+          totalActiveNodes += numActiveNodesInRegion;
+
+          const activeNodes = regionDef.children.slice(0, numActiveNodesInRegion);
+
+          const regionalShards = [];
+          for (let i = 0; i < NUM_SHARDS; i++) {
+            regionalShards.push({
+              name: `Shard ${i}`,
+              type: 'Shard',
+              isExpanded: false,
+              children: [],
+              entityIds: [],
             });
-            const mesh = new THREE.Mesh(geometry, material);
-            
-            dataNode.parent = parentData;
-            mesh.position.set( (Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5 );
-            if(parentData && parentData.object3D) {
-                 mesh.position.add(parentData.object3D.position);
-            }
+          }
 
-            mesh.userData = dataNode;
-            dataNode.object3D = mesh;
-            dataNode.velocity = new THREE.Vector3();
+          entityIds.forEach((id) => {
+            const shardIndex = simpleHashCode(id) % NUM_SHARDS;
+            regionalShards[shardIndex].entityIds.push(id);
+          });
+          regionalShards.forEach((s) => (s.entities = s.entityIds.length));
 
-            objectMap.set(mesh.uuid, dataNode);
-            scene.add(mesh);
-
-            if (parentData && parentData.object3D) {
-                const lineMaterial = new THREE.LineBasicMaterial({ color: 0x4B5563, transparent: true, opacity: 0.5 });
-                const lineGeometry = new THREE.BufferGeometry().setFromPoints([parentData.object3D.position, mesh.position]);
-                const line = new THREE.Line(lineGeometry, lineMaterial);
-                scene.add(line);
-                connections.push({ from: parentData.object3D, to: mesh, line });
-            }
-
-            if (dataNode.children) {
-                dataNode.children.forEach(childData => createHierarchy(childData, dataNode));
-            }
-        }
-        
-        function rebuildAndDistribute() {
-            connections.forEach(c => scene.remove(c.line));
-            objectMap.forEach(data => scene.remove(data.object3D));
-            connections.length = 0;
-            objectMap.clear();
-
-            updateEntityIdList(totalEntities);
-
-            const displayData = { ...baseConfig, children: [] };
-            let totalActiveNodes = 0; 
-            
-            baseConfig.children.forEach(regionDef => {
-                const displayRegion = { ...regionDef, children: [] };
-                displayData.children.push(displayRegion);
-
-                const maxNodesInRegion = regionDef.children.length;
-                const numActiveNodesInRegion = Math.max(1, Math.min(maxNodesInRegion, Math.ceil(totalEntities / 10000)));
-                totalActiveNodes += numActiveNodesInRegion;
-                
-                const activeNodes = regionDef.children.slice(0, numActiveNodesInRegion);
-                
-                const regionalShards = [];
-                for (let i = 0; i < NUM_SHARDS; i++) {
-                    regionalShards.push({
-                        name: `Shard ${i}`, 
-                        type: 'Shard',
-                        isExpanded: false,
-                        children: [],
-                        entityIds: [] 
-                    });
-                }
-                 
-                entityIds.forEach(id => {
-                    const shardIndex = simpleHashCode(id) % NUM_SHARDS;
-                    regionalShards[shardIndex].entityIds.push(id);
-                });
-                regionalShards.forEach(s => s.entities = s.entityIds.length);
-
-
-                activeNodes.forEach((nodeDef, nodeIndex) => {
-                    const shardsForThisNode = regionalShards.filter((shard, shardIndex) => shardIndex % numActiveNodesInRegion === nodeIndex);
-                    const displayNode = { ...nodeDef, children: shardsForThisNode };
-                    displayRegion.children.push(displayNode);
-                });
-            });
-            
-            document.getElementById('nodeCountValue').textContent = totalActiveNodes;
-
-            createHierarchy(displayData, null);
-            calculateParentEntities(displayData);
-            updateScales(displayData);
-            
-            isSystemStable = false; 
-            stableFrames = 0;
-        }
-
-        function calculateParentEntities(node) {
-            if (node.type === 'System' || node.type === 'Region') {
-                node.entities = totalEntities;
-                if (node.children) {
-                    node.children.forEach(calculateParentEntities);
-                }
-                return;
-            }
-            
-            if (!node.children || node.children.length === 0) {
-                 return;
-            }
-            node.entities = node.children.reduce((acc, child) => {
-                calculateParentEntities(child);
-                return acc + (child.entities || 0);
-            }, 0);
-        }
-
-        function updateScales(node) {
-            const baseVolume = 1;
-            const radius = Math.cbrt(baseVolume * (node.entities || 1)) / 5;
-            
-            let scale = Math.max(0.1, radius);
-            if (node.type === 'Entity') scale = 0.6; 
-            
-            if (node.object3D && isFinite(scale)) {
-               node.object3D.scale.set(scale, scale, scale);
-            }
-
-            if (node.children) {
-                node.children.forEach(updateScales);
-            }
-        }
-
-        // --- Physics-based Layout ---
-        const forceParams = {
-            attraction: 0.02,
-            siblingRepulsion: 100,
-            grandparentAxisRepulsion: 0.2,
-            damping: 0.9,      
-            maxSpeed: 0.5,     
-            restLength: 60,  
-            energyThreshold: 0.0001, 
-            requiredStableFrames: 200 
-        };
-
-        function applyForces() {
-            if (isSystemStable) return;
-
-            const objects = Array.from(objectMap.values());
-            let totalEnergy = 0;
-
-            objects.forEach(data => {
-                if (data.type === 'System') return; 
-
-                const child = data.object3D;
-                const parentData = data.parent;
-                const parent = parentData?.object3D;
-                
-                if (parent) {
-                    const distanceVec = new THREE.Vector3().subVectors(parent.position, child.position);
-                    const distance = distanceVec.length();
-                    let idealDistance = forceParams.restLength + parent.scale.x + child.scale.x;
-                    if(data.type === 'Entity') idealDistance = parent.scale.x + 5; 
-
-                    const displacement = idealDistance - distance;
-                    const springForce = forceParams.attraction * displacement;
-                    data.velocity.sub(distanceVec.normalize().multiplyScalar(springForce));
-                }
-                
-                if (parentData?.children) {
-                    const siblings = parentData.children.filter(c => c !== data);
-                    siblings.forEach(siblingData => {
-                        const sibling = siblingData.object3D;
-                        const distanceVec = new THREE.Vector3().subVectors(child.position, sibling.position);
-                        const distanceSq = distanceVec.lengthSq();
-                        if (distanceSq > 0) {
-                            let repulsionForce = forceParams.siblingRepulsion;
-                            if (data.type === 'Entity') repulsionForce /= 10;
-                            repulsionForce /= distanceSq;
-
-                            data.velocity.add(distanceVec.normalize().multiplyScalar(repulsionForce));
-                        }
-                    });
-                }
-                
-                const grandparent = parentData?.parent?.object3D;
-                let grandparentAxis;
-                if (grandparent) {
-                    grandparentAxis = new THREE.Vector3().subVectors(parent.position, grandparent.position);
-                } else if (parentData?.type === 'System') {
-                    grandparentAxis = new THREE.Vector3().copy(child.position).normalize();
-                }
-
-                if (grandparentAxis && grandparentAxis.lengthSq() > 0) {
-                    grandparentAxis.normalize();
-                    const force = grandparentAxis.multiplyScalar(forceParams.grandparentAxisRepulsion);
-                    data.velocity.add(force);
-                }
-            });
-
-
-            objects.forEach(obj => {
-                if (obj.type !== 'System') {
-                    if (obj.velocity.length() > forceParams.maxSpeed) {
-                        obj.velocity.normalize().multiplyScalar(forceParams.maxSpeed);
-                    }
-                    obj.object3D.position.add(obj.velocity);
-                }
-                obj.velocity.multiplyScalar(forceParams.damping);
-                totalEnergy += obj.velocity.lengthSq();
-            });
-
-            if (totalEnergy < forceParams.energyThreshold) {
-                stableFrames++;
-            } else {
-                stableFrames = 0; 
-            }
-
-            if (stableFrames > forceParams.requiredStableFrames) {
-                isSystemStable = true;
-                objects.forEach(obj => obj.velocity.set(0, 0, 0));
-            }
-        }
-        
-        // --- Helper Functions ---
-        function getColorForType(type) {
-            switch (type) {
-                case 'System': return 0x00D4FF;
-                case 'Region': return 0x3B82F6; // Blue
-                case 'Node': return 0x10B981; // Green
-                case 'Shard': return 0xF59E0B; // Amber
-                case 'Entity': return 0xE5E7EB; 
-                default: return 0x6B7280; 
-            }
-        }
-
-        function removeEntitiesFromShard(shardData) {
-            if (!shardData.isExpanded) return;
-
-            shardData.children.forEach(entityData => { 
-                if (entityData.object3D) {
-                    scene.remove(entityData.object3D);
-                    objectMap.delete(entityData.object3D.uuid);
-                }
-                const connIndex = connections.findIndex(c => c.to === entityData.object3D);
-                if (connIndex > -1) {
-                    scene.remove(connections[connIndex].line);
-                    connections.splice(connIndex, 1);
-                }
-            });
-            shardData.children = []; 
-            shardData.isExpanded = false;
-        }
-
-        function showEntitiesForShard(shardData) {
-             if (shardData.isExpanded) return;
-             
-             shardData.children = []; 
-             shardData.entityIds.forEach(id => {
-                 const entityData = { name: id, type: 'Entity' };
-                 createHierarchy(entityData, shardData);
-                 shardData.children.push(entityData);
-             });
-             updateScales(shardData);
-             shardData.isExpanded = true;
-             isSystemStable = false;
-             stableFrames = 0;
-        }
-        
-        // --- UI and Interaction ---
-        const entitySlider = document.getElementById('entityCount');
-        const entityValue = document.getElementById('entityCountValue');
-        
-        entitySlider.addEventListener('input', (e) => {
-            totalEntities = parseInt(e.target.value);
-            entityValue.textContent = totalEntities.toLocaleString();
-            rebuildAndDistribute();
+          activeNodes.forEach((nodeDef, nodeIndex) => {
+            const shardsForThisNode = regionalShards.filter((shard, shardIndex) => shardIndex % numActiveNodesInRegion === nodeIndex);
+            const displayNode = { ...nodeDef, children: shardsForThisNode };
+            displayRegion.children.push(displayNode);
+          });
         });
 
-        const raycaster = new THREE.Raycaster();
-        const mouse = new THREE.Vector2();
-        let selectedObject = null;
-        let targetPosition = new THREE.Vector3();
-        let targetLookAt = new THREE.Vector3();
-        let isFocusing = false;
-        let selectedEntityReplicas = [];
-        
-        const mouseDownPos = new THREE.Vector2();
-        renderer.domElement.addEventListener('mousedown', (event) => {
-            mouseDownPos.set(event.clientX, event.clientY);
-        });
+        document.getElementById('nodeCountValue').textContent = totalActiveNodes;
 
-        renderer.domElement.addEventListener('mouseup', (event) => {
-            const deltaX = Math.abs(event.clientX - mouseDownPos.x);
-            const deltaY = Math.abs(event.clientY - mouseDownPos.y);
-            if (deltaX < 5 && deltaY < 5) {
-                handleClick(event);
-            }
-        });
+        createHierarchy(displayData, null);
+        calculateParentEntities(displayData);
+        updateScales(displayData);
 
-        function handleClick(event) {
-            if (event.target.closest('#infoPanel')) return;
+        isSystemStable = false;
+        stableFrames = 0;
+      }
 
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
-
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(Array.from(objectMap.values()).map(d => d.object3D));
-
-            if (selectedObject) {
-                 selectedObject.material.emissive.setHex(0x000000);
-                 selectedObject = null;
-            }
-            selectedEntityReplicas.forEach(entityMesh => {
-                entityMesh.material.color.set(getColorForType('Entity'));
-            });
-            selectedEntityReplicas = [];
-
-
-            let clickedShardName = null;
-            let shouldToggle = false;
-            let clickedEntityType = null;
-
-            if (intersects.length > 0) {
-                 const intersectedData = intersects[0].object.userData;
-                 selectedObject = intersects[0].object;
-                 selectedObject.material.emissive.setHex(0xcc0000);
-                 
-                 clickedEntityType = intersectedData.type;
-
-                 // *** NEW: Update panel with child counts ***
-                 const selectedHeader = document.getElementById('selectedHeader');
-                 const selectedName = document.getElementById('selectedName');
-                 const selectedTypeContainer = document.getElementById('selectedTypeContainer');
-                 const selectedType = document.getElementById('selectedType');
-                 const primaryCountContainer = document.getElementById('primaryCountContainer');
-                 const primaryCountLabel = document.getElementById('primaryCountLabel');
-                 const primaryCountValue = document.getElementById('primaryCountValue');
-                 const secondaryCountContainer = document.getElementById('secondaryCountContainer');
-                 const secondaryCountLabel = document.getElementById('secondaryCountLabel');
-                 const secondaryCountValue = document.getElementById('secondaryCountValue');
-
-                document.getElementById('selectedInfo').classList.remove('hidden');
-                document.getElementById('panelTitle').textContent = 'Object Details';
-                selectedHeader.innerHTML = `Selected: <span id="selectedName">${intersectedData.name}</span>`;
-                selectedTypeContainer.classList.remove('hidden');
-                primaryCountContainer.classList.remove('hidden');
-                secondaryCountContainer.classList.remove('hidden');
-
-                selectedType.textContent = intersectedData.type;
-
-                switch(intersectedData.type) {
-                    case 'System':
-                        primaryCountLabel.textContent = 'Regions';
-                        primaryCountValue.textContent = intersectedData.children?.length || 0;
-                        secondaryCountLabel.textContent = 'Total Entities';
-                        secondaryCountValue.textContent = intersectedData.entities?.toLocaleString() || 0;
-                        break;
-                    case 'Region':
-                        primaryCountLabel.textContent = 'Cluster Nodes';
-                        primaryCountValue.textContent = intersectedData.children?.length || 0;
-                        secondaryCountLabel.textContent = 'Total Entities';
-                        secondaryCountValue.textContent = intersectedData.entities?.toLocaleString() || 0;
-                        break;
-                    case 'Node':
-                        primaryCountLabel.textContent = 'Total Shards';
-                        primaryCountValue.textContent = intersectedData.children?.length || 0;
-                        secondaryCountLabel.textContent = 'Total Entities';
-                        secondaryCountValue.textContent = intersectedData.entities?.toLocaleString() || 0;
-                        break;
-                    case 'Shard':
-                        primaryCountLabel.textContent = 'Total Entities';
-                        primaryCountValue.textContent = intersectedData.entities?.toLocaleString() || 0;
-                        secondaryCountContainer.classList.add('hidden');
-                        break;
-                    case 'Entity':
-                        selectedHeader.innerHTML = `Entity ID: <span id="selectedName">${intersectedData.name}</span>`;
-                        selectedTypeContainer.classList.add('hidden');
-                        primaryCountContainer.classList.add('hidden');
-                        secondaryCountContainer.classList.add('hidden');
-                        break;
-                }
-
-
-                 const offset = 30 + selectedObject.scale.x * 5;
-                 targetPosition.copy(selectedObject.position).add(new THREE.Vector3(offset/2, offset/2, offset));
-                 targetLookAt.copy(selectedObject.position);
-                 isFocusing = true;
-                 
-                 if (clickedEntityType === 'Shard') {
-                     clickedShardName = intersectedData.name;
-                     shouldToggle = !intersectedData.isExpanded;
-                 } else if (clickedEntityType === 'Entity') {
-                    const clickedEntityId = intersectedData.name;
-                    objectMap.forEach(objData => {
-                        if (objData.type === 'Entity' && objData.name === clickedEntityId) {
-                           objData.object3D.material.color.set(0xff0000); 
-                           selectedEntityReplicas.push(objData.object3D);
-                        }
-                    });
-                 }
-            } else {
-                 document.getElementById('selectedInfo').classList.add('hidden');
-                 document.getElementById('panelTitle').textContent = 'System Overview';
-                 isFocusing = false;
-            }
-            
-            if (clickedEntityType !== 'Entity') {
-                 objectMap.forEach(objData => {
-                    if (objData.type === 'Shard') {
-                        if (objData.name === clickedShardName && shouldToggle) {
-                            showEntitiesForShard(objData);
-                        } else {
-                            removeEntitiesFromShard(objData);
-                        }
-                    }
-                });
-            }
-        };
-        
-        // --- Keyboard Fly Controls ---
-        const keyState = {};
-        window.addEventListener('keydown', (e) => { if (!e.target.closest('#infoPanel')) keyState[e.code] = true; });
-        window.addEventListener('keyup', (e) => { keyState[e.code] = false; });
-        
-        const clock = new THREE.Clock();
-        
-        function updateCamera() {
-            const delta = clock.getDelta();
-            const moveSpeed = 50 * delta;
-            
-            if (isFocusing && selectedObject) {
-                 camera.position.lerp(targetPosition, 0.05);
-                 controls.target.lerp(targetLookAt, 0.05);
-                 if (camera.position.distanceTo(targetPosition) < 0.1) {
-                     isFocusing = false;
-                 }
-            } else if (!isFocusing) { 
-                 const forward = new THREE.Vector3();
-                 camera.getWorldDirection(forward);
-
-                 if (keyState['KeyW'] || keyState['ArrowUp']) camera.position.addScaledVector(forward, moveSpeed);
-                 if (keyState['KeyS'] || keyState['ArrowDown']) camera.position.addScaledVector(forward, -moveSpeed);
-                 
-                 const right = new THREE.Vector3().crossVectors(camera.up, forward).normalize();
-                 if (keyState['KeyA'] || keyState['ArrowLeft']) camera.position.addScaledVector(right, -moveSpeed);
-                 if (keyState['KeyD'] || keyState['ArrowRight']) camera.position.addScaledVector(right, moveSpeed);
-                 
-                 if (keyState['KeyR']) camera.position.y += moveSpeed;
-                 if (keyState['KeyF']) camera.position.y -= moveSpeed;
-            }
-        }
-        
-        // --- Main Animation Loop ---
-        function animate() {
-            requestAnimationFrame(animate);
-
-            updateCamera();
-            applyForces();
-
-            connections.forEach(c => {
-                c.line.geometry.setFromPoints([c.from.position, c.to.position]);
-                c.line.geometry.computeBoundingSphere();
-            });
-
-            controls.update();
-            renderer.render(scene, camera);
+      function calculateParentEntities(node) {
+        if (node.type === 'System' || node.type === 'Region') {
+          node.entities = totalEntities;
+          if (node.children) {
+            node.children.forEach(calculateParentEntities);
+          }
+          return;
         }
 
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+        if (!node.children || node.children.length === 0) {
+          return;
+        }
+        node.entities = node.children.reduce((acc, child) => {
+          calculateParentEntities(child);
+          return acc + (child.entities || 0);
+        }, 0);
+      }
+
+      function updateScales(node) {
+        const baseVolume = 1;
+        const radius = Math.cbrt(baseVolume * (node.entities || 1)) / 5;
+
+        let scale = Math.max(0.1, radius);
+        if (node.type === 'Entity') scale = 0.6;
+
+        if (node.object3D && isFinite(scale)) {
+          node.object3D.scale.set(scale, scale, scale);
+        }
+
+        if (node.children) {
+          node.children.forEach(updateScales);
+        }
+      }
+
+      // --- Physics-based Layout ---
+      const forceParams = {
+        attraction: 0.02,
+        siblingRepulsion: 100,
+        grandparentAxisRepulsion: 0.2,
+        damping: 0.9,
+        maxSpeed: 0.5,
+        restLength: 60,
+        energyThreshold: 0.0001,
+        requiredStableFrames: 200,
+      };
+
+      function applyForces() {
+        if (isSystemStable) return;
+
+        const objects = Array.from(objectMap.values());
+        let totalEnergy = 0;
+
+        objects.forEach((data) => {
+          if (data.type === 'System') return;
+
+          const child = data.object3D;
+          const parentData = data.parent;
+          const parent = parentData?.object3D;
+
+          if (parent) {
+            const distanceVec = new THREE.Vector3().subVectors(parent.position, child.position);
+            const distance = distanceVec.length();
+            let idealDistance = forceParams.restLength + parent.scale.x + child.scale.x;
+            if (data.type === 'Entity') idealDistance = parent.scale.x + 5;
+
+            const displacement = idealDistance - distance;
+            const springForce = forceParams.attraction * displacement;
+            data.velocity.sub(distanceVec.normalize().multiplyScalar(springForce));
+          }
+
+          if (parentData?.children) {
+            const siblings = parentData.children.filter((c) => c !== data);
+            siblings.forEach((siblingData) => {
+              const sibling = siblingData.object3D;
+              const distanceVec = new THREE.Vector3().subVectors(child.position, sibling.position);
+              const distanceSq = distanceVec.lengthSq();
+              if (distanceSq > 0) {
+                let repulsionForce = forceParams.siblingRepulsion;
+                if (data.type === 'Entity') repulsionForce /= 10;
+                repulsionForce /= distanceSq;
+
+                data.velocity.add(distanceVec.normalize().multiplyScalar(repulsionForce));
+              }
+            });
+          }
+
+          const grandparent = parentData?.parent?.object3D;
+          let grandparentAxis;
+          if (grandparent) {
+            grandparentAxis = new THREE.Vector3().subVectors(parent.position, grandparent.position);
+          } else if (parentData?.type === 'System') {
+            grandparentAxis = new THREE.Vector3().copy(child.position).normalize();
+          }
+
+          if (grandparentAxis && grandparentAxis.lengthSq() > 0) {
+            grandparentAxis.normalize();
+            const force = grandparentAxis.multiplyScalar(forceParams.grandparentAxisRepulsion);
+            data.velocity.add(force);
+          }
         });
 
-        // --- Initial Call ---
+        objects.forEach((obj) => {
+          if (obj.type !== 'System') {
+            if (obj.velocity.length() > forceParams.maxSpeed) {
+              obj.velocity.normalize().multiplyScalar(forceParams.maxSpeed);
+            }
+            obj.object3D.position.add(obj.velocity);
+          }
+          obj.velocity.multiplyScalar(forceParams.damping);
+          totalEnergy += obj.velocity.lengthSq();
+        });
+
+        if (totalEnergy < forceParams.energyThreshold) {
+          stableFrames++;
+        } else {
+          stableFrames = 0;
+        }
+
+        if (stableFrames > forceParams.requiredStableFrames) {
+          isSystemStable = true;
+          objects.forEach((obj) => obj.velocity.set(0, 0, 0));
+        }
+      }
+
+      // --- Helper Functions ---
+      function getColorForType(type) {
+        switch (type) {
+          case 'System':
+            return 0x00d4ff;
+          case 'Region':
+            return 0x3b82f6; // Blue
+          case 'Node':
+            return 0x10b981; // Green
+          case 'Shard':
+            return 0xf59e0b; // Amber
+          case 'Entity':
+            return 0xe5e7eb;
+          default:
+            return 0x6b7280;
+        }
+      }
+
+      function removeEntitiesFromShard(shardData) {
+        if (!shardData.isExpanded) return;
+
+        shardData.children.forEach((entityData) => {
+          if (entityData.object3D) {
+            scene.remove(entityData.object3D);
+            objectMap.delete(entityData.object3D.uuid);
+          }
+          const connIndex = connections.findIndex((c) => c.to === entityData.object3D);
+          if (connIndex > -1) {
+            scene.remove(connections[connIndex].line);
+            connections.splice(connIndex, 1);
+          }
+        });
+        shardData.children = [];
+        shardData.isExpanded = false;
+      }
+
+      function showEntitiesForShard(shardData) {
+        if (shardData.isExpanded) return;
+
+        shardData.children = [];
+        shardData.entityIds.forEach((id) => {
+          const entityData = { name: id, type: 'Entity' };
+          createHierarchy(entityData, shardData);
+          shardData.children.push(entityData);
+        });
+        updateScales(shardData);
+        shardData.isExpanded = true;
+        isSystemStable = false;
+        stableFrames = 0;
+      }
+
+      // --- UI and Interaction ---
+      const entitySlider = document.getElementById('entityCount');
+      const entityValue = document.getElementById('entityCountValue');
+
+      entitySlider.addEventListener('input', (e) => {
+        totalEntities = parseInt(e.target.value);
+        entityValue.textContent = totalEntities.toLocaleString();
         rebuildAndDistribute();
-        animate();
+      });
 
+      const raycaster = new THREE.Raycaster();
+      const mouse = new THREE.Vector2();
+      let selectedObject = null;
+      let targetPosition = new THREE.Vector3();
+      let targetLookAt = new THREE.Vector3();
+      let isFocusing = false;
+      let selectedEntityReplicas = [];
+
+      const mouseDownPos = new THREE.Vector2();
+      renderer.domElement.addEventListener('mousedown', (event) => {
+        mouseDownPos.set(event.clientX, event.clientY);
+      });
+
+      renderer.domElement.addEventListener('mouseup', (event) => {
+        const deltaX = Math.abs(event.clientX - mouseDownPos.x);
+        const deltaY = Math.abs(event.clientY - mouseDownPos.y);
+        if (deltaX < 5 && deltaY < 5) {
+          handleClick(event);
+        }
+      });
+
+      function handleClick(event) {
+        if (event.target.closest('#infoPanel')) return;
+
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(Array.from(objectMap.values()).map((d) => d.object3D));
+
+        if (selectedObject) {
+          selectedObject.material.emissive.setHex(0x000000);
+          selectedObject = null;
+        }
+        selectedEntityReplicas.forEach((entityMesh) => {
+          entityMesh.material.color.set(getColorForType('Entity'));
+        });
+        selectedEntityReplicas = [];
+
+        let clickedShardName = null;
+        let shouldToggle = false;
+        let clickedEntityType = null;
+
+        if (intersects.length > 0) {
+          const intersectedData = intersects[0].object.userData;
+          selectedObject = intersects[0].object;
+          selectedObject.material.emissive.setHex(0xcc0000);
+
+          clickedEntityType = intersectedData.type;
+
+          // *** NEW: Update panel with child counts ***
+          const selectedHeader = document.getElementById('selectedHeader');
+          const selectedName = document.getElementById('selectedName');
+          const selectedTypeContainer = document.getElementById('selectedTypeContainer');
+          const selectedType = document.getElementById('selectedType');
+          const primaryCountContainer = document.getElementById('primaryCountContainer');
+          const primaryCountLabel = document.getElementById('primaryCountLabel');
+          const primaryCountValue = document.getElementById('primaryCountValue');
+          const secondaryCountContainer = document.getElementById('secondaryCountContainer');
+          const secondaryCountLabel = document.getElementById('secondaryCountLabel');
+          const secondaryCountValue = document.getElementById('secondaryCountValue');
+
+          document.getElementById('selectedInfo').classList.remove('hidden');
+          document.getElementById('panelTitle').textContent = 'Object Details';
+          selectedHeader.innerHTML = `Selected: <span id="selectedName">${intersectedData.name}</span>`;
+          selectedTypeContainer.classList.remove('hidden');
+          primaryCountContainer.classList.remove('hidden');
+          secondaryCountContainer.classList.remove('hidden');
+
+          selectedType.textContent = intersectedData.type;
+
+          switch (intersectedData.type) {
+            case 'System':
+              primaryCountLabel.textContent = 'Regions';
+              primaryCountValue.textContent = intersectedData.children?.length || 0;
+              secondaryCountLabel.textContent = 'Total Entities';
+              secondaryCountValue.textContent = intersectedData.entities?.toLocaleString() || 0;
+              break;
+            case 'Region':
+              primaryCountLabel.textContent = 'Cluster Nodes';
+              primaryCountValue.textContent = intersectedData.children?.length || 0;
+              secondaryCountLabel.textContent = 'Total Entities';
+              secondaryCountValue.textContent = intersectedData.entities?.toLocaleString() || 0;
+              break;
+            case 'Node':
+              primaryCountLabel.textContent = 'Total Shards';
+              primaryCountValue.textContent = intersectedData.children?.length || 0;
+              secondaryCountLabel.textContent = 'Total Entities';
+              secondaryCountValue.textContent = intersectedData.entities?.toLocaleString() || 0;
+              break;
+            case 'Shard':
+              primaryCountLabel.textContent = 'Total Entities';
+              primaryCountValue.textContent = intersectedData.entities?.toLocaleString() || 0;
+              secondaryCountContainer.classList.add('hidden');
+              break;
+            case 'Entity':
+              selectedHeader.innerHTML = `Entity ID: <span id="selectedName">${intersectedData.name}</span>`;
+              selectedTypeContainer.classList.add('hidden');
+              primaryCountContainer.classList.add('hidden');
+              secondaryCountContainer.classList.add('hidden');
+              break;
+          }
+
+          const offset = 30 + selectedObject.scale.x * 5;
+          targetPosition.copy(selectedObject.position).add(new THREE.Vector3(offset / 2, offset / 2, offset));
+          targetLookAt.copy(selectedObject.position);
+          isFocusing = true;
+
+          if (clickedEntityType === 'Shard') {
+            clickedShardName = intersectedData.name;
+            shouldToggle = !intersectedData.isExpanded;
+          } else if (clickedEntityType === 'Entity') {
+            const clickedEntityId = intersectedData.name;
+            objectMap.forEach((objData) => {
+              if (objData.type === 'Entity' && objData.name === clickedEntityId) {
+                objData.object3D.material.color.set(0xff0000);
+                selectedEntityReplicas.push(objData.object3D);
+              }
+            });
+          }
+        } else {
+          document.getElementById('selectedInfo').classList.add('hidden');
+          document.getElementById('panelTitle').textContent = 'System Overview';
+          isFocusing = false;
+        }
+
+        if (clickedEntityType !== 'Entity') {
+          objectMap.forEach((objData) => {
+            if (objData.type === 'Shard') {
+              if (objData.name === clickedShardName && shouldToggle) {
+                showEntitiesForShard(objData);
+              } else {
+                removeEntitiesFromShard(objData);
+              }
+            }
+          });
+        }
+      }
+
+      // --- Keyboard Fly Controls ---
+      const keyState = {};
+      window.addEventListener('keydown', (e) => {
+        if (!e.target.closest('#infoPanel')) keyState[e.code] = true;
+      });
+      window.addEventListener('keyup', (e) => {
+        keyState[e.code] = false;
+      });
+
+      const clock = new THREE.Clock();
+
+      function updateCamera() {
+        const delta = clock.getDelta();
+        const moveSpeed = 50 * delta;
+
+        if (isFocusing && selectedObject) {
+          camera.position.lerp(targetPosition, 0.05);
+          controls.target.lerp(targetLookAt, 0.05);
+          if (camera.position.distanceTo(targetPosition) < 0.1) {
+            isFocusing = false;
+          }
+        } else if (!isFocusing) {
+          const forward = new THREE.Vector3();
+          camera.getWorldDirection(forward);
+
+          if (keyState['KeyW'] || keyState['ArrowUp']) camera.position.addScaledVector(forward, moveSpeed);
+          if (keyState['KeyS'] || keyState['ArrowDown']) camera.position.addScaledVector(forward, -moveSpeed);
+
+          const right = new THREE.Vector3().crossVectors(camera.up, forward).normalize();
+          if (keyState['KeyA'] || keyState['ArrowLeft']) camera.position.addScaledVector(right, -moveSpeed);
+          if (keyState['KeyD'] || keyState['ArrowRight']) camera.position.addScaledVector(right, moveSpeed);
+
+          if (keyState['KeyR']) camera.position.y += moveSpeed;
+          if (keyState['KeyF']) camera.position.y -= moveSpeed;
+        }
+      }
+
+      // --- Main Animation Loop ---
+      function animate() {
+        requestAnimationFrame(animate);
+
+        updateCamera();
+        applyForces();
+
+        connections.forEach((c) => {
+          c.line.geometry.setFromPoints([c.from.position, c.to.position]);
+          c.line.geometry.computeBoundingSphere();
+        });
+
+        controls.update();
+        renderer.render(scene, camera);
+      }
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      // --- Initial Call ---
+      rebuildAndDistribute();
+      animate();
     </script>
-</body>
+  </body>
 </html>
-
-

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Akka Cluster Visualization - Help</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet" />
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-900 text-gray-200">
+    <div class="container mx-auto p-8 max-w-4xl">
+      <header class="mb-12 text-center">
+        <h1 class="text-5xl font-bold text-white">Akka Cluster Visualization Guide</h1>
+        <p class="text-xl text-gray-400 mt-4">Understanding the 3D Visualization</p>
+      </header>
+
+      <section class="mb-12">
+        <h2 class="text-3xl font-semibold text-blue-400 border-b-2 border-blue-400/30 pb-2 mb-6">Core Concepts</h2>
+        <p class="text-lg text-gray-300 mb-8">
+          This simulation visualizes a multi-region Akka Cluster. It demonstrates how stateful entities are distributed across nodes and how the cluster scales in response to load. The hierarchy is
+          organized as a force-directed graph where objects find a stable equilibrium.
+        </p>
+
+        <div class="space-y-6">
+          <div class="p-6 bg-gray-800/50 rounded-lg border border-gray-700">
+            <h3 class="text-2xl font-bold text-white mb-2">System <span class="text-xs font-mono">(Light Blue Sphere)</span></h3>
+            <p class="text-gray-400">The central sphere represents the entire Akka application, containing all regions and entities.</p>
+          </div>
+          <div class="p-6 bg-gray-800/50 rounded-lg border border-gray-700">
+            <h3 class="text-2xl font-bold text-blue-500 mb-2">Region <span class="text-xs font-mono">(Large Blue Sphere)</span></h3>
+            <p class="text-gray-400">
+              Represents a geographical deployment (e.g., `us-east-1`). In a multi-region setup, all entities are replicated to each region, so each region runs its own independent cluster to handle
+              the full dataset.
+            </p>
+          </div>
+          <div class="p-6 bg-gray-800/50 rounded-lg border border-gray-700">
+            <h3 class="text-2xl font-bold text-green-500 mb-2">Node <span class="text-xs font-mono">(Green Sphere)</span></h3>
+            <p class="text-gray-400">
+              A single server or container within a region's cluster. Nodes are added or removed automatically as the total number of entities (load) changes. Shards are distributed across the active
+              nodes.
+            </p>
+          </div>
+          <div class="p-6 bg-gray-800/50 rounded-lg border border-gray-700">
+            <h3 class="text-2xl font-bold text-amber-500 mb-2">Shard <span class="text-xs font-mono">(Amber Sphere)</span></h3>
+            <p class="text-gray-400">
+              A logical grouping of entities. Akka uses a fixed number of shards (100 in this simulation) and distributes them across the active nodes in a cluster. An entity's ID is hashed to
+              determine which shard it belongs to.
+            </p>
+          </div>
+          <div class="p-6 bg-gray-800/50 rounded-lg border border-gray-700">
+            <h3 class="text-2xl font-bold text-gray-300 mb-2">Entity <span class="text-xs font-mono">(Small White Sphere)</span></h3>
+            <p class="text-gray-400">Represents a single stateful actor with a unique ID. These are the smallest unit of state and are only visible when you expand a shard.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-3xl font-semibold text-blue-400 border-b-2 border-blue-400/30 pb-2 mb-6">How to Interact</h2>
+        <div class="grid md:grid-cols-2 gap-8 text-gray-300">
+          <div>
+            <h3 class="text-2xl font-bold text-white mb-3">Camera & Navigation</h3>
+            <ul class="list-disc list-inside space-y-2">
+              <li><strong class="text-blue-400">Orbit:</strong> Click and drag the left mouse button.</li>
+              <li><strong class="text-blue-400">Zoom:</strong> Use the mouse scroll wheel.</li>
+              <li><strong class="text-blue-400">Pan:</strong> Click and drag the right mouse button.</li>
+              <li>
+                <strong class="text-blue-400">Fly Mode:</strong> Use <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">W</kbd>
+                <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">A</kbd>
+                <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">S</kbd>
+                <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">D</kbd> keys to fly, and
+                <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">R</kbd> /
+                <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">F</kbd> for up/down.
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h3 class="text-2xl font-bold text-white mb-3">Selection & Exploration</h3>
+            <ul class="list-disc list-inside space-y-2">
+              <li><strong class="text-blue-400">Select Object:</strong> Click any sphere to see its details in the top-left panel.</li>
+              <li><strong class="text-blue-400">Expand Shard:</strong> Click a Shard (amber sphere) to reveal its entities. All replicas of that shard will expand across all regions.</li>
+              <li><strong class="text-blue-400">Collapse Shard:</strong> Click the same Shard again, or any other non-entity object, to hide its entities.</li>
+              <li><strong class="text-blue-400">Select Entity:</strong> Click a small white entity sphere to highlight it and its replicas in red across all regions.</li>
+              <li>
+                <strong class="text-blue-400">Entity Count Slider:</strong> Drag the slider to change the total number of entities. Observe how the number of active nodes and the size of all objects
+                change in response.
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>
