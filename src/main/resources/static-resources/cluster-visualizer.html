@@ -124,7 +124,6 @@
         let stableFrames = 0; 
         const NUM_SHARDS = 100;
         
-        // *** NEW: Global list of entity IDs ***
         let entityIds = [];
         
         const baseConfig = {
@@ -162,7 +161,6 @@
         const objectMap = new Map();
         const connections = [];
 
-        // *** NEW: Helper functions for Entity IDs and hashing ***
         function generateEntityId() {
             const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
             let result = '';
@@ -177,7 +175,7 @@
             for (let i = 0; i < str.length; i++) {
                 const char = str.charCodeAt(i);
                 hash = (hash << 5) - hash + char;
-                hash |= 0; // Convert to 32bit integer
+                hash |= 0; 
             }
             return Math.abs(hash);
         }
@@ -196,7 +194,7 @@
 
         function createHierarchy(dataNode, parentData) {
             const color = getColorForType(dataNode.type);
-            const geometry = new THREE.SphereGeometry(1, 32, 32);
+            const geometry = dataNode.type === 'Entity' ? new THREE.BoxGeometry(0.2, 0.2, 0.2) : new THREE.SphereGeometry(1, 32, 32);
             const material = new THREE.MeshStandardMaterial({ 
                 color, 
                 transparent: dataNode.type === 'Region', 
@@ -231,14 +229,13 @@
                 dataNode.children.forEach(childData => createHierarchy(childData, dataNode));
             }
         }
-
+        
         function rebuildAndDistribute() {
             connections.forEach(c => scene.remove(c.line));
             objectMap.forEach(data => scene.remove(data.object3D));
             connections.length = 0;
             objectMap.clear();
 
-            // *** NEW: Update the global entity ID list first ***
             updateEntityIdList(totalEntities);
 
             const displayData = { ...baseConfig, children: [] };
@@ -255,20 +252,22 @@
                 const regionalShards = [];
                 for (let i = 0; i < NUM_SHARDS; i++) {
                     regionalShards.push({
-                        name: `${regionDef.name}-Shard-${i}`,
+                        name: `Shard ${i}`, 
                         type: 'Shard',
-                        entities: 0,
+                        isExpanded: false,
+                        children: [], // *** FIX: Use standard children array for entities ***
+                        entityIds: [] 
                     });
                 }
                  
-                // *** NEW: Use hash of entity ID to distribute entities ***
                 entityIds.forEach(id => {
                     const shardIndex = simpleHashCode(id) % NUM_SHARDS;
-                    regionalShards[shardIndex].entities++;
+                    regionalShards[shardIndex].entityIds.push(id);
                 });
+                regionalShards.forEach(s => s.entities = s.entityIds.length);
+
 
                 activeNodes.forEach((nodeDef, nodeIndex) => {
-                    // Evenly distribute the shards among the active nodes in this region
                     const shardsForThisNode = regionalShards.filter((shard, shardIndex) => shardIndex % numActiveNodes === nodeIndex);
                     const displayNode = { ...nodeDef, children: shardsForThisNode };
                     displayRegion.children.push(displayNode);
@@ -305,7 +304,9 @@
             const baseVolume = 1;
             const radius = Math.cbrt(baseVolume * (node.entities || 1)) / 5;
             
-            const scale = Math.max(0.1, radius);
+            let scale = Math.max(0.1, radius);
+            if (node.type === 'Entity') scale = 0.3; 
+            
             if (node.object3D && isFinite(scale)) {
                node.object3D.scale.set(scale, scale, scale);
             }
@@ -343,7 +344,9 @@
                 if (parent) {
                     const distanceVec = new THREE.Vector3().subVectors(parent.position, child.position);
                     const distance = distanceVec.length();
-                    const idealDistance = forceParams.restLength + parent.scale.x + child.scale.x;
+                    let idealDistance = forceParams.restLength + parent.scale.x + child.scale.x;
+                    if(data.type === 'Entity') idealDistance = parent.scale.x + 2; 
+
                     const displacement = idealDistance - distance;
                     const springForce = forceParams.attraction * displacement;
                     data.velocity.sub(distanceVec.normalize().multiplyScalar(springForce));
@@ -408,8 +411,43 @@
                 case 'Region': return 0x3B82F6; // Blue
                 case 'Node': return 0x10B981; // Green
                 case 'Shard': return 0xF59E0B; // Amber
-                default: return 0x6B7280; // Gray
+                case 'Entity': return 0xE5E7EB; 
+                default: return 0x6B7280; 
             }
+        }
+
+        function removeEntitiesFromShard(shardData) {
+            if (!shardData.isExpanded) return;
+
+            shardData.children.forEach(entityData => { // *** FIX: Use shardData.children ***
+                if (entityData.object3D) {
+                    scene.remove(entityData.object3D);
+                    objectMap.delete(entityData.object3D.uuid);
+                }
+                const connIndex = connections.findIndex(c => c.to === entityData.object3D);
+                if (connIndex > -1) {
+                    scene.remove(connections[connIndex].line);
+                    connections.splice(connIndex, 1);
+                }
+            });
+            shardData.children = []; // *** FIX: Clear children array ***
+            shardData.isExpanded = false;
+        }
+
+        function showEntitiesForShard(shardData) {
+             if (shardData.isExpanded) return;
+             
+             // *** FIX: Initialize children array before populating ***
+             shardData.children = []; 
+             shardData.entityIds.forEach(id => {
+                 const entityData = { name: id, type: 'Entity' };
+                 createHierarchy(entityData, shardData);
+                 shardData.children.push(entityData); // *** FIX: Add to standard children array ***
+             });
+             updateScales(shardData);
+             shardData.isExpanded = true;
+             isSystemStable = false;
+             stableFrames = 0;
         }
         
         // --- UI and Interaction ---
@@ -438,35 +476,49 @@
             raycaster.setFromCamera(mouse, camera);
             const intersects = raycaster.intersectObjects(Array.from(objectMap.values()).map(d => d.object3D));
 
-            if (intersects.length > 0) {
-                const intersected = intersects[0].object;
-                if (selectedObject) {
-                    selectedObject.material.emissive.setHex(0x000000);
-                }
-                selectedObject = intersected;
-                selectedObject.material.emissive.setHex(0xcc0000);
-
-                const data = selectedObject.userData;
-                document.getElementById('selectedInfo').classList.remove('hidden');
-                document.getElementById('panelTitle').textContent = 'Object Details';
-                document.getElementById('selectedName').textContent = data.name;
-                document.getElementById('selectedType').textContent = data.type;
-                document.getElementById('selectedEntities').textContent = data.entities.toLocaleString();
-
-                const offset = 30 + selectedObject.scale.x * 5;
-                targetPosition.copy(selectedObject.position).add(new THREE.Vector3(offset/2, offset/2, offset));
-                targetLookAt.copy(selectedObject.position);
-                isFocusing = true;
-                
-            } else {
-                 if (selectedObject) {
-                    selectedObject.material.emissive.setHex(0x000000);
-                    selectedObject = null;
-                 }
-                document.getElementById('selectedInfo').classList.add('hidden');
-                document.getElementById('panelTitle').textContent = 'System Overview';
-                isFocusing = false;
+            if (selectedObject) {
+                 selectedObject.material.emissive.setHex(0x000000);
+                 selectedObject = null;
             }
+
+            let clickedShardName = null;
+            let shouldToggle = false;
+
+            if (intersects.length > 0) {
+                 const intersectedData = intersects[0].object.userData;
+                 selectedObject = intersects[0].object;
+                 selectedObject.material.emissive.setHex(0xcc0000);
+                 
+                 document.getElementById('selectedInfo').classList.remove('hidden');
+                 document.getElementById('panelTitle').textContent = 'Object Details';
+                 document.getElementById('selectedName').textContent = intersectedData.name;
+                 document.getElementById('selectedType').textContent = intersectedData.type;
+                 document.getElementById('selectedEntities').textContent = intersectedData.entities?.toLocaleString() || '1';
+
+                 const offset = 30 + selectedObject.scale.x * 5;
+                 targetPosition.copy(selectedObject.position).add(new THREE.Vector3(offset/2, offset/2, offset));
+                 targetLookAt.copy(selectedObject.position);
+                 isFocusing = true;
+                 
+                 if (intersectedData.type === 'Shard') {
+                     clickedShardName = intersectedData.name;
+                     shouldToggle = !intersectedData.isExpanded;
+                 }
+            } else {
+                 document.getElementById('selectedInfo').classList.add('hidden');
+                 document.getElementById('panelTitle').textContent = 'System Overview';
+                 isFocusing = false;
+            }
+            
+            objectMap.forEach(objData => {
+                if (objData.type === 'Shard') {
+                    if (objData.name === clickedShardName && shouldToggle) {
+                        showEntitiesForShard(objData);
+                    } else {
+                        removeEntitiesFromShard(objData);
+                    }
+                }
+            });
         });
         
         // --- Keyboard Fly Controls ---
