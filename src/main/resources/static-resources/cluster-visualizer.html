@@ -74,9 +74,10 @@
             </div>
         </div>
          <div id="selectedInfo" class="mt-4 hidden">
-             <h3 class="font-bold text-lg">Selected: <span id="selectedName"></span></h3>
-             <p class="text-gray-400">Type: <span id="selectedType"></span></p>
-             <p class="text-gray-400">Entities: <span id="selectedEntities"></span></p>
+             <h3 id="selectedHeader" class="font-bold text-lg">Selected: <span id="selectedName"></span></h3>
+             <p id="selectedTypeContainer" class="text-gray-400">Type: <span id="selectedType"></span></p>
+             <p id="primaryCountContainer" class="text-gray-400"><span id="primaryCountLabel"></span>: <span id="primaryCountValue"></span></p>
+             <p id="secondaryCountContainer" class="text-gray-400"><span id="secondaryCountLabel"></span>: <span id="secondaryCountValue"></span></p>
         </div>
     </div>
 
@@ -423,7 +424,7 @@
         // --- Helper Functions ---
         function getColorForType(type) {
             switch (type) {
-                case 'System': return 0x00D4FF; // Light Blue
+                case 'System': return 0x00D4FF;
                 case 'Region': return 0x3B82F6; // Blue
                 case 'Node': return 0x10B981; // Green
                 case 'Shard': return 0xF59E0B; // Amber
@@ -526,11 +527,59 @@
                  
                  clickedEntityType = intersectedData.type;
 
-                 document.getElementById('selectedInfo').classList.remove('hidden');
-                 document.getElementById('panelTitle').textContent = 'Object Details';
-                 document.getElementById('selectedName').textContent = intersectedData.name;
-                 document.getElementById('selectedType').textContent = intersectedData.type;
-                 document.getElementById('selectedEntities').textContent = intersectedData.entities?.toLocaleString() || '1';
+                 // *** NEW: Update panel with child counts ***
+                 const selectedHeader = document.getElementById('selectedHeader');
+                 const selectedName = document.getElementById('selectedName');
+                 const selectedTypeContainer = document.getElementById('selectedTypeContainer');
+                 const selectedType = document.getElementById('selectedType');
+                 const primaryCountContainer = document.getElementById('primaryCountContainer');
+                 const primaryCountLabel = document.getElementById('primaryCountLabel');
+                 const primaryCountValue = document.getElementById('primaryCountValue');
+                 const secondaryCountContainer = document.getElementById('secondaryCountContainer');
+                 const secondaryCountLabel = document.getElementById('secondaryCountLabel');
+                 const secondaryCountValue = document.getElementById('secondaryCountValue');
+
+                document.getElementById('selectedInfo').classList.remove('hidden');
+                document.getElementById('panelTitle').textContent = 'Object Details';
+                selectedHeader.innerHTML = `Selected: <span id="selectedName">${intersectedData.name}</span>`;
+                selectedTypeContainer.classList.remove('hidden');
+                primaryCountContainer.classList.remove('hidden');
+                secondaryCountContainer.classList.remove('hidden');
+
+                selectedType.textContent = intersectedData.type;
+
+                switch(intersectedData.type) {
+                    case 'System':
+                        primaryCountLabel.textContent = 'Regions';
+                        primaryCountValue.textContent = intersectedData.children?.length || 0;
+                        secondaryCountLabel.textContent = 'Total Entities';
+                        secondaryCountValue.textContent = intersectedData.entities?.toLocaleString() || 0;
+                        break;
+                    case 'Region':
+                        primaryCountLabel.textContent = 'Cluster Nodes';
+                        primaryCountValue.textContent = intersectedData.children?.length || 0;
+                        secondaryCountLabel.textContent = 'Total Entities';
+                        secondaryCountValue.textContent = intersectedData.entities?.toLocaleString() || 0;
+                        break;
+                    case 'Node':
+                        primaryCountLabel.textContent = 'Total Shards';
+                        primaryCountValue.textContent = intersectedData.children?.length || 0;
+                        secondaryCountLabel.textContent = 'Total Entities';
+                        secondaryCountValue.textContent = intersectedData.entities?.toLocaleString() || 0;
+                        break;
+                    case 'Shard':
+                        primaryCountLabel.textContent = 'Total Entities';
+                        primaryCountValue.textContent = intersectedData.entities?.toLocaleString() || 0;
+                        secondaryCountContainer.classList.add('hidden');
+                        break;
+                    case 'Entity':
+                        selectedHeader.innerHTML = `Entity ID: <span id="selectedName">${intersectedData.name}</span>`;
+                        selectedTypeContainer.classList.add('hidden');
+                        primaryCountContainer.classList.add('hidden');
+                        secondaryCountContainer.classList.add('hidden');
+                        break;
+                }
+
 
                  const offset = 30 + selectedObject.scale.x * 5;
                  targetPosition.copy(selectedObject.position).add(new THREE.Vector3(offset/2, offset/2, offset));
@@ -630,4 +679,5 @@
     </script>
 </body>
 </html>
+
 
