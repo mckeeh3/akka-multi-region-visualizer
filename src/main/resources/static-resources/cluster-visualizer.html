@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Akka Cluster 3D Visualization</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; background-color: #111827; color: #F9FAFB; overflow: hidden; }
+        canvas { display: block; }
+        #infoPanel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background-color: rgba(17, 24, 39, 0.8);
+            border: 1px solid rgba(55, 65, 81, 0.8);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            width: 300px;
+            font-family: 'Inter', sans-serif;
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s ease-in-out;
+        }
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #374151;
+            border-radius: 5px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #3B82F6;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #3B82F6;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="infoPanel">
+        <h2 id="panelTitle" class="text-xl font-bold mb-4">System Overview</h2>
+        <div id="panelBody">
+             <div class="slider-label">
+                <label for="entityCount" class="font-medium text-gray-300">Total Entities</label>
+                <span id="entityCountValue" class="font-semibold text-blue-400">10000</span>
+            </div>
+            <input type="range" id="entityCount" min="1000" max="100000" value="10000" step="1000">
+             <p class="text-sm text-gray-400 mt-4">Adjust the slider to simulate changes in the total number of entities and see the cluster structure resize.</p>
+        </div>
+         <div id="selectedInfo" class="mt-4 hidden">
+             <h3 class="font-bold text-lg">Selected: <span id="selectedName"></span></h3>
+             <p class="text-gray-400">Type: <span id="selectedType"></span></p>
+             <p class="text-gray-400">Entities: <span id="selectedEntities"></span></p>
+        </div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- Basic Setup ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+        
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight(0xcccccc, 1.5);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 2.5);
+        directionalLight.position.set(10, 20, 15);
+        scene.add(directionalLight);
+        const hemisphereLight = new THREE.HemisphereLight( 0x3B82F6, 0x10B981, 1 );
+		scene.add( hemisphereLight );
+
+
+        // --- Controls ---
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 5;
+        controls.maxDistance = 500;
+
+        camera.position.z = 100;
+
+        // --- Data Structure ---
+        let totalEntities = 10000;
+        let isSystemStable = false; 
+        let stableFrames = 0; 
+        const NUM_SHARDS = 100;
+        
+        // *** NEW: Data model refactored for dynamic sharding ***
+        let shards = [];
+        let nodes = [];
+        const data = {
+            name: "Akka System",
+            type: 'System',
+            children: [
+                {
+                    name: "us-east-1",
+                    type: 'Region',
+                    children: [
+                        { name: "Node 1", type: 'Node' },
+                        { name: "Node 2", type: 'Node' },
+                    ]
+                },
+                {
+                    name: "eu-west-1",
+                    type: 'Region',
+                    children: [
+                        { name: "Node 3", type: 'Node' },
+                        { name: "Node 4", type: 'Node' },
+                        { name: "Node 5", type: 'Node' },
+                    ]
+                }
+            ]
+        };
+
+        // --- Hierarchy Creation & Management ---
+        const objectMap = new Map();
+        const connections = [];
+
+        function initializeModel() {
+            // Flatten nodes for easy access
+            nodes = data.children.flatMap(r => r.children);
+
+            // Create the fixed set of shards
+            shards = [];
+            for (let i = 0; i < NUM_SHARDS; i++) {
+                shards.push({
+                    name: `Shard ${i}`,
+                    type: 'Shard',
+                    entities: 0,
+                    // Statically assign shards to nodes for now
+                    assignedNodeName: nodes[i % nodes.length].name
+                });
+            }
+        }
+
+        function createHierarchy(dataNode, parentData) {
+            const color = getColorForType(dataNode.type);
+            const geometry = new THREE.SphereGeometry(1, 32, 32);
+            const material = new THREE.MeshStandardMaterial({ 
+                color, 
+                transparent: dataNode.type === 'Region', 
+                opacity: dataNode.type === 'Region' ? 0.25 : 1.0,
+                metalness: 0.3,
+                roughness: 0.6
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            
+            dataNode.parent = parentData;
+            mesh.position.set( (Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5 );
+            if(parentData && parentData.object3D) {
+                 mesh.position.add(parentData.object3D.position);
+            }
+
+            mesh.userData = dataNode;
+            dataNode.object3D = mesh;
+            dataNode.velocity = new THREE.Vector3();
+
+            objectMap.set(mesh.uuid, dataNode);
+            scene.add(mesh);
+
+            if (parentData && parentData.object3D) {
+                const lineMaterial = new THREE.LineBasicMaterial({ color: 0x4B5563, transparent: true, opacity: 0.5 });
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints([parentData.object3D.position, mesh.position]);
+                const line = new THREE.Line(lineGeometry, lineMaterial);
+                scene.add(line);
+                connections.push({ from: parentData.object3D, to: mesh, line });
+            }
+
+            // Recursively create children if they are statically defined (Regions, Nodes)
+            if (dataNode.children) {
+                dataNode.children.forEach(childData => createHierarchy(childData, dataNode));
+            }
+        }
+
+        function rebuildAndDistribute() {
+             // Clear previous hierarchy
+            connections.forEach(c => scene.remove(c.line));
+            objectMap.forEach(data => scene.remove(data.object3D));
+            connections.length = 0;
+            objectMap.clear();
+
+            // Create static parts of hierarchy (System, Regions, Nodes)
+            createHierarchy(data, null);
+
+            // Distribute entities among shards
+            shards.forEach(s => s.entities = 0);
+            for (let i = 0; i < totalEntities; i++) {
+                const shardIndex = Math.floor(Math.random() * NUM_SHARDS);
+                shards[shardIndex].entities++;
+            }
+
+            // Create shard objects and link them to nodes
+            nodes.forEach(node => node.children = []); // Clear old shard children
+            shards.forEach(shard => {
+                const parentNode = nodes.find(n => n.name === shard.assignedNodeName);
+                if (parentNode) {
+                    parentNode.children.push(shard);
+                    createHierarchy(shard, parentNode);
+                }
+            });
+
+            // Calculate parent entity counts and update scales
+            calculateParentEntities(data);
+            updateScales(data);
+            isSystemStable = false; 
+            stableFrames = 0;
+        }
+
+        function calculateParentEntities(node) {
+            if (!node.children || node.children.length === 0) {
+                return node.entities || 0;
+            }
+            node.entities = node.children.reduce((acc, child) => acc + calculateParentEntities(child), 0);
+            return node.entities;
+        }
+
+        function updateScales(node) {
+            const baseVolume = 1;
+            const radius = Math.cbrt(baseVolume * (node.entities || 1)) / 5;
+            
+            const scale = Math.max(0.1, radius);
+            if (node.object3D && isFinite(scale)) {
+               node.object3D.scale.set(scale, scale, scale);
+            }
+
+            if (node.children) {
+                node.children.forEach(updateScales);
+            }
+        }
+
+        // --- Physics-based Layout ---
+        const forceParams = {
+            attraction: 0.02,
+            siblingRepulsion: 100,
+            grandparentAxisRepulsion: 0.2,
+            damping: 0.9,      
+            maxSpeed: 0.5,     
+            restLength: 60,  
+            energyThreshold: 0.0001, 
+            requiredStableFrames: 200 
+        };
+
+        function applyForces() {
+            if (isSystemStable) return;
+
+            const objects = Array.from(objectMap.values());
+            let totalEnergy = 0;
+
+            // Apply forces to all objects
+            objects.forEach(data => {
+                if (data.type === 'System') return; 
+
+                const child = data.object3D;
+                const parentData = data.parent;
+                const parent = parentData?.object3D;
+                
+                if (parent) {
+                    const distanceVec = new THREE.Vector3().subVectors(parent.position, child.position);
+                    const distance = distanceVec.length();
+                    const idealDistance = forceParams.restLength + parent.scale.x + child.scale.x;
+                    const displacement = idealDistance - distance;
+                    const springForce = forceParams.attraction * displacement;
+                    data.velocity.sub(distanceVec.normalize().multiplyScalar(springForce));
+                }
+                
+                if (parentData?.children) {
+                    const siblings = parentData.children.filter(c => c !== data);
+                    siblings.forEach(siblingData => {
+                        const sibling = siblingData.object3D;
+                        const distanceVec = new THREE.Vector3().subVectors(child.position, sibling.position);
+                        const distanceSq = distanceVec.lengthSq();
+                        if (distanceSq > 0) {
+                            const repulsionForce = forceParams.siblingRepulsion / distanceSq;
+                            data.velocity.add(distanceVec.normalize().multiplyScalar(repulsionForce));
+                        }
+                    });
+                }
+                
+                const grandparent = parentData?.parent?.object3D;
+                let grandparentAxis;
+                if (grandparent) {
+                    grandparentAxis = new THREE.Vector3().subVectors(parent.position, grandparent.position);
+                } else if (parentData?.type === 'System') {
+                    grandparentAxis = new THREE.Vector3().copy(child.position).normalize();
+                }
+
+                if (grandparentAxis && grandparentAxis.lengthSq() > 0) {
+                    grandparentAxis.normalize();
+                    const force = grandparentAxis.multiplyScalar(forceParams.grandparentAxisRepulsion);
+                    data.velocity.add(force);
+                }
+            });
+
+
+            // Update positions based on calculated velocities
+            objects.forEach(obj => {
+                if (obj.type !== 'System') {
+                    if (obj.velocity.length() > forceParams.maxSpeed) {
+                        obj.velocity.normalize().multiplyScalar(forceParams.maxSpeed);
+                    }
+                    obj.object3D.position.add(obj.velocity);
+                }
+                obj.velocity.multiplyScalar(forceParams.damping);
+                totalEnergy += obj.velocity.lengthSq();
+            });
+
+            // Check for stability
+            if (totalEnergy < forceParams.energyThreshold) {
+                stableFrames++;
+            } else {
+                stableFrames = 0; 
+            }
+
+            if (stableFrames > forceParams.requiredStableFrames) {
+                isSystemStable = true;
+                objects.forEach(obj => obj.velocity.set(0, 0, 0));
+            }
+        }
+        
+        // --- Helper Functions ---
+        function getColorForType(type) {
+            switch (type) {
+                case 'System': return 0xffffff;
+                case 'Region': return 0x3B82F6; // Blue
+                case 'Node': return 0x10B981; // Green
+                case 'Shard': return 0xF59E0B; // Amber
+                default: return 0x6B7280; // Gray
+            }
+        }
+
+        // --- UI and Interaction ---
+        const entitySlider = document.getElementById('entityCount');
+        const entityValue = document.getElementById('entityCountValue');
+        
+        entitySlider.addEventListener('input', (e) => {
+            totalEntities = parseInt(e.target.value);
+            entityValue.textContent = totalEntities.toLocaleString();
+            rebuildAndDistribute();
+        });
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let selectedObject = null;
+        let targetPosition = new THREE.Vector3();
+        let targetLookAt = new THREE.Vector3();
+        let isFocusing = false;
+
+        window.addEventListener('click', (event) => {
+            if (event.target.closest('#infoPanel')) return;
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(Array.from(objectMap.values()).map(d => d.object3D));
+
+            if (intersects.length > 0) {
+                const intersected = intersects[0].object;
+                if (selectedObject) {
+                    selectedObject.material.emissive.setHex(0x000000);
+                }
+                selectedObject = intersected;
+                selectedObject.material.emissive.setHex(0xcc0000);
+
+                const data = selectedObject.userData;
+                document.getElementById('selectedInfo').classList.remove('hidden');
+                document.getElementById('panelTitle').textContent = 'Object Details';
+                document.getElementById('selectedName').textContent = data.name;
+                document.getElementById('selectedType').textContent = data.type;
+                document.getElementById('selectedEntities').textContent = data.entities.toLocaleString();
+
+                const offset = 30 + selectedObject.scale.x * 5;
+                targetPosition.copy(selectedObject.position).add(new THREE.Vector3(offset/2, offset/2, offset));
+                targetLookAt.copy(selectedObject.position);
+                isFocusing = true;
+                
+            } else {
+                 if (selectedObject) {
+                    selectedObject.material.emissive.setHex(0x000000);
+                    selectedObject = null;
+                 }
+                document.getElementById('selectedInfo').classList.add('hidden');
+                document.getElementById('panelTitle').textContent = 'System Overview';
+                isFocusing = false;
+            }
+        });
+        
+        // --- Keyboard Fly Controls ---
+        const keyState = {};
+        window.addEventListener('keydown', (e) => { if (!e.target.closest('#infoPanel')) keyState[e.code] = true; });
+        window.addEventListener('keyup', (e) => { keyState[e.code] = false; });
+        
+        const clock = new THREE.Clock();
+        
+        function updateCamera() {
+            const delta = clock.getDelta();
+            const moveSpeed = 50 * delta;
+            
+            if (isFocusing && selectedObject) {
+                 camera.position.lerp(targetPosition, 0.05);
+                 controls.target.lerp(targetLookAt, 0.05);
+                 if (camera.position.distanceTo(targetPosition) < 0.1) {
+                     isFocusing = false;
+                 }
+            } else if (!isFocusing) { 
+                 const forward = new THREE.Vector3();
+                 camera.getWorldDirection(forward);
+
+                 if (keyState['KeyW'] || keyState['ArrowUp']) camera.position.addScaledVector(forward, moveSpeed);
+                 if (keyState['KeyS'] || keyState['ArrowDown']) camera.position.addScaledVector(forward, -moveSpeed);
+                 
+                 const right = new THREE.Vector3().crossVectors(camera.up, forward).normalize();
+                 if (keyState['KeyA'] || keyState['ArrowLeft']) camera.position.addScaledVector(right, -moveSpeed);
+                 if (keyState['KeyD'] || keyState['ArrowRight']) camera.position.addScaledVector(right, moveSpeed);
+                 
+                 if (keyState['KeyR']) camera.position.y += moveSpeed;
+                 if (keyState['KeyF']) camera.position.y -= moveSpeed;
+            }
+        }
+        
+        // --- Main Animation Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            updateCamera();
+            applyForces();
+
+            connections.forEach(c => {
+                c.line.geometry.setFromPoints([c.from.position, c.to.position]);
+                c.line.geometry.computeBoundingSphere();
+            });
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // --- Initial Call ---
+        initializeModel();
+        rebuildAndDistribute();
+        animate();
+
+    </script>
+</body>
+</html>
+
