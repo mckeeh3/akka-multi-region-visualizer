@@ -60,6 +60,16 @@
         cursor: pointer;
         border-radius: 50%;
       }
+      #helpIcon {
+        position: absolute;
+        top: 1.5rem;
+        right: 1.5rem;
+        color: #9ca3af;
+        transition: color 0.2s;
+      }
+      #helpIcon:hover {
+        color: #f9fafb;
+      }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -67,6 +77,16 @@
   </head>
   <body>
     <div id="infoPanel">
+      <a href="cluster-visualizer-help.html" target="_blank" id="helpIcon" title="Help">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+      </a>
       <h2 id="panelTitle" class="text-xl font-bold mb-4">System Overview</h2>
       <div id="panelBody">
         <div class="slider-label">
@@ -550,7 +570,6 @@
 
           clickedEntityType = intersectedData.type;
 
-          // *** NEW: Update panel with child counts ***
           const selectedHeader = document.getElementById('selectedHeader');
           const selectedName = document.getElementById('selectedName');
           const selectedTypeContainer = document.getElementById('selectedTypeContainer');
