@@ -68,6 +68,10 @@
             </div>
             <input type="range" id="entityCount" min="1000" max="100000" value="10000" step="1000">
              <p class="text-sm text-gray-400 mt-4">Adjust the slider to simulate changes in the total number of entities and see the cluster structure resize.</p>
+             <div class="slider-label mt-4">
+                <label class="font-medium text-gray-300">Nodes per Region</label>
+                <span id="nodeCountValue" class="font-semibold text-green-400">1</span>
+            </div>
         </div>
          <div id="selectedInfo" class="mt-4 hidden">
              <h3 class="font-bold text-lg">Selected: <span id="selectedName"></span></h3>
@@ -120,10 +124,7 @@
         let stableFrames = 0; 
         const NUM_SHARDS = 100;
         
-        // *** NEW: Data model refactored for dynamic sharding ***
-        let shards = [];
-        let nodes = [];
-        const data = {
+        const baseConfig = {
             name: "Akka System",
             type: 'System',
             children: [
@@ -131,42 +132,32 @@
                     name: "us-east-1",
                     type: 'Region',
                     children: [
-                        { name: "Node 1", type: 'Node' },
-                        { name: "Node 2", type: 'Node' },
+                        { name: "us-east-1-Node-1", type: 'Node' }, { name: "us-east-1-Node-2", type: 'Node' },
+                        { name: "us-east-1-Node-3", type: 'Node' }, { name: "us-east-1-Node-4", type: 'Node' },
                     ]
                 },
                 {
-                    name: "eu-west-1",
+                    name: "us-west-1",
                     type: 'Region',
                     children: [
-                        { name: "Node 3", type: 'Node' },
-                        { name: "Node 4", type: 'Node' },
-                        { name: "Node 5", type: 'Node' },
+                        { name: "us-west-1-Node-1", type: 'Node' }, { name: "us-west-1-Node-2", type: 'Node' },
+                        { name: "us-west-1-Node-3", type: 'Node' },
+                    ]
+                },
+                 {
+                    name: "eu-central-1",
+                    type: 'Region',
+                    children: [
+                        { name: "eu-central-1-Node-1", type: 'Node' }, { name: "eu-central-1-Node-2", type: 'Node' },
+                        { name: "eu-central-1-Node-3", type: 'Node' },
                     ]
                 }
             ]
         };
-
+        
         // --- Hierarchy Creation & Management ---
         const objectMap = new Map();
         const connections = [];
-
-        function initializeModel() {
-            // Flatten nodes for easy access
-            nodes = data.children.flatMap(r => r.children);
-
-            // Create the fixed set of shards
-            shards = [];
-            for (let i = 0; i < NUM_SHARDS; i++) {
-                shards.push({
-                    name: `Shard ${i}`,
-                    type: 'Shard',
-                    entities: 0,
-                    // Statically assign shards to nodes for now
-                    assignedNodeName: nodes[i % nodes.length].name
-                });
-            }
-        }
 
         function createHierarchy(dataNode, parentData) {
             const color = getColorForType(dataNode.type);
@@ -201,52 +192,73 @@
                 connections.push({ from: parentData.object3D, to: mesh, line });
             }
 
-            // Recursively create children if they are statically defined (Regions, Nodes)
             if (dataNode.children) {
                 dataNode.children.forEach(childData => createHierarchy(childData, dataNode));
             }
         }
 
         function rebuildAndDistribute() {
-             // Clear previous hierarchy
             connections.forEach(c => scene.remove(c.line));
             objectMap.forEach(data => scene.remove(data.object3D));
             connections.length = 0;
             objectMap.clear();
 
-            // Create static parts of hierarchy (System, Regions, Nodes)
-            createHierarchy(data, null);
+            const displayData = { ...baseConfig, children: [] };
+            
+            baseConfig.children.forEach(regionDef => {
+                const displayRegion = { ...regionDef, children: [] };
+                displayData.children.push(displayRegion);
 
-            // Distribute entities among shards
-            shards.forEach(s => s.entities = 0);
-            for (let i = 0; i < totalEntities; i++) {
-                const shardIndex = Math.floor(Math.random() * NUM_SHARDS);
-                shards[shardIndex].entities++;
-            }
-
-            // Create shard objects and link them to nodes
-            nodes.forEach(node => node.children = []); // Clear old shard children
-            shards.forEach(shard => {
-                const parentNode = nodes.find(n => n.name === shard.assignedNodeName);
-                if (parentNode) {
-                    parentNode.children.push(shard);
-                    createHierarchy(shard, parentNode);
+                const maxNodesInRegion = regionDef.children.length;
+                const numActiveNodes = Math.max(1, Math.min(maxNodesInRegion, Math.ceil(totalEntities / 10000)));
+                const activeNodes = regionDef.children.slice(0, numActiveNodes);
+                document.getElementById('nodeCountValue').textContent = numActiveNodes;
+                
+                const regionalShards = [];
+                for (let i = 0; i < NUM_SHARDS; i++) {
+                    regionalShards.push({
+                        name: `${regionDef.name}-Shard-${i}`,
+                        type: 'Shard',
+                        entities: 0,
+                        assignedNodeName: activeNodes[i % activeNodes.length].name
+                    });
                 }
-            });
+                 
+                for (let i = 0; i < totalEntities; i++) {
+                    const shardIndex = Math.floor(Math.random() * NUM_SHARDS);
+                    regionalShards[shardIndex].entities++;
+                }
 
-            // Calculate parent entity counts and update scales
-            calculateParentEntities(data);
-            updateScales(data);
+                activeNodes.forEach(nodeDef => {
+                    const displayNode = { ...nodeDef, children: regionalShards.filter(s => s.assignedNodeName === nodeDef.name) };
+                    displayRegion.children.push(displayNode);
+                });
+            });
+            
+            createHierarchy(displayData, null);
+            calculateParentEntities(displayData);
+            updateScales(displayData);
+            
             isSystemStable = false; 
             stableFrames = 0;
         }
 
         function calculateParentEntities(node) {
-            if (!node.children || node.children.length === 0) {
-                return node.entities || 0;
+            if (node.type === 'System' || node.type === 'Region') {
+                node.entities = totalEntities;
+                if (node.children) {
+                    node.children.forEach(calculateParentEntities);
+                }
+                return;
             }
-            node.entities = node.children.reduce((acc, child) => acc + calculateParentEntities(child), 0);
-            return node.entities;
+            
+            if (!node.children || node.children.length === 0) {
+                 return;
+            }
+            node.entities = node.children.reduce((acc, child) => {
+                calculateParentEntities(child);
+                return acc + (child.entities || 0);
+            }, 0);
         }
 
         function updateScales(node) {
@@ -281,7 +293,6 @@
             const objects = Array.from(objectMap.values());
             let totalEnergy = 0;
 
-            // Apply forces to all objects
             objects.forEach(data => {
                 if (data.type === 'System') return; 
 
@@ -327,7 +338,6 @@
             });
 
 
-            // Update positions based on calculated velocities
             objects.forEach(obj => {
                 if (obj.type !== 'System') {
                     if (obj.velocity.length() > forceParams.maxSpeed) {
@@ -339,7 +349,6 @@
                 totalEnergy += obj.velocity.lengthSq();
             });
 
-            // Check for stability
             if (totalEnergy < forceParams.energyThreshold) {
                 stableFrames++;
             } else {
@@ -362,7 +371,7 @@
                 default: return 0x6B7280; // Gray
             }
         }
-
+        
         // --- UI and Interaction ---
         const entitySlider = document.getElementById('entityCount');
         const entityValue = document.getElementById('entityCountValue');
@@ -476,7 +485,6 @@
         });
 
         // --- Initial Call ---
-        initializeModel();
         rebuildAndDistribute();
         animate();
 
