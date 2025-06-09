@@ -126,7 +126,6 @@
         
         let entityIds = [];
         
-        // *** FIX: Increased max nodes per region to 10 ***
         const baseConfig = {
             name: "Akka System",
             type: 'System',
@@ -482,6 +481,7 @@
         let targetPosition = new THREE.Vector3();
         let targetLookAt = new THREE.Vector3();
         let isFocusing = false;
+        let selectedEntityReplicas = []; // *** NEW: Track selected entity replicas ***
 
         window.addEventListener('click', (event) => {
             if (event.target.closest('#infoPanel')) return;
@@ -492,10 +492,16 @@
             raycaster.setFromCamera(mouse, camera);
             const intersects = raycaster.intersectObjects(Array.from(objectMap.values()).map(d => d.object3D));
 
+            // *** NEW: Reset previously selected objects ***
             if (selectedObject) {
                  selectedObject.material.emissive.setHex(0x000000);
                  selectedObject = null;
             }
+            selectedEntityReplicas.forEach(entityMesh => {
+                entityMesh.material.color.set(getColorForType('Entity'));
+            });
+            selectedEntityReplicas = [];
+
 
             let clickedShardName = null;
             let shouldToggle = false;
@@ -519,9 +525,18 @@
                  targetLookAt.copy(selectedObject.position);
                  isFocusing = true;
                  
-                 if (intersectedData.type === 'Shard') {
+                 if (clickedEntityType === 'Shard') {
                      clickedShardName = intersectedData.name;
                      shouldToggle = !intersectedData.isExpanded;
+                 } else if (clickedEntityType === 'Entity') {
+                    // *** NEW: If entity is clicked, find and color all replicas ***
+                    const clickedEntityId = intersectedData.name;
+                    objectMap.forEach(objData => {
+                        if (objData.type === 'Entity' && objData.name === clickedEntityId) {
+                           objData.object3D.material.color.set(0xff0000); // Red
+                           selectedEntityReplicas.push(objData.object3D);
+                        }
+                    });
                  }
             } else {
                  document.getElementById('selectedInfo').classList.add('hidden');
@@ -529,6 +544,7 @@
                  isFocusing = false;
             }
             
+            // *** FIX: Only toggle visibility if not clicking an entity ***
             if (clickedEntityType !== 'Entity') {
                  objectMap.forEach(objData => {
                     if (objData.type === 'Shard') {
