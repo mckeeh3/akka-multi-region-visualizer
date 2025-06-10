@@ -30,25 +30,25 @@
 
         <div class="space-y-6">
           <div class="p-6 bg-gray-800/50 rounded-lg border border-gray-700">
-            <h3 class="text-2xl font-bold text-white mb-2">System <span class="text-xs font-mono">(Light Blue Sphere)</span></h3>
+            <h3 class="text-2xl font-bold text-[#00d4ff] mb-2">System <span class="text-xs font-mono">(Light Blue Sphere)</span></h3>
             <p class="text-gray-400">The central sphere represents the entire Akka service, containing all regions and entities.</p>
           </div>
           <div class="p-6 bg-gray-800/50 rounded-lg border border-gray-700">
-            <h3 class="text-2xl font-bold text-blue-500 mb-2">Region <span class="text-xs font-mono">(Large Blue Sphere)</span></h3>
+            <h3 class="text-2xl font-bold text-[#3b82f6] mb-2">Region <span class="text-xs font-mono">(Large Blue Sphere)</span></h3>
             <p class="text-gray-400">
               Represents a geographical deployment (e.g., `us-east-1`). In a multi-region setup, all entities are replicated to each region, so each region runs its own independent cluster to handle
               the full dataset.
             </p>
           </div>
           <div class="p-6 bg-gray-800/50 rounded-lg border border-gray-700">
-            <h3 class="text-2xl font-bold text-green-500 mb-2">Node <span class="text-xs font-mono">(Green Sphere)</span></h3>
+            <h3 class="text-2xl font-bold text-[#10b981] mb-2">Node <span class="text-xs font-mono">(Green Sphere)</span></h3>
             <p class="text-gray-400">
               A single server or pod/container within a region's cluster. Nodes are added or removed automatically based on the total number of entities (load) changes. Shards are distributed and load
               balanced across the active cluster nodes.
             </p>
           </div>
           <div class="p-6 bg-gray-800/50 rounded-lg border border-gray-700">
-            <h3 class="text-2xl font-bold text-amber-500 mb-2">Shard <span class="text-xs font-mono">(Amber Sphere)</span></h3>
+            <h3 class="text-2xl font-bold text-[#f59e0b] mb-2">Shard <span class="text-xs font-mono">(Amber Sphere)</span></h3>
             <p class="text-gray-400">
               A logical grouping of entities. Akka uses a fixed number of shards (100 in this simulation) and distributes them across the active cluster nodes. An entity's ID is hashed to determine
               which shard it belongs to.
@@ -67,17 +67,35 @@
           <div>
             <h3 class="text-2xl font-bold text-white mb-3">Camera & Navigation</h3>
             <ul class="list-disc list-inside space-y-2">
-              <li><strong class="text-blue-400">Orbit:</strong> Click and drag the left mouse button.</li>
-              <li><strong class="text-blue-400">Zoom:</strong> Use the mouse scroll wheel.</li>
-              <li><strong class="text-blue-400">Pan:</strong> Click and drag the right mouse button.</li>
+              <li><strong class="text-blue-400">Look Around:</strong> Click and drag the left mouse button to rotate the camera.</li>
               <li>
-                <strong class="text-blue-400">Fly Mode:</strong> Use <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">W</kbd>
-                <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">A</kbd>
-                <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">S</kbd>
-                <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">D</kbd> keys to fly, and
-                <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">R</kbd> /
-                <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">F</kbd> for up/down.
+                <strong class="text-blue-400">First-Person Flight:</strong>
+                <ul class="list-inside ml-6 mt-2 space-y-1">
+                  <li>
+                    <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">W</kbd> or
+                    <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">↑</kbd>: Move forward
+                  </li>
+                  <li>
+                    <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">S</kbd> or
+                    <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">↓</kbd>: Move backward
+                  </li>
+                  <li>
+                    <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">A</kbd> or
+                    <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">←</kbd>: Strafe left
+                  </li>
+                  <li>
+                    <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">D</kbd> or
+                    <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">→</kbd>: Strafe right
+                  </li>
+                  <li><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">R</kbd>: Move up</li>
+                  <li><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">F</kbd>: Move down</li>
+                  <li>
+                    <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Q</kbd> /
+                    <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">E</kbd>: Roll left/right
+                  </li>
+                </ul>
               </li>
+              <li><strong class="text-blue-400">Movement Speed:</strong> The camera moves at a constant speed, optimized for exploring the visualization.</li>
             </ul>
           </div>
           <div>

@@ -118,7 +118,7 @@
     </script>
     <script type="module">
       import * as THREE from 'three';
-      import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+      import { FlyControls } from 'three/addons/controls/FlyControls.js';
 
       // --- Basic Setup ---
       const scene = new THREE.Scene();
@@ -137,14 +137,11 @@
       scene.add(hemisphereLight);
 
       // --- Controls ---
-      const controls = new OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.1;
-      controls.rotateSpeed = 0.5; // Reduce rotation speed for more natural feel
-      controls.zoomSpeed = 1.0;
-      controls.panSpeed = 1.0;
-      controls.minDistance = 5;
-      controls.maxDistance = 500;
+      const controls = new FlyControls(camera, renderer.domElement);
+      controls.movementSpeed = 40;
+      controls.rollSpeed = 0.25;
+      controls.dragToLook = true; // Only rotate when dragging
+      controls.autoForward = false;
 
       camera.position.z = 100;
 
@@ -688,34 +685,13 @@
         keyState[e.code] = false;
       });
 
-      // Track mouse movement for detecting rotation intent
-      let isRotating = false;
-      let lastMouseX = 0;
-      let lastMouseY = 0;
-
+      // Cancel focusing when mouse is pressed for FlyControls
       renderer.domElement.addEventListener('mousedown', (e) => {
         if (e.button === 0) {
           // Left mouse button
-          isRotating = true;
-          lastMouseX = e.clientX;
-          lastMouseY = e.clientY;
-
-          // Cancel focusing when starting to rotate with mouse
           if (isFocusing) {
             isFocusing = false;
           }
-          
-          // Set the target to be in front of the camera for proper rotation
-          const forward = new THREE.Vector3();
-          camera.getWorldDirection(forward);
-          controls.target.copy(camera.position).addScaledVector(forward, 10);
-        }
-      });
-
-      renderer.domElement.addEventListener('mouseup', (e) => {
-        if (e.button === 0) {
-          // Left mouse button
-          isRotating = false;
         }
       });
 
@@ -723,56 +699,22 @@
 
       function updateCamera() {
         const delta = clock.getDelta();
-        const moveSpeed = 50 * delta;
 
-        // Allow camera rotation with mouse even when focusing
-        if (isRotating) {
-          isFocusing = false;
-        }
-
+        // Handle smooth transition to selected object
         if (isFocusing && selectedObject) {
           camera.position.lerp(targetPosition, 0.05);
-          controls.target.lerp(targetLookAt, 0.05);
+          // Look at the object during transition
+          camera.lookAt(selectedObject.position);
+
           if (camera.position.distanceTo(targetPosition) < 0.1) {
             isFocusing = false;
           }
+
+          // Update controls with delta time
+          controls.update(delta);
         } else {
-          const forward = new THREE.Vector3();
-          camera.getWorldDirection(forward);
-
-          // Store the previous position to update the target
-          const prevPosition = camera.position.clone();
-
-          if (keyState['KeyW'] || keyState['ArrowUp']) camera.position.addScaledVector(forward, moveSpeed);
-          if (keyState['KeyS'] || keyState['ArrowDown']) camera.position.addScaledVector(forward, -moveSpeed);
-
-          const right = new THREE.Vector3().crossVectors(camera.up, forward).normalize();
-          if (keyState['KeyA'] || keyState['ArrowLeft']) camera.position.addScaledVector(right, -moveSpeed);
-          if (keyState['KeyD'] || keyState['ArrowRight']) camera.position.addScaledVector(right, moveSpeed);
-
-          if (keyState['KeyR']) camera.position.y += moveSpeed;
-          if (keyState['KeyF']) camera.position.y -= moveSpeed;
-
-          // Always keep the target directly in front of the camera when moving
-          // This makes rotation centered on the camera
-          if (
-            keyState['KeyW'] ||
-            keyState['KeyS'] ||
-            keyState['KeyA'] ||
-            keyState['KeyD'] ||
-            keyState['KeyR'] ||
-            keyState['KeyF'] ||
-            keyState['ArrowUp'] ||
-            keyState['ArrowDown'] ||
-            keyState['ArrowLeft'] ||
-            keyState['ArrowRight']
-          ) {
-            // Set the target to be directly in front of the camera based on its current orientation
-            // This ensures rotation is centered on the camera's position
-            const forward = new THREE.Vector3();
-            camera.getWorldDirection(forward);
-            controls.target.copy(camera.position).addScaledVector(forward, 10);
-          }
+          // Normal flying mode - FlyControls handles all movement
+          controls.update(delta);
         }
       }
 
@@ -788,8 +730,7 @@
           c.line.geometry.computeBoundingSphere();
         });
 
-        // Update controls once to enable damping effect
-        controls.update();
+        // FlyControls update is handled in updateCamera()
         renderer.render(scene, camera);
       }
 
