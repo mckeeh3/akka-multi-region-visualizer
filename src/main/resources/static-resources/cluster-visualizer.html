@@ -697,6 +697,11 @@
           isRotating = true;
           lastMouseX = e.clientX;
           lastMouseY = e.clientY;
+
+          // Cancel focusing when starting to rotate with mouse
+          if (isFocusing) {
+            isFocusing = false;
+          }
         }
       });
 
@@ -712,6 +717,11 @@
       function updateCamera() {
         const delta = clock.getDelta();
         const moveSpeed = 50 * delta;
+
+        // Allow camera rotation with mouse even when focusing
+        if (isRotating) {
+          isFocusing = false;
+        }
 
         if (isFocusing && selectedObject) {
           camera.position.lerp(targetPosition, 0.05);
@@ -770,7 +780,7 @@
           c.line.geometry.setFromPoints([c.from.position, c.to.position]);
           c.line.geometry.computeBoundingSphere();
         });
-        
+
         // Update controls once to enable damping effect
         controls.update();
         renderer.render(scene, camera);
