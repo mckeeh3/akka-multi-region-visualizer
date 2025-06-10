@@ -215,7 +215,7 @@
       function generateEntityId() {
         const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
         let result = '';
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < 5; i++) {
           result += chars.charAt(Math.floor(Math.random() * chars.length));
         }
         return result;
@@ -662,6 +662,22 @@
       const keyState = {};
       window.addEventListener('keydown', (e) => {
         if (!e.target.closest('#infoPanel')) keyState[e.code] = true;
+        // If any movement key is pressed while focusing, cancel the focus to allow free movement
+        if (
+          isFocusing &&
+          (e.code === 'KeyW' ||
+            e.code === 'KeyA' ||
+            e.code === 'KeyS' ||
+            e.code === 'KeyD' ||
+            e.code === 'KeyR' ||
+            e.code === 'KeyF' ||
+            e.code === 'ArrowUp' ||
+            e.code === 'ArrowDown' ||
+            e.code === 'ArrowLeft' ||
+            e.code === 'ArrowRight')
+        ) {
+          isFocusing = false;
+        }
       });
       window.addEventListener('keyup', (e) => {
         keyState[e.code] = false;
@@ -679,7 +695,7 @@
           if (camera.position.distanceTo(targetPosition) < 0.1) {
             isFocusing = false;
           }
-        } else if (!isFocusing) {
+        } else {
           const forward = new THREE.Vector3();
           camera.getWorldDirection(forward);
 
@@ -692,6 +708,22 @@
 
           if (keyState['KeyR']) camera.position.y += moveSpeed;
           if (keyState['KeyF']) camera.position.y -= moveSpeed;
+
+          // Update controls target when flying freely
+          if (
+            keyState['KeyW'] ||
+            keyState['KeyS'] ||
+            keyState['KeyA'] ||
+            keyState['KeyD'] ||
+            keyState['KeyR'] ||
+            keyState['KeyF'] ||
+            keyState['ArrowUp'] ||
+            keyState['ArrowDown'] ||
+            keyState['ArrowLeft'] ||
+            keyState['ArrowRight']
+          ) {
+            controls.target.copy(camera.position).add(forward.multiplyScalar(100));
+          }
         }
       }
 
