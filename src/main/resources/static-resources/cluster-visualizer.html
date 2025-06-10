@@ -11,6 +11,47 @@
         background-color: #111827;
         color: #f9fafb;
         overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      }
+
+      /* Crosshair styles */
+      .crosshair {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none; /* Ensure it doesn't interfere with mouse events */
+        z-index: 1000;
+      }
+
+      .crosshair-horizontal,
+      .crosshair-vertical {
+        position: absolute;
+        background-color: rgba(255, 255, 255, 0.7);
+      }
+
+      .crosshair-horizontal {
+        width: 20px;
+        height: 1px;
+        top: 50%;
+        left: calc(50% - 10px);
+      }
+
+      .crosshair-vertical {
+        width: 1px;
+        height: 20px;
+        top: calc(50% - 10px);
+        left: 50%;
+      }
+
+      .crosshair-center {
+        position: absolute;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background-color: rgba(255, 255, 255, 0.9);
+        top: calc(50% - 2px);
+        left: calc(50% - 2px);
       }
       canvas {
         display: block;
@@ -77,6 +118,13 @@
     <link rel="icon" href="favicon.ico" type="image/x-icon" />
   </head>
   <body>
+    <!-- Crosshair element -->
+    <div class="crosshair">
+      <div class="crosshair-horizontal"></div>
+      <div class="crosshair-vertical"></div>
+      <div class="crosshair-center"></div>
+    </div>
+
     <div id="infoPanel">
       <a href="cluster-visualizer-help.html" target="_blank" id="helpIcon" title="Help">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1007,7 +1055,7 @@
           }
         }
       });
-      
+
       // Add global mouse up handler to prevent controls from getting stuck
       window.addEventListener('mouseup', (e) => {
         // Force the FlyControls to recognize mouse up even if it happens outside the renderer
