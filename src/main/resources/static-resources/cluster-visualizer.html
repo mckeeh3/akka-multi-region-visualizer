@@ -1007,6 +1007,17 @@
           }
         }
       });
+      
+      // Add global mouse up handler to prevent controls from getting stuck
+      window.addEventListener('mouseup', (e) => {
+        // Force the FlyControls to recognize mouse up even if it happens outside the renderer
+        if (controls.mousemove) {
+          controls.mousemove = false;
+          controls.moveState.yawLeft = 0;
+          controls.moveState.pitchDown = 0;
+          controls.updateRotationVector();
+        }
+      });
 
       const clock = new THREE.Clock();
 
