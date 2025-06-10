@@ -244,6 +244,11 @@
       }
 
       function createHierarchy(dataNode, parentData) {
+        // Debug shard creation
+        if (dataNode.type === 'Shard') {
+          console.log('Creating shard:', dataNode.name, 'with global ID:', dataNode.globalShardId);
+        }
+
         const color = getColorForType(dataNode.type);
         const geometry = dataNode.type === 'Entity' ? new THREE.SphereGeometry(1, 16, 16) : new THREE.SphereGeometry(1, 32, 32);
         const material = new THREE.MeshStandardMaterial({
@@ -305,8 +310,13 @@
 
           const regionalShards = [];
           for (let i = 0; i < NUM_SHARDS; i++) {
+            // Create proper shard IDs that will never change
+            const globalShardId = `Shard-${i}`;
+            const regionShardName = `${regionDef.name}-Shard-${i}`;
+
             regionalShards.push({
-              name: `Shard ${i}`,
+              name: regionShardName, // Region-specific shard name as primary identifier
+              globalShardId: globalShardId, // Global shard ID for cross-region coordination
               type: 'Shard',
               isExpanded: false,
               children: [],
@@ -418,6 +428,20 @@
           const allShards = [];
           const shardMap = new Map(); // Map to track shards by name
 
+          // First, collect all existing shards from the scene that belong to this region
+          // This ensures we don't lose track of shards when adding nodes
+          Array.from(objectMap.values())
+            .filter((obj) => obj.type === 'Shard')
+            .forEach((shardData) => {
+              const isFromThisRegion = shardData.parent && shardData.parent.parent && shardData.parent.parent.name === regionData.name;
+
+              if (isFromThisRegion && !shardMap.has(shardData.name)) {
+                shardMap.set(shardData.name, shardData);
+                allShards.push(shardData);
+              }
+            });
+
+          // Then collect shards from active nodes
           activeNodes.forEach((node) => {
             const nodeShards = node.children || [];
 
@@ -437,56 +461,117 @@
           // Redistribute entity IDs to shards
           const regionalShards = [];
 
-          // First, remove any shards from the scene that aren't in our tracking map
-          // This handles the case where we have duplicate shards
+          // We've already collected all valid shards from the scene into shardMap
+          // Now we need to remove any duplicate shards that might exist
+          // (This can happen if there are shards with the same name but different objects)
+          const seenShardObjects = new Set();
+
           Array.from(objectMap.values())
             .filter((obj) => obj.type === 'Shard')
             .forEach((shardData) => {
-              // If this shard isn't in our tracking map or is from a different region, it's a duplicate
-              const isTracked = shardMap.has(shardData.name);
               const isFromThisRegion = shardData.parent && shardData.parent.parent && shardData.parent.parent.name === regionData.name;
 
-              if (!isTracked && isFromThisRegion) {
-                // Remove the shard object and its connections
-                if (shardData.object3D) {
-                  scene.remove(shardData.object3D);
-                  objectMap.delete(shardData.object3D.uuid);
+              if (isFromThisRegion) {
+                const trackedShard = shardMap.get(shardData.name);
 
-                  // Remove connections to this shard
-                  const shardConnections = connections.filter((c) => c.from === shardData.object3D || c.to === shardData.object3D);
-                  shardConnections.forEach((c) => {
-                    scene.remove(c.line);
-                    const connIndex = connections.indexOf(c);
-                    if (connIndex !== -1) connections.splice(connIndex, 1);
-                  });
+                // If this is not the tracked instance of this shard for this region, remove it
+                if (!trackedShard || trackedShard !== shardData) {
+                  // Remove the shard object and its connections
+                  if (shardData.object3D) {
+                    scene.remove(shardData.object3D);
+                    objectMap.delete(shardData.object3D.uuid);
+
+                    // Remove connections to this shard
+                    const shardConnections = connections.filter((c) => c.from === shardData.object3D || c.to === shardData.object3D);
+                    shardConnections.forEach((c) => {
+                      scene.remove(c.line);
+                      const connIndex = connections.indexOf(c);
+                      if (connIndex !== -1) connections.splice(connIndex, 1);
+                    });
+                  }
+                } else {
+                  // This is the tracked instance, mark it as seen
+                  seenShardObjects.add(shardData);
                 }
               }
             });
 
           // Now create or reuse shards for each shard index
           for (let i = 0; i < NUM_SHARDS; i++) {
-            // Find existing shard or create a new one
-            const shardName = `Shard ${i}`;
-            const existingShard = shardMap.get(shardName);
-            const shard = existingShard || {
-              name: shardName,
-              type: 'Shard',
-              isExpanded: false,
-              children: [],
-              entityIds: [],
-            };
+            // Create a region-specific shard ID since shards are scoped to regions, not nodes
+            // This will be used for tracking shards within a region
+            const regionShardName = `${regionData.name}-Shard-${i}`;
 
-            // Reset entity IDs
-            shard.entityIds = [];
+            // Also maintain a global shard ID for cross-region tracking of conceptually equivalent shards
+            // This is used for expansion/collapse coordination across regions
+            const globalShardName = `Shard-${i}`;
+            console.log(`Creating/updating shard ${regionShardName} with global ID ${globalShardName}`);
+
+            // Try to find existing shard by region-specific name
+            let shard = null;
+
+            // First check if we already have this shard in our tracking map
+            // We use regionShardName as the key since shards are unique per region
+            if (shardMap.has(regionShardName)) {
+              shard = shardMap.get(regionShardName);
+            }
+
+            // If we don't have this shard yet, create a new one
+            if (!shard) {
+              shard = {
+                name: regionShardName,
+                globalShardId: globalShardName, // Set the global ID for cross-region coordination
+                type: 'Shard',
+                entities: 0,
+                entityIds: [],
+                isExpanded: false,
+              };
+              shardMap.set(regionShardName, shard);
+              allShards.push(shard);
+            } else {
+              // Ensure existing shard has the global ID property set
+              shard.globalShardId = globalShardName;
+            }
+
             regionalShards.push(shard);
           }
 
-          // Assign entities to shards
-          entityIds.forEach((id) => {
+          // Clear existing entity assignments for this region's shards
+          regionalShards.forEach((shard) => {
+            shard.entityIds = [];
+            shard.entities = 0;
+          });
+
+          // Calculate how many entities should be in this region
+          const numRegions = baseConfig.children.length;
+          const entitiesPerRegion = Math.floor(totalEntities / numRegions);
+          const extraEntities = totalEntities % numRegions;
+
+          // This region gets extra entities if it's one of the first 'extraEntities' regions
+          const regionIndex = baseConfig.children.findIndex((r) => r.name === regionData.name);
+          const thisRegionEntities = entitiesPerRegion + (regionIndex < extraEntities ? 1 : 0);
+
+          // Get a slice of entity IDs for this region
+          const startIndex = regionIndex * entitiesPerRegion + Math.min(regionIndex, extraEntities);
+          const endIndex = startIndex + thisRegionEntities;
+          const regionEntityIds = entityIds.slice(startIndex, endIndex);
+
+          console.log(`Region ${regionData.name}: Distributing ${regionEntityIds.length} entities among ${regionalShards.length} shards`);
+
+          // Assign entities to shards within this region
+          regionEntityIds.forEach((id) => {
             const shardIndex = simpleHashCode(id) % NUM_SHARDS;
             regionalShards[shardIndex].entityIds.push(id);
           });
+
+          // Update entity counts for each shard
           regionalShards.forEach((s) => (s.entities = s.entityIds.length));
+          console.log(`Region ${regionData.name}: Entity distribution complete`);
+
+          // Debug: log entity counts per shard
+          regionalShards.forEach((s, idx) => {
+            console.log(`Region ${regionData.name}, Shard ${idx}: ${s.entityIds.length} entities`);
+          });
 
           // Distribute shards to nodes
           activeNodes.forEach((nodeData, nodeIndex) => {
@@ -502,6 +587,14 @@
               // If this is a new shard, create it in the scene
               if (!shard.object3D) {
                 createHierarchy(shard, nodeData);
+
+                // Set initial size based on entity count
+                if (shard.object3D) {
+                  const baseVolume = 1;
+                  const radius = Math.cbrt(baseVolume * (shard.entities || 1)) / 5;
+                  const scale = Math.max(0.1, radius);
+                  shard.object3D.scale.set(scale, scale, scale);
+                }
               } else {
                 // Otherwise update its connections
                 const shardConnections = connections.filter((c) => c.to === shard.object3D);
@@ -517,6 +610,14 @@
                 const line = new THREE.Line(lineGeometry, lineMaterial);
                 scene.add(line);
                 connections.push({ from: nodeData.object3D, to: shard.object3D, line });
+
+                // Update shard size based on entity count
+                if (shard.object3D) {
+                  const baseVolume = 1;
+                  const radius = Math.cbrt(baseVolume * (shard.entities || 1)) / 5;
+                  const scale = Math.max(0.1, radius);
+                  shard.object3D.scale.set(scale, scale, scale);
+                }
               }
             });
           });
@@ -732,6 +833,7 @@
       let targetLookAt = new THREE.Vector3();
       let isFocusing = false;
       let selectedEntityReplicas = [];
+      let clickedGlobalShardId = null; // Add global variable for tracking clicked shard's global ID
 
       const mouseDownPos = new THREE.Vector2();
       renderer.domElement.addEventListener('mousedown', (event) => {
@@ -835,7 +937,13 @@
           // isFocusing = true;
 
           if (clickedEntityType === 'Shard') {
+            // Store both the region-specific name and the global shard ID
             clickedShardName = intersectedData.name;
+            clickedGlobalShardId = intersectedData.globalShardId;
+
+            // The globalShardId should always be set during initial hierarchy creation
+            console.log('Clicked shard:', clickedShardName, 'with global ID:', clickedGlobalShardId);
+
             shouldToggle = !intersectedData.isExpanded;
           } else if (clickedEntityType === 'Entity') {
             const clickedEntityId = intersectedData.name;
@@ -852,16 +960,29 @@
           isFocusing = false;
         }
 
-        if (clickedEntityType !== 'Entity') {
+        if (clickedEntityType === 'Shard') {
+          console.log('Processing clicked shard:', clickedShardName, 'with global ID:', clickedGlobalShardId);
+
+          // First, collapse all shards
           objectMap.forEach((objData) => {
             if (objData.type === 'Shard') {
-              if (objData.name === clickedShardName && shouldToggle) {
-                showEntitiesForShard(objData);
-              } else {
-                removeEntitiesFromShard(objData);
-              }
+              removeEntitiesFromShard(objData);
             }
           });
+
+          // Then, expand all shards with the matching global ID if needed
+          if (shouldToggle && clickedGlobalShardId) {
+            // Find all shards with the same global ID across regions
+            const matchingShards = Array.from(objectMap.values()).filter((obj) => obj.type === 'Shard' && obj.globalShardId === clickedGlobalShardId);
+
+            console.log('Found', matchingShards.length, 'matching shards with global ID:', clickedGlobalShardId);
+
+            // Expand all matching shards
+            matchingShards.forEach((shard) => {
+              console.log('Expanding shard:', shard.name);
+              showEntitiesForShard(shard);
+            });
+          }
         }
       }
 
