@@ -704,6 +704,11 @@
           if (isFocusing) {
             isFocusing = false;
           }
+          
+          // Set the target to be in front of the camera for proper rotation
+          const forward = new THREE.Vector3();
+          camera.getWorldDirection(forward);
+          controls.target.copy(camera.position).addScaledVector(forward, 10);
         }
       });
 
@@ -748,7 +753,7 @@
           if (keyState['KeyR']) camera.position.y += moveSpeed;
           if (keyState['KeyF']) camera.position.y -= moveSpeed;
 
-          // Always keep the target in front of the camera when moving
+          // Always keep the target directly in front of the camera when moving
           // This makes rotation centered on the camera
           if (
             keyState['KeyW'] ||
@@ -762,11 +767,11 @@
             keyState['ArrowLeft'] ||
             keyState['ArrowRight']
           ) {
-            // Calculate how much the camera moved
-            const movement = camera.position.clone().sub(prevPosition);
-
-            // Move the target by the same amount to maintain relative position
-            controls.target.add(movement);
+            // Set the target to be directly in front of the camera based on its current orientation
+            // This ensures rotation is centered on the camera's position
+            const forward = new THREE.Vector3();
+            camera.getWorldDirection(forward);
+            controls.target.copy(camera.position).addScaledVector(forward, 10);
           }
         }
       }
