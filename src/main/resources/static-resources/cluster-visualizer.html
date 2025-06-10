@@ -625,10 +625,12 @@
               break;
           }
 
+          // Store the target position and look-at point, but don't automatically focus
           const offset = 30 + selectedObject.scale.x * 5;
           targetPosition.copy(selectedObject.position).add(new THREE.Vector3(offset / 2, offset / 2, offset));
           targetLookAt.copy(selectedObject.position);
-          isFocusing = true;
+          // Don't set isFocusing to true by default - this prevents automatic camera movement
+          // isFocusing = true;
 
           if (clickedEntityType === 'Shard') {
             clickedShardName = intersectedData.name;
