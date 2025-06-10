@@ -281,6 +281,7 @@
         }
       }
 
+      // Initial build of the hierarchy
       function rebuildAndDistribute() {
         connections.forEach((c) => scene.remove(c.line));
         objectMap.forEach((data) => scene.remove(data.object3D));
@@ -332,6 +333,202 @@
         calculateParentEntities(displayData);
         updateScales(displayData);
 
+        isSystemStable = false;
+        stableFrames = 0;
+      }
+
+      // Dynamic update of nodes and shard distribution when entity count changes
+      function updateClusterNodes() {
+        updateEntityIdList(totalEntities);
+
+        // Find the system object
+        const systemObject = Array.from(objectMap.values()).find((obj) => obj.type === 'System');
+        if (!systemObject) return;
+
+        let totalActiveNodes = 0;
+
+        // Process each region
+        const regions = systemObject.children || [];
+        regions.forEach((regionData) => {
+          const regionDef = baseConfig.children.find((r) => r.name === regionData.name);
+          if (!regionDef) return;
+
+          const maxNodesInRegion = regionDef.children.length;
+          const numActiveNodesInRegion = Math.max(1, Math.min(maxNodesInRegion, Math.ceil(totalEntities / 10000)));
+          totalActiveNodes += numActiveNodesInRegion;
+
+          // Get current nodes in this region
+          const currentNodes = regionData.children.filter((child) => child.type === 'Node');
+
+          // Add or remove nodes as needed
+          if (currentNodes.length < numActiveNodesInRegion) {
+            // Need to add nodes
+            for (let i = currentNodes.length; i < numActiveNodesInRegion; i++) {
+              const nodeDef = regionDef.children[i];
+              const newNode = {
+                name: nodeDef.name,
+                type: 'Node',
+                children: [],
+                parent: regionData,
+              };
+
+              // Create the node in the scene
+              createHierarchy(newNode, regionData);
+              regionData.children.push(newNode);
+
+              // Position it near its parent region
+              const regionPos = regionData.object3D.position.clone();
+              newNode.object3D.position.set(regionPos.x + (Math.random() - 0.5) * 10, regionPos.y + (Math.random() - 0.5) * 10, regionPos.z + (Math.random() - 0.5) * 10);
+            }
+          } else if (currentNodes.length > numActiveNodesInRegion) {
+            // Need to remove nodes
+            const nodesToRemove = currentNodes.slice(numActiveNodesInRegion);
+
+            // For each node to remove
+            nodesToRemove.forEach((nodeData) => {
+              // First, redistribute its shards
+              const shardsToRedistribute = nodeData.children || [];
+
+              // Remove the node from the region's children
+              const nodeIndex = regionData.children.indexOf(nodeData);
+              if (nodeIndex !== -1) {
+                regionData.children.splice(nodeIndex, 1);
+              }
+
+              // Remove the node and its connections from the scene
+              if (nodeData.object3D) {
+                scene.remove(nodeData.object3D);
+                objectMap.delete(nodeData.object3D.uuid);
+
+                // Remove connections to this node
+                const nodeConnections = connections.filter((c) => c.from === nodeData.object3D || c.to === nodeData.object3D);
+                nodeConnections.forEach((c) => {
+                  scene.remove(c.line);
+                  const connIndex = connections.indexOf(c);
+                  if (connIndex !== -1) connections.splice(connIndex, 1);
+                });
+              }
+            });
+          }
+
+          // Now redistribute all shards across the active nodes
+          const activeNodes = regionData.children.filter((child) => child.type === 'Node').slice(0, numActiveNodesInRegion);
+
+          // Collect all shards from all nodes and track them by name for deduplication
+          const allShards = [];
+          const shardMap = new Map(); // Map to track shards by name
+
+          activeNodes.forEach((node) => {
+            const nodeShards = node.children || [];
+
+            // Add each shard to our tracking map
+            nodeShards.forEach((shard) => {
+              // If we already have this shard name tracked, we'll use the existing one
+              if (!shardMap.has(shard.name)) {
+                shardMap.set(shard.name, shard);
+                allShards.push(shard);
+              }
+            });
+
+            // Clear node's children
+            node.children = [];
+          });
+
+          // Redistribute entity IDs to shards
+          const regionalShards = [];
+
+          // First, remove any shards from the scene that aren't in our tracking map
+          // This handles the case where we have duplicate shards
+          Array.from(objectMap.values())
+            .filter((obj) => obj.type === 'Shard')
+            .forEach((shardData) => {
+              // If this shard isn't in our tracking map or is from a different region, it's a duplicate
+              const isTracked = shardMap.has(shardData.name);
+              const isFromThisRegion = shardData.parent && shardData.parent.parent && shardData.parent.parent.name === regionData.name;
+
+              if (!isTracked && isFromThisRegion) {
+                // Remove the shard object and its connections
+                if (shardData.object3D) {
+                  scene.remove(shardData.object3D);
+                  objectMap.delete(shardData.object3D.uuid);
+
+                  // Remove connections to this shard
+                  const shardConnections = connections.filter((c) => c.from === shardData.object3D || c.to === shardData.object3D);
+                  shardConnections.forEach((c) => {
+                    scene.remove(c.line);
+                    const connIndex = connections.indexOf(c);
+                    if (connIndex !== -1) connections.splice(connIndex, 1);
+                  });
+                }
+              }
+            });
+
+          // Now create or reuse shards for each shard index
+          for (let i = 0; i < NUM_SHARDS; i++) {
+            // Find existing shard or create a new one
+            const shardName = `Shard ${i}`;
+            const existingShard = shardMap.get(shardName);
+            const shard = existingShard || {
+              name: shardName,
+              type: 'Shard',
+              isExpanded: false,
+              children: [],
+              entityIds: [],
+            };
+
+            // Reset entity IDs
+            shard.entityIds = [];
+            regionalShards.push(shard);
+          }
+
+          // Assign entities to shards
+          entityIds.forEach((id) => {
+            const shardIndex = simpleHashCode(id) % NUM_SHARDS;
+            regionalShards[shardIndex].entityIds.push(id);
+          });
+          regionalShards.forEach((s) => (s.entities = s.entityIds.length));
+
+          // Distribute shards to nodes
+          activeNodes.forEach((nodeData, nodeIndex) => {
+            const shardsForThisNode = regionalShards.filter((shard, shardIndex) => shardIndex % activeNodes.length === nodeIndex);
+
+            // Assign shards to this node
+            nodeData.children = shardsForThisNode;
+
+            // Update parent reference for each shard
+            shardsForThisNode.forEach((shard) => {
+              shard.parent = nodeData;
+
+              // If this is a new shard, create it in the scene
+              if (!shard.object3D) {
+                createHierarchy(shard, nodeData);
+              } else {
+                // Otherwise update its connections
+                const shardConnections = connections.filter((c) => c.to === shard.object3D);
+                shardConnections.forEach((c) => {
+                  scene.remove(c.line);
+                  const connIndex = connections.indexOf(c);
+                  if (connIndex !== -1) connections.splice(connIndex, 1);
+                });
+
+                // Create new connection to the new parent
+                const lineMaterial = new THREE.LineBasicMaterial({ color: 0x4b5563, transparent: true, opacity: 0.5 });
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints([nodeData.object3D.position, shard.object3D.position]);
+                const line = new THREE.Line(lineGeometry, lineMaterial);
+                scene.add(line);
+                connections.push({ from: nodeData.object3D, to: shard.object3D, line });
+              }
+            });
+          });
+        });
+
+        document.getElementById('nodeCountValue').textContent = totalActiveNodes;
+
+        // Update entity counts and scales
+        calculateParentEntities(systemObject);
+        updateScales(systemObject);
+
+        // Reset stability to allow the force-directed layout to reposition everything
         isSystemStable = false;
         stableFrames = 0;
       }
@@ -518,7 +715,14 @@
       entitySlider.addEventListener('input', (e) => {
         totalEntities = parseInt(e.target.value);
         entityValue.textContent = totalEntities.toLocaleString();
-        rebuildAndDistribute();
+
+        // Use the new dynamic update function instead of rebuilding everything
+        if (objectMap.size > 0) {
+          updateClusterNodes();
+        } else {
+          // First time initialization still needs a full build
+          rebuildAndDistribute();
+        }
       });
 
       const raycaster = new THREE.Raycaster();
