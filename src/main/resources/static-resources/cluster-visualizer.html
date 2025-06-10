@@ -139,7 +139,10 @@
       // --- Controls ---
       const controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
-      controls.dampingFactor = 0.05;
+      controls.dampingFactor = 0.1;
+      controls.rotateSpeed = 0.5; // Reduce rotation speed for more natural feel
+      controls.zoomSpeed = 1.0;
+      controls.panSpeed = 1.0;
       controls.minDistance = 5;
       controls.maxDistance = 500;
 
@@ -248,7 +251,7 @@
         const material = new THREE.MeshStandardMaterial({
           color,
           transparent: dataNode.type === 'Region',
-          opacity: dataNode.type === 'Region' ? 0.25 : 1.0,
+          opacity: dataNode.type === 'Region' ? 0.85 : 1.0,
           metalness: 0.3,
           roughness: 0.6,
         });
@@ -683,6 +686,27 @@
         keyState[e.code] = false;
       });
 
+      // Track mouse movement for detecting rotation intent
+      let isRotating = false;
+      let lastMouseX = 0;
+      let lastMouseY = 0;
+
+      renderer.domElement.addEventListener('mousedown', (e) => {
+        if (e.button === 0) {
+          // Left mouse button
+          isRotating = true;
+          lastMouseX = e.clientX;
+          lastMouseY = e.clientY;
+        }
+      });
+
+      renderer.domElement.addEventListener('mouseup', (e) => {
+        if (e.button === 0) {
+          // Left mouse button
+          isRotating = false;
+        }
+      });
+
       const clock = new THREE.Clock();
 
       function updateCamera() {
@@ -699,6 +723,9 @@
           const forward = new THREE.Vector3();
           camera.getWorldDirection(forward);
 
+          // Store the previous position to update the target
+          const prevPosition = camera.position.clone();
+
           if (keyState['KeyW'] || keyState['ArrowUp']) camera.position.addScaledVector(forward, moveSpeed);
           if (keyState['KeyS'] || keyState['ArrowDown']) camera.position.addScaledVector(forward, -moveSpeed);
 
@@ -709,7 +736,8 @@
           if (keyState['KeyR']) camera.position.y += moveSpeed;
           if (keyState['KeyF']) camera.position.y -= moveSpeed;
 
-          // Update controls target when flying freely
+          // Always keep the target in front of the camera when moving
+          // This makes rotation centered on the camera
           if (
             keyState['KeyW'] ||
             keyState['KeyS'] ||
@@ -722,7 +750,11 @@
             keyState['ArrowLeft'] ||
             keyState['ArrowRight']
           ) {
-            controls.target.copy(camera.position).add(forward.multiplyScalar(100));
+            // Calculate how much the camera moved
+            const movement = camera.position.clone().sub(prevPosition);
+
+            // Move the target by the same amount to maintain relative position
+            controls.target.add(movement);
           }
         }
       }
@@ -738,7 +770,8 @@
           c.line.geometry.setFromPoints([c.from.position, c.to.position]);
           c.line.geometry.computeBoundingSphere();
         });
-
+        
+        // Update controls once to enable damping effect
         controls.update();
         renderer.render(scene, camera);
       }
