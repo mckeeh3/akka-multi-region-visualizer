@@ -542,31 +542,18 @@
             shard.entities = 0;
           });
 
-          // Calculate how many entities should be in this region
-          const numRegions = baseConfig.children.length;
-          const entitiesPerRegion = Math.floor(totalEntities / numRegions);
-          const extraEntities = totalEntities % numRegions;
+          console.log(`Region ${regionData.name}: Replicating ${entityIds.length} entities among ${regionalShards.length} shards`);
 
-          // This region gets extra entities if it's one of the first 'extraEntities' regions
-          const regionIndex = baseConfig.children.findIndex((r) => r.name === regionData.name);
-          const thisRegionEntities = entitiesPerRegion + (regionIndex < extraEntities ? 1 : 0);
-
-          // Get a slice of entity IDs for this region
-          const startIndex = regionIndex * entitiesPerRegion + Math.min(regionIndex, extraEntities);
-          const endIndex = startIndex + thisRegionEntities;
-          const regionEntityIds = entityIds.slice(startIndex, endIndex);
-
-          console.log(`Region ${regionData.name}: Distributing ${regionEntityIds.length} entities among ${regionalShards.length} shards`);
-
-          // Assign entities to shards within this region
-          regionEntityIds.forEach((id) => {
+          // Replicate ALL entities to this region (not just a subset)
+          // Each entity is assigned to a shard based on its hash
+          entityIds.forEach((id) => {
             const shardIndex = simpleHashCode(id) % NUM_SHARDS;
             regionalShards[shardIndex].entityIds.push(id);
           });
 
           // Update entity counts for each shard
           regionalShards.forEach((s) => (s.entities = s.entityIds.length));
-          console.log(`Region ${regionData.name}: Entity distribution complete`);
+          console.log(`Region ${regionData.name}: Entity replication complete`);
 
           // Debug: log entity counts per shard
           regionalShards.forEach((s, idx) => {
