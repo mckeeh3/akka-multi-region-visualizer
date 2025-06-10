@@ -1113,6 +1113,10 @@
       });
 
       // --- Initial Call ---
+      // Initialize the slider value to match the initial entity count
+      document.getElementById('entityCount').value = totalEntities;
+      document.getElementById('entityCountValue').textContent = totalEntities.toLocaleString();
+
       rebuildAndDistribute();
       animate();
     </script>
