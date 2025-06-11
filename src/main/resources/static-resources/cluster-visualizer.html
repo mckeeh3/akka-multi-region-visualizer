@@ -200,6 +200,9 @@
       let stableFrames = 0;
       const NUM_SHARDS = 100;
 
+      // Track the currently expanded global shard ID
+      let currentlyExpandedShardId = null;
+
       let entityIds = [];
 
       const baseConfig = {
@@ -852,6 +855,16 @@
         totalEntities = parseInt(e.target.value);
         entityValue.textContent = totalEntities.toLocaleString();
 
+        // Hide any expanded entities when entity count changes
+        if (currentlyExpandedShardId) {
+          objectMap.forEach((objData) => {
+            if (objData.type === 'Shard') {
+              removeEntitiesFromShard(objData);
+            }
+          });
+          currentlyExpandedShardId = null;
+        }
+
         // Use the new dynamic update function instead of rebuilding everything
         if (objectMap.size > 0) {
           updateClusterNodes();
@@ -998,26 +1011,50 @@
         if (clickedEntityType === 'Shard') {
           console.log('Processing clicked shard:', clickedShardName, 'with global ID:', clickedGlobalShardId);
 
-          // First, collapse all shards
+          // Check if we're clicking the same shard that's already expanded
+          if (currentlyExpandedShardId === clickedGlobalShardId) {
+            // Collapse all shards - toggle behavior
+            objectMap.forEach((objData) => {
+              if (objData.type === 'Shard') {
+                removeEntitiesFromShard(objData);
+              }
+            });
+            currentlyExpandedShardId = null;
+            console.log('Collapsed all shards - toggled off');
+          } else {
+            // Collapse all shards first
+            objectMap.forEach((objData) => {
+              if (objData.type === 'Shard') {
+                removeEntitiesFromShard(objData);
+              }
+            });
+
+            // Then expand all shards with the matching global ID
+            if (clickedGlobalShardId) {
+              // Find all shards with the same global ID across regions
+              const matchingShards = Array.from(objectMap.values()).filter((obj) => obj.type === 'Shard' && obj.globalShardId === clickedGlobalShardId);
+
+              console.log('Found', matchingShards.length, 'matching shards with global ID:', clickedGlobalShardId);
+
+              // Expand all matching shards
+              matchingShards.forEach((shard) => {
+                console.log('Expanding shard:', shard.name);
+                showEntitiesForShard(shard);
+              });
+
+              // Update the currently expanded shard ID
+              currentlyExpandedShardId = clickedGlobalShardId;
+            }
+          }
+        } else if (clickedEntityType && clickedEntityType !== 'Entity') {
+          // Only hide entities if clicking another sphere (not empty space)
+          // and not an entity (to allow selecting entities)
           objectMap.forEach((objData) => {
             if (objData.type === 'Shard') {
               removeEntitiesFromShard(objData);
             }
           });
-
-          // Then, expand all shards with the matching global ID if needed
-          if (shouldToggle && clickedGlobalShardId) {
-            // Find all shards with the same global ID across regions
-            const matchingShards = Array.from(objectMap.values()).filter((obj) => obj.type === 'Shard' && obj.globalShardId === clickedGlobalShardId);
-
-            console.log('Found', matchingShards.length, 'matching shards with global ID:', clickedGlobalShardId);
-
-            // Expand all matching shards
-            matchingShards.forEach((shard) => {
-              console.log('Expanding shard:', shard.name);
-              showEntitiesForShard(shard);
-            });
-          }
+          currentlyExpandedShardId = null;
         }
       }
 
