@@ -982,21 +982,29 @@
             const line = new THREE.Line(lineGeometry, lineMaterial);
             scene.add(line);
             connections.push({ from: targetNode.object3D, to: shardData.object3D, line });
-
-            // Remove old connection from failed node
-            connections.forEach((conn, i) => {
-              if (conn.from === nodeData.object3D && conn.to === shardData.object3D) {
-                scene.remove(conn.line);
-                connections.splice(i, 1);
-              }
-            });
           }
         });
 
-        // Clear the failed node's children since they've been redistributed
+        // Remove all connections from the failed node
+        const nodeConnections = connections.filter((c) => c.from === nodeData.object3D || c.to === nodeData.object3D);
+        nodeConnections.forEach((c) => {
+          scene.remove(c.line);
+          const connIndex = connections.indexOf(c);
+          if (connIndex !== -1) connections.splice(connIndex, 1);
+        });
+
+        // Clear the node's children since they were redistributed
         nodeData.children = [];
 
-        // Update the visualization
+        // Find the system object to recalculate entity counts
+        const systemObject = Array.from(objectMap.values()).find((obj) => obj.type === 'System');
+        if (systemObject) {
+          // Recalculate entity counts for all nodes
+          calculateParentEntities(systemObject);
+          updateScales(systemObject);
+        }
+
+        // Force the system to be unstable to trigger force-directed layout updates
         isSystemStable = false;
         stableFrames = 0;
       }
@@ -1039,6 +1047,14 @@
 
           // Trigger the redistribution
           updateClusterNodes();
+          
+          // Find the system object to recalculate entity counts
+          const systemObject = Array.from(objectMap.values()).find((obj) => obj.type === 'System');
+          if (systemObject) {
+            // Recalculate entity counts for all nodes
+            calculateParentEntities(systemObject);
+            updateScales(systemObject);
+          }
 
           // Force the system to be unstable to trigger force-directed layout updates
           isSystemStable = false;
