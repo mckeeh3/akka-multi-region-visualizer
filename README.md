@@ -46,18 +46,21 @@ This latency visualization is one of the main features of this demo app, providi
   - Event-sourced: state changes are tracked as events (e.g., `StatusUpdated`).
 
 - **API Endpoints:**
-  - `PUT /grid-cell/update-status`: Update a grid cell’s status.
-  - `PUT /grid-cell/span-status`: Update a grid cell’s span status.
-  - `PUT /grid-cell/fill-status`: Update a grid cell’s fill status.
-  - `PUT /grid-cell/clear-status`: Update a grid cell’s clear status.
-  - `PUT /grid-cell/erase-status`: Update a grid cell’s erase status.
-  - `PUT /grid-cell/create-predator`: Create a predator grid cell.
-  - `GET /grid-cell/list`: Get a list of grid cells.
-  - `GET /grid-cell/paginated-list/...`: Get a page of grid cells for a viewport.
-  - `GET /grid-cell/stream`: SSE endpoint for streaming grid cell updates.
-  - `GET /grid-cell/current-time`: Streams current time (for UI sync).
-  - `GET /grid-cell/region`: Get the region of the grid cell.
-  - `GET /grid-cell/routes`: Get the routes of the grid cell.
+  - `PUT /grid-cell/create-shape`: Create a shape with specified dimensions and status.
+  - `PUT /grid-cell/update-status`: Update a grid cell's status.
+  - `PUT /grid-cell/clear-cells`: Clear cells with a specified status.
+  - `PUT /grid-cell/erase-cells`: Erase cells from the grid.
+  - `PUT /grid-cell/create-predator`: Create a predator grid cell that can move across the grid.
+  - `GET /grid-cell/entity-by-id/{id}`: Get a specific grid cell entity by ID.
+  - `GET /grid-cell/view-row-by-id/{id}`: Get a specific grid cell view row by ID.
+  - `GET /grid-cell/stream/{x1}/{y1}/{x2}/{y2}`: SSE endpoint for streaming grid cell updates within an area.
+  - `GET /grid-cell/list`: Get a list of all grid cells.
+  - `GET /grid-cell/paginated-list/{x1}/{y1}/{x2}/{y2}`: Get a paginated list of grid cells within an area.
+  - `GET /grid-cell/current-time`: Stream the current server time (for UI synchronization).
+  - `GET /grid-cell/routes`: Get the multi-region routes for cross-region communication.
+  - `GET /grid-cell/config`: Get the application configuration.
+  - `GET /grid-cell/system-properties`: Get system properties.
+  - `GET /grid-cell/system-environment`: Get system environment variables.
 
 - **Persistence & Query:**
   - Uses Akka’s event sourcing and views to materialize grid cell state and allow efficient queries.
