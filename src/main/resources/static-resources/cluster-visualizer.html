@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Akka Cluster 3D Visualization</title>
+    <title>Akka Multi-RegionCluster 3D Visualization</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       body {
@@ -52,6 +52,32 @@
         background-color: rgba(255, 255, 255, 0.9);
         top: calc(50% - 2px);
         left: calc(50% - 2px);
+      }
+
+      .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 4px;
+        color: white;
+        font-weight: bold;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        z-index: 1000;
+        pointer-events: none;
+      }
+
+      .notification.failure {
+        background-color: #ef4444;
+      }
+
+      .notification.recovery {
+        background-color: #10b981;
+      }
+
+      .notification.show {
+        opacity: 1;
       }
       canvas {
         display: block;
@@ -124,6 +150,9 @@
       <div class="crosshair-vertical"></div>
       <div class="crosshair-center"></div>
     </div>
+
+    <!-- Notification element -->
+    <div id="notification" class="notification"></div>
 
     <div id="infoPanel">
       <a href="cluster-visualizer-help.html" target="_blank" id="helpIcon" title="Help">
@@ -202,6 +231,9 @@
 
       // Track the currently expanded global shard ID
       let currentlyExpandedShardId = null;
+
+      // Track failed nodes for recovery simulation
+      const failedNodes = new Map(); // Maps node UUID to timeout ID and node data
 
       let entityIds = [];
 
@@ -817,7 +849,7 @@
       function removeEntitiesFromShard(shardData) {
         if (!shardData.isExpanded) return;
 
-        shardData.children.forEach((entityData) => {
+        shardData.children?.forEach((entityData) => {
           if (entityData.object3D) {
             scene.remove(entityData.object3D);
             objectMap.delete(entityData.object3D.uuid);
@@ -830,6 +862,188 @@
         });
         shardData.children = [];
         shardData.isExpanded = false;
+      }
+
+      // Function to show notification
+      function showNotification(message, type) {
+        const notification = document.getElementById('notification');
+        notification.textContent = message;
+        notification.className = 'notification ' + type;
+
+        // Add the show class to make it visible
+        setTimeout(() => {
+          notification.classList.add('show');
+        }, 10);
+
+        // Hide after 3 seconds
+        setTimeout(() => {
+          notification.classList.remove('show');
+        }, 3000);
+      }
+
+      // Function to simulate node failure
+      function simulateNodeFailure(nodeData) {
+        // Check if this node is already failed
+        if (failedNodes.has(nodeData.object3D.uuid)) {
+          console.log('Node already in failed state:', nodeData.name);
+          showNotification(`Node ${nodeData.name} is already in failed state`, 'failure');
+          return;
+        }
+
+        // Check if there are at least 2 nodes in this region to allow failure
+        const regionData = nodeData.parent;
+        const activeNodesInRegion = regionData.children.filter((child) => child.type === 'Node' && !failedNodes.has(child.object3D?.uuid));
+
+        if (activeNodesInRegion.length <= 1) {
+          console.log('Cannot fail node - need at least one active node in region:', regionData.name);
+          showNotification(`Cannot fail node - need at least one active node in region ${regionData.name}`, 'failure');
+          return;
+        }
+
+        console.log('Simulating failure of node:', nodeData.name);
+        showNotification(`Node ${nodeData.name} failure simulated`, 'failure');
+
+        // Hide the node and its connections
+        nodeData.object3D.visible = false;
+
+        // Hide all connections to/from this node
+        connections.forEach((conn) => {
+          if (conn.from === nodeData.object3D || conn.to === nodeData.object3D) {
+            conn.line.visible = false;
+          }
+        });
+
+        // Redistribute entities from this node's shards to other nodes in the region
+        redistributeShardsFromFailedNode(nodeData);
+
+        // Store the node data and set a timeout for recovery
+        const timeoutId = setTimeout(() => recoverNode(nodeData.object3D.uuid), 8000);
+        failedNodes.set(nodeData.object3D.uuid, { timeoutId, nodeData });
+      }
+
+      // Function to redistribute shards from a failed node
+      function redistributeShardsFromFailedNode(nodeData) {
+        // Get all active nodes in the same region
+        const regionData = nodeData.parent;
+        const activeNodesInRegion = regionData.children.filter((child) => child.type === 'Node' && child !== nodeData && !failedNodes.has(child.object3D?.uuid));
+
+        if (activeNodesInRegion.length === 0) {
+          console.log('No active nodes to redistribute shards to in region:', regionData.name);
+          return;
+        }
+
+        // Show notification about redistribution
+        showNotification(`Redistributing shards from node ${nodeData.name}`, 'failure');
+
+        // First, check if any shard in the system is expanded and hide all entities
+        // This ensures a clean state when redistributing shards
+        if (currentlyExpandedShardId) {
+          // Find all shards with this global ID and collapse them
+          Array.from(objectMap.values())
+            .filter((obj) => obj.type === 'Shard' && obj.globalShardId === currentlyExpandedShardId)
+            .forEach((shardData) => {
+              if (shardData.isExpanded) {
+                console.log(`Collapsing expanded shard ${shardData.name} during node failure`);
+                removeEntitiesFromShard(shardData);
+              }
+            });
+
+          // Reset the currently expanded shard tracking
+          currentlyExpandedShardId = null;
+        }
+
+        // For each shard in the failed node, reassign it to an active node
+        nodeData.children.forEach((shardData, index) => {
+          // Skip if not a shard
+          if (shardData.type !== 'Shard') return;
+
+          // If entities are expanded, collapse them first (redundant check but keeping for safety)
+          if (shardData.isExpanded) {
+            removeEntitiesFromShard(shardData);
+          }
+
+          // Choose a target node (round robin)
+          const targetNode = activeNodesInRegion[index % activeNodesInRegion.length];
+          console.log(`Redistributing shard ${shardData.name} from ${nodeData.name} to ${targetNode.name}`);
+
+          // Add the shard to the target node's children
+          if (!targetNode.children.includes(shardData)) {
+            targetNode.children.push(shardData);
+          }
+
+          // Update the shard's parent reference
+          shardData.parent = targetNode;
+
+          // Move the shard visually to the target node
+          if (shardData.object3D && targetNode.object3D) {
+            // Create new connection to the target node
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 0x4b5563, transparent: true, opacity: 0.5 });
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints([targetNode.object3D.position, shardData.object3D.position]);
+            const line = new THREE.Line(lineGeometry, lineMaterial);
+            scene.add(line);
+            connections.push({ from: targetNode.object3D, to: shardData.object3D, line });
+
+            // Remove old connection from failed node
+            connections.forEach((conn, i) => {
+              if (conn.from === nodeData.object3D && conn.to === shardData.object3D) {
+                scene.remove(conn.line);
+                connections.splice(i, 1);
+              }
+            });
+          }
+        });
+
+        // Clear the failed node's children since they've been redistributed
+        nodeData.children = [];
+
+        // Update the visualization
+        isSystemStable = false;
+        stableFrames = 0;
+      }
+
+      // Function to recover a failed node
+      function recoverNode(nodeUuid) {
+        if (!failedNodes.has(nodeUuid)) {
+          console.log('Node not found in failed nodes map:', nodeUuid);
+          return;
+        }
+
+        const { nodeData } = failedNodes.get(nodeUuid);
+        console.log('Recovering node:', nodeData.name);
+        showNotification(`Node ${nodeData.name} recovered`, 'recovery');
+
+        // Make the node visible again
+        nodeData.object3D.visible = true;
+
+        // Restore connections
+        connections.forEach((conn) => {
+          if (conn.from === nodeData.object3D || conn.to === nodeData.object3D) {
+            conn.line.visible = true;
+          }
+        });
+
+        // Remove from failed nodes map
+        failedNodes.delete(nodeUuid);
+
+        // Clear the node's children since they were redistributed
+        nodeData.children = [];
+
+        // Trigger a full redistribution to rebalance the cluster
+        // This will redistribute shards evenly across all nodes including the recovered one
+        console.log(`Redistributing shards after node ${nodeData.name} recovery`);
+
+        // Add a small delay to make the recovery and redistribution visually distinct
+        setTimeout(() => {
+          // Show a notification about redistribution
+          showNotification(`Rebalancing shards across cluster`, 'recovery');
+
+          // Trigger the redistribution
+          updateClusterNodes();
+
+          // Force the system to be unstable to trigger force-directed layout updates
+          isSystemStable = false;
+          stableFrames = 0;
+        }, 500);
       }
 
       function showEntitiesForShard(shardData) {
@@ -905,6 +1119,9 @@
         raycaster.setFromCamera(mouse, camera);
         const intersects = raycaster.intersectObjects(Array.from(objectMap.values()).map((d) => d.object3D));
 
+        // Check if this is a Ctrl+click for node failure simulation
+        const isCtrlClick = event.ctrlKey || event.metaKey; // Support both Ctrl and Command (Mac)
+
         if (selectedObject) {
           selectedObject.material.emissive.setHex(0x000000);
           selectedObject = null;
@@ -924,6 +1141,17 @@
           selectedObject.material.emissive.setHex(0xcc0000);
 
           clickedEntityType = intersectedData.type;
+
+          // Handle Ctrl+click for node failure simulation
+          if (isCtrlClick && clickedEntityType === 'Node') {
+            // Get the node data from objectMap
+            const nodeData = objectMap.get(selectedObject.uuid);
+            if (nodeData) {
+              simulateNodeFailure(nodeData);
+              // Return early to prevent other click behaviors
+              return;
+            }
+          }
 
           const selectedHeader = document.getElementById('selectedHeader');
           const selectedName = document.getElementById('selectedName');
