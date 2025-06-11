@@ -315,3 +315,31 @@ When running the app on an Akka platform, after the app is [deployed](https://do
 and the routes are created, you can access the UI using any of the route host names: `http://<route-host-name>`.
 
 Click the Help link at the top of the page to access instruction on how to use the app.
+
+## Multi-Region Akka Cluster Simulator
+
+This 3D interactive simulator provides a comprehensive visualization of Akka's distributed architecture, offering insights into how stateful entities are managed across multiple geographical regions. The visualizer demonstrates:
+
+- **Hierarchical Cluster Structure**: See how the system organizes itself from top-level regions down to individual entities, with clear visual representation of each component (regions, nodes, shards, and entities).
+
+- **Dynamic Scaling and Load Balancing**: Observe how nodes automatically scale based on entity count and how shards are distributed evenly across available nodes within each region.
+
+- **Resilience and Self-Healing**: Simulate node failures with Ctrl+Click and watch in real-time as the cluster redistributes shards to maintain system integrity, followed by automatic recovery and rebalancing.
+
+- **Cross-Region Entity Replication**: Understand how entities are replicated across geographical regions for high availability while maintaining data consistency.
+
+By interacting with this visualization, developers and architects can gain a deeper understanding of Akka's distributed computing principles without needing to interpret complex logs or metrics. It serves as both an educational tool and a demonstration of how Akka handles the challenges of distributed systems at scale.
+
+### Accessing the Multi-Region Akka Cluster Simulator UI
+
+This simulator is accessed as a single page application (SPA) using the browser.
+
+The web page is located at `file:///<path-to-project>/target/classes/static-resources/cluster-visualizer.html`.
+
+```bash
+echo "file:///$(realpath src/main/resources/static-resources/cluster-visualizer.html)"
+```
+
+Copy the URL and paste it into your browser to access the UI.
+
+A help page is available by clicking the '?' icon at the top left of the page.
