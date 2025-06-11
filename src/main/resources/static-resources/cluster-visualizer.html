@@ -977,12 +977,9 @@
               break;
           }
 
-          // Store the target position and look-at point, but don't automatically focus
           const offset = 30 + selectedObject.scale.x * 5;
           targetPosition.copy(selectedObject.position).add(new THREE.Vector3(offset / 2, offset / 2, offset));
           targetLookAt.copy(selectedObject.position);
-          // Don't set isFocusing to true by default - this prevents automatic camera movement
-          // isFocusing = true;
 
           if (clickedEntityType === 'Shard') {
             // Store both the region-specific name and the global shard ID
@@ -1096,12 +1093,31 @@
       // Add global mouse up handler to prevent controls from getting stuck
       window.addEventListener('mouseup', (e) => {
         // Force the FlyControls to recognize mouse up even if it happens outside the renderer
-        if (controls.mousemove) {
-          controls.mousemove = false;
-          controls.moveState.yawLeft = 0;
-          controls.moveState.pitchDown = 0;
-          controls.updateRotationVector();
-        }
+        controls.mousemove = false;
+        controls.moveState.yawLeft = 0;
+        controls.moveState.pitchDown = 0;
+        controls.moveState.rollLeft = 0;
+        controls.moveState.forward = 0;
+        controls.moveState.back = 0;
+        controls.moveState.left = 0;
+        controls.moveState.right = 0;
+        controls.moveState.up = 0;
+        controls.moveState.down = 0;
+
+        // Reset all mouse states
+        controls.mouseStatus = 0;
+
+        // Update both rotation and movement vectors
+        controls.updateRotationVector();
+        controls.updateMovementVector();
+      });
+
+      // Also add a mouseleave handler to catch when mouse leaves the window
+      renderer.domElement.addEventListener('mouseleave', () => {
+        controls.mousemove = false;
+        controls.moveState.yawLeft = 0;
+        controls.moveState.pitchDown = 0;
+        controls.updateRotationVector();
       });
 
       const clock = new THREE.Clock();
