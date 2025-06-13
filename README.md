@@ -337,10 +337,10 @@ By interacting with this visualization, developers and architects can gain a dee
 
 This simulator is accessed as a single page application (SPA) using the browser.
 
-The web page is located at `file:///<path-to-project>/target/classes/static-resources/cluster-visualizer.html`.
+The web page is located at `file:///<path-to-project>/target/classes/static-resources/3d-simulator.html`.
 
 ```bash
-echo "file:///$(realpath src/main/resources/static-resources/cluster-visualizer.html)"
+echo "file:///$(realpath src/main/resources/static-resources/3d-simulator.html)"
 ```
 
 Copy the URL and paste it into your browser to access the UI.
