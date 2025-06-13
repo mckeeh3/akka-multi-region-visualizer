@@ -295,6 +295,7 @@
       // --- Hierarchy Creation & Management ---
       const objectMap = new Map();
       const connections = [];
+      const entityConnections = []; // Store connections between replicated entities
 
       function generateEntityId() {
         const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -1047,7 +1048,7 @@
 
           // Trigger the redistribution
           updateClusterNodes();
-          
+
           // Find the system object to recalculate entity counts
           const systemObject = Array.from(objectMap.values()).find((obj) => obj.type === 'System');
           if (systemObject) {
@@ -1111,6 +1112,7 @@
       let targetLookAt = new THREE.Vector3();
       let isFocusing = false;
       let selectedEntityReplicas = [];
+      let selectedEntityPositions = []; // Store positions of selected entities for drawing connections
       let clickedGlobalShardId = null; // Add global variable for tracking clicked shard's global ID
 
       const mouseDownPos = new THREE.Vector2();
@@ -1142,10 +1144,18 @@
           selectedObject.material.emissive.setHex(0x000000);
           selectedObject = null;
         }
+        // Reset colors of previously selected entities
         selectedEntityReplicas.forEach((entityMesh) => {
           entityMesh.material.color.set(getColorForType('Entity'));
         });
         selectedEntityReplicas = [];
+        selectedEntityPositions = [];
+
+        // Remove any existing entity connection lines
+        entityConnections.forEach((conn) => {
+          scene.remove(conn);
+        });
+        entityConnections.length = 0;
 
         let clickedShardName = null;
         let shouldToggle = false;
@@ -1236,12 +1246,36 @@
             shouldToggle = !intersectedData.isExpanded;
           } else if (clickedEntityType === 'Entity') {
             const clickedEntityId = intersectedData.name;
+
+            // Find all replicas of this entity across regions
             objectMap.forEach((objData) => {
               if (objData.type === 'Entity' && objData.name === clickedEntityId) {
                 objData.object3D.material.color.set(0xff0000);
                 selectedEntityReplicas.push(objData.object3D);
+                selectedEntityPositions.push(objData.object3D.position);
               }
             });
+
+            // Create lines connecting the entities if we have more than one
+            if (selectedEntityPositions.length > 1) {
+              // Create lines between each pair of entities
+              for (let i = 0; i < selectedEntityPositions.length; i++) {
+                for (let j = i + 1; j < selectedEntityPositions.length; j++) {
+                  const lineMaterial = new THREE.LineBasicMaterial({
+                    color: 0xff0000,
+                    transparent: true,
+                    opacity: 0.7,
+                    linewidth: 1,
+                  });
+
+                  const lineGeometry = new THREE.BufferGeometry().setFromPoints([selectedEntityPositions[i], selectedEntityPositions[j]]);
+
+                  const line = new THREE.Line(lineGeometry, lineMaterial);
+                  scene.add(line);
+                  entityConnections.push(line);
+                }
+              }
+            }
           }
         } else {
           document.getElementById('selectedInfo').classList.add('hidden');
@@ -1394,10 +1428,29 @@
         updateCamera();
         applyForces();
 
+        // Update regular connections between objects
         connections.forEach((c) => {
           c.line.geometry.setFromPoints([c.from.position, c.to.position]);
           c.line.geometry.computeBoundingSphere();
         });
+
+        // Update entity connection lines if entities are selected
+        if (selectedEntityReplicas.length > 1) {
+          // Get updated positions of selected entities
+          const updatedPositions = selectedEntityReplicas.map((entity) => entity.position);
+
+          // Update each entity connection line
+          let connectionIndex = 0;
+          for (let i = 0; i < selectedEntityReplicas.length; i++) {
+            for (let j = i + 1; j < selectedEntityReplicas.length; j++) {
+              if (connectionIndex < entityConnections.length) {
+                entityConnections[connectionIndex].geometry.setFromPoints([updatedPositions[i], updatedPositions[j]]);
+                entityConnections[connectionIndex].geometry.computeBoundingSphere();
+                connectionIndex++;
+              }
+            }
+          }
+        }
 
         // FlyControls update is handled in updateCamera()
         renderer.render(scene, camera);
