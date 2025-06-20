@@ -237,6 +237,36 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   /**
+   * Updates cell status class
+   */
+  function updateCellStatus(cellElement, gridCell) {
+    if (gridCell.status !== 'inactive') {
+      cellElement.classList.add(`cell-${gridCell.status}`);
+    }
+  }
+
+  /**
+   * Updates cell elapsed time display
+   */
+  function updateCellElapsedTime(cellElement, gridCell) {
+    const hasValidElapsedTime = gridCell.updatedAt && gridCell.status !== 'inactive';
+
+    if (hasValidElapsedTime) {
+      const elapsedMs = Math.min(config.ui.maxElapsedTimeDisplay, gridCell.elapsedMs);
+
+      if (elapsedMs >= 0) {
+        cellElement.textContent = elapsedMs;
+        cellElement.classList.add('has-elapsed-time');
+        return;
+      }
+    }
+
+    // Clear text content and elapsed time class
+    cellElement.textContent = '';
+    cellElement.classList.remove('has-elapsed-time');
+  }
+
+  /**
    * Clamps overlay position to stay within viewport
    */
   function clampOverlayPosition(left, top, overlayRect, cellRect) {
@@ -949,27 +979,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Update cell counts
             updateCellCounts(previousStatus, gridCell.status);
 
-            // Add the appropriate class based on status
-            if (gridCell.status !== 'inactive') {
-              gridCellElement.classList.add(`cell-${gridCell.status}`);
-            }
-
-            // Calculate and display elapsed time if available
-            if (gridCell.updatedAt && gridCell.status !== 'inactive') {
-              const elapsedMs = Math.min(config.ui.maxElapsedTimeDisplay, gridCell.elapsedMs);
-
-              if (elapsedMs >= 0) {
-                gridCellElement.textContent = elapsedMs;
-                gridCellElement.classList.add('has-elapsed-time');
-              } else {
-                gridCellElement.textContent = '';
-                gridCellElement.classList.remove('has-elapsed-time');
-              }
-            } else {
-              // Clear text content for inactive state
-              gridCellElement.textContent = '';
-              gridCellElement.classList.remove('has-elapsed-time');
-            }
+            // Update cell status and elapsed time
+            updateCellStatus(gridCellElement, gridCell);
+            updateCellElapsedTime(gridCellElement, gridCell);
 
             // Update the grid summary display
             updateGridSummary();
@@ -1546,75 +1558,67 @@ document.addEventListener('DOMContentLoaded', async () => {
    * Fetches and shows timing data for the hovered cell.
    * @param {HTMLElement} cellElement - The cell element to show overlay for
    */
-  function fetchTimingOverlayData() {
+  async function fetchTimingOverlayData() {
     const id = hoveredCellId.substring(5); // Remove "cell-" prefix
     const cellElement = document.getElementById(hoveredCellId);
 
-    getRoutes()
-      .then((routes) => {
-        console.info(`${new Date().toISOString()} `, `Multi-region routes ${routes}`);
-        const dataList = [];
-        let completed = 0;
+    try {
+      const routes = await getRoutes();
+      console.info(`${new Date().toISOString()} `, `Multi-region routes ${routes}`);
 
-        routes.forEach((route, idx) => {
-          let routeUrl;
-          if (route.startsWith('localhost') || route.startsWith('127.0.0.1')) {
-            routeUrl = `http://${route}/grid-cell/view-row-by-id/${id}`;
-          } else {
-            routeUrl = `https://${route}/grid-cell/view-row-by-id/${id}`;
-          }
-          console.info(`${new Date().toISOString()} `, `Timings for region ${routeUrl}`);
-          fetch(routeUrl)
-            .then((resp) => resp.json())
-            .then((data) => {
-              dataList[idx] = data;
-            })
-            .catch((error) => {
-              console.warn(`${new Date().toISOString()} `, `Error fetching route data: ${error}`);
-              dataList[idx] = null;
-            })
-            .finally(() => {
-              completed++;
-              if (completed === routes.length) {
-                showTimingOverlay(dataList, cellElement);
-              }
-            });
-        });
-      })
-      .catch((error) => {
-        console.warn(`${new Date().toISOString()} `, `Error fetching routes: ${error}`);
+      const dataPromises = routes.map(async (route, idx) => {
+        const routeUrl = buildRouteUrl(route, id);
+        console.info(`${new Date().toISOString()} `, `Timings for region ${routeUrl}`);
+
+        try {
+          const data = await apiCall(routeUrl);
+          return data;
+        } catch (error) {
+          console.warn(`${new Date().toISOString()} `, `Error fetching route data: ${error}`);
+          return null;
+        }
       });
+
+      const dataList = await Promise.all(dataPromises);
+      showTimingOverlay(dataList, cellElement);
+    } catch (error) {
+      console.warn(`${new Date().toISOString()} `, `Error fetching routes: ${error}`);
+    }
+  }
+
+  /**
+   * Builds the URL for fetching route data
+   */
+  function buildRouteUrl(route, id) {
+    const protocol = route.startsWith('localhost') || route.startsWith('127.0.0.1') ? 'http' : 'https';
+    return `${protocol}://${route}/grid-cell/view-row-by-id/${id}`;
   }
 
   /**
    * Gets routes either from URL query parameter or by fetching from the server
    * @returns {Promise<Array>} Promise that resolves to an array of routes
    */
-  function getRoutes() {
-    return new Promise((resolve, reject) => {
-      // First check for a "routes" query parameter
-      const urlParams = new URLSearchParams(window.location.search);
-      const routesParam = urlParams.get('routes');
+  async function getRoutes() {
+    // First check for a "routes" query parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const routesParam = urlParams.get('routes');
 
-      if (routesParam) {
-        // If routes parameter exists, parse it (assuming comma-separated list)
-        const routes = routesParam.split(',');
-        console.info(`${new Date().toISOString()} `, `Using routes from URL parameter: ${routes}`);
-        resolve(routes);
-      } else {
-        // Otherwise fetch routes from the server
-        fetch(config.endpoints.gridCellMultiRegionRoutes)
-          .then((resp) => resp.json())
-          .then((routes) => {
-            console.info(`${new Date().toISOString()} `, `Fetched multi-region routes: ${routes}`);
-            resolve(routes);
-          })
-          .catch((error) => {
-            console.warn(`${new Date().toISOString()} `, `Error fetching routes: ${error}`);
-            reject(error);
-          });
+    if (routesParam) {
+      // If routes parameter exists, parse it (assuming comma-separated list)
+      const routes = routesParam.split(',');
+      console.info(`${new Date().toISOString()} `, `Using routes from URL parameter: ${routes}`);
+      return routes;
+    } else {
+      // Otherwise fetch routes from the server
+      try {
+        const routes = await apiCall(config.endpoints.gridCellMultiRegionRoutes);
+        console.info(`${new Date().toISOString()} `, `Fetched multi-region routes: ${routes}`);
+        return routes;
+      } catch (error) {
+        console.warn(`${new Date().toISOString()} `, `Error fetching routes: ${error}`);
+        throw error;
       }
-    });
+    }
   }
 
   /**
@@ -2129,7 +2133,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
-    processAudio() {
+    async processAudio() {
       const audioBlob = new Blob(this.audioChunks, { type: 'audio/wav' });
       const formData = new FormData();
       formData.append('audio', audioBlob, 'voice-command.wav');
@@ -2137,52 +2141,57 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.info(`${new Date().toISOString()} `, 'Processing audio...');
       updateCommandStatus('Processing voice command...', 0);
 
-      apiCall(`${origin}${config.endpoints.agentVoiceCommand}`, {
-        method: 'POST',
-        headers: {
-          // Custom headers for viewport information and user session ID
-          'X-Viewport-Top-Left-Row': viewportY,
-          'X-Viewport-Top-Left-Col': viewportX,
-          'X-Viewport-Bottom-Right-Row': viewportY + gridRows,
-          'X-Viewport-Bottom-Right-Col': viewportX + gridCols,
-          'X-Mouse-Row': viewportY + mouseGridPosition.row, // Set relative position to grid absolute position
-          'X-Mouse-Col': viewportX + mouseGridPosition.col, // Set relative position to grid absolute position
-          'X-User-Session-Id': getSessionId(),
-        },
-        body: formData,
-      })
-        .then((responseText) => {
-          console.info(`${new Date().toISOString()} `, 'Audio processed: LLM agent response:', responseText);
-          updateCommandStatus('Voice command received: ' + responseText, 5000);
-          // The actual processing of commands will happen through the agent step stream
-          // No need to parse the response here as we'll get updates via SSE
-        })
-        .catch((error) => {
-          updateCommandStatus('Error processing voice command', 5000);
-        })
-        .finally(() => {
-          // Re-enable the record button
-          this.recordButton.disabled = false;
+      try {
+        const responseText = await apiCall(`${origin}${config.endpoints.agentVoiceCommand}`, {
+          method: 'POST',
+          headers: {
+            // Custom headers for viewport information and user session ID
+            'X-Viewport-Top-Left-Row': viewportY,
+            'X-Viewport-Top-Left-Col': viewportX,
+            'X-Viewport-Bottom-Right-Row': viewportY + gridRows,
+            'X-Viewport-Bottom-Right-Col': viewportX + gridCols,
+            'X-Mouse-Row': viewportY + mouseGridPosition.row, // Set relative position to grid absolute position
+            'X-Mouse-Col': viewportX + mouseGridPosition.col, // Set relative position to grid absolute position
+            'X-User-Session-Id': getSessionId(),
+          },
+          body: formData,
         });
+
+        console.info(`${new Date().toISOString()} `, 'Audio processed: LLM agent response:', responseText);
+        updateCommandStatus('Voice command received: ' + responseText, 5000);
+        // The actual processing of commands will happen through the agent step stream
+        // No need to parse the response here as we'll get updates via SSE
+      } catch (error) {
+        updateCommandStatus('Error processing voice command', 5000);
+      } finally {
+        // Re-enable the record button
+        this.recordButton.disabled = false;
+      }
     }
 
     processLLMResponse(responseJson) {
       console.debug(`${new Date().toISOString()} `, 'Audio processed: LLM agent response:', responseJson);
-      if (Array.isArray(responseJson)) {
-        responseJson.forEach((command) => {
-          console.debug(`${new Date().toISOString()} `, 'Processing command:', command);
-          if (typeof command === 'string') {
-            try {
-              const parsedCommand = JSON.parse(command);
-              this.processLLMCommand(parsedCommand);
-            } catch (e) {
-              console.error(`${new Date().toISOString()} `, 'Error parsing command JSON:', e);
-            }
-          } else {
-            this.processLLMCommand(command);
-          }
-        });
+      if (!Array.isArray(responseJson)) return;
+
+      responseJson.forEach((command) => {
+        console.debug(`${new Date().toISOString()} `, 'Processing command:', command);
+        const parsedCommand = this.parseCommand(command);
+        if (parsedCommand) {
+          this.processLLMCommand(parsedCommand);
+        }
+      });
+    }
+
+    parseCommand(command) {
+      if (typeof command === 'string') {
+        try {
+          return JSON.parse(command);
+        } catch (e) {
+          console.error(`${new Date().toISOString()} `, 'Error parsing command JSON:', e);
+          return null;
+        }
       }
+      return command;
     }
 
     processLLMCommand(command) {
