@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
    * Handles fetch errors with consistent logging
    */
   function handleFetchError(error, context, timestamp = true) {
-    const logPrefix = timestamp ? `${new Date().toISOString()} ` : '';
+    const logPrefix = timestamp ? formatTimestamp() : '';
     console.error(logPrefix, `Error ${context}:`, error);
   }
 
@@ -247,7 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
    * Logs info messages with consistent formatting
    */
   function logInfo(message, timestamp = true) {
-    const logPrefix = timestamp ? `${new Date().toISOString()} ` : '';
+    const logPrefix = timestamp ? formatTimestamp() : '';
     console.info(logPrefix, message);
   }
 
@@ -277,6 +277,72 @@ document.addEventListener('DOMContentLoaded', () => {
     return { left, top };
   }
 
+  /**
+   * Formats timestamp with optional prefix
+   */
+  function formatTimestamp(includePrefix = true) {
+    const timestamp = new Date().toISOString();
+    return includePrefix ? `${timestamp} ` : timestamp;
+  }
+
+  /**
+   * Enhanced element creation utility
+   */
+  function createElement(tagName, options = {}) {
+    const element = document.createElement(tagName);
+    if (options.id) element.id = options.id;
+    if (options.className) element.className = options.className;
+    if (options.textContent) element.textContent = options.textContent;
+    if (options.styles) Object.assign(element.style, options.styles);
+    if (options.attributes) {
+      Object.entries(options.attributes).forEach(([key, value]) => {
+        element.setAttribute(key, value);
+      });
+    }
+    if (options.parent) options.parent.appendChild(element);
+    return element;
+  }
+
+  /**
+   * Adds multiple event listeners to an element
+   */
+  function addEventListeners(element, eventMap) {
+    Object.entries(eventMap).forEach(([event, handler]) => {
+      element.addEventListener(event, handler);
+    });
+  }
+
+  /**
+   * Snaps a value to the nearest grid position
+   */
+  function snapToGrid(value, snapSize) {
+    return Math.round(value / snapSize) * snapSize;
+  }
+
+  /**
+   * Validates if an element exists and is valid
+   */
+  function isValidElement(element) {
+    return element && element.nodeType === Node.ELEMENT_NODE;
+  }
+
+  /**
+   * Creates a timeout with optional cleanup of existing timeout
+   */
+  function createTimeout(callback, delay, existingTimeout = null) {
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+    return setTimeout(callback, delay);
+  }
+
+  /**
+   * Creates a Promise that resolves after the specified delay
+   */
+  function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
   // --- State ---
   let hoveredCellId = null; // ID of the currently hovered cell ('cell-R-C')
   let gridCellEventSource = null; // EventSource instance
@@ -303,9 +369,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Create and insert mouse position display after grid position
   let mousePositionElement = document.getElementById('mouse-position');
   if (!mousePositionElement && gridPositionElement && gridPositionElement.parentNode) {
-    mousePositionElement = document.createElement('div');
-    mousePositionElement.id = 'mouse-position';
-    Object.assign(mousePositionElement.style, config.ui.mousePositionStyles);
+    mousePositionElement = createElement('div', {
+      id: 'mouse-position',
+      styles: config.ui.mousePositionStyles,
+      parent: gridPositionElement.parentNode
+    });
     gridPositionElement.parentNode.insertBefore(mousePositionElement, gridPositionElement);
   }
 
@@ -410,10 +478,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Create command status display if it doesn't exist
     if (!document.getElementById('command-status')) {
-      const commandStatus = document.createElement('div');
-      commandStatus.id = 'command-status';
-      commandStatus.textContent = 'Type number + x/y/h/j/k/l to navigate (e.g., 100x, 50h, 30j)';
-      infoPanel.appendChild(commandStatus);
+      createElement('div', {
+        id: 'command-status',
+        textContent: 'Type number + x/y/h/j/k/l to navigate (e.g., 100x, 50h, 30j)',
+        parent: infoPanel
+      });
     }
   }
 
@@ -567,22 +636,23 @@ document.addEventListener('DOMContentLoaded', () => {
   function setupCellOverlayEvents(cell) {
     let hoverTimer = null;
 
-    cell.addEventListener('mouseenter', () => {
-      removeGridCellOverlay();
-      // Only show overlay for cells with elapsed time data
-      if (!cellHasElapsedTime(cell)) {
-        return;
+    addEventListeners(cell, {
+      mouseenter: () => {
+        removeGridCellOverlay();
+        // Only show overlay for cells with elapsed time data
+        if (!cellHasElapsedTime(cell)) {
+          return;
+        }
+        hoverTimer = createTimeout(async () => {
+          // Double-check class in case cell state changed during delay
+          if (!cellHasElapsedTime(cell)) return;
+          fetchTimingOverlayData();
+        }, config.timing.overlayHoverDelay);
+      },
+      mouseleave: () => {
+        clearTimeout(hoverTimer);
+        removeGridCellOverlay();
       }
-      hoverTimer = setTimeout(async () => {
-        // Double-check class in case cell state changed during delay
-        if (!cellHasElapsedTime(cell)) return;
-        fetchTimingOverlayData();
-      }, config.timing.overlayHoverDelay);
-    });
-
-    cell.addEventListener('mouseleave', () => {
-      clearTimeout(hoverTimer);
-      removeGridCellOverlay();
     });
   }
 
@@ -590,17 +660,18 @@ document.addEventListener('DOMContentLoaded', () => {
    * Sets up hover tracking events for a cell
    */
   function setupCellHoverTracking(cell) {
-    cell.addEventListener('mouseenter', () => {
-      hoveredCellId = cell.id;
-      if (selectionMode && selectionStart) {
-        selectionEnd = getCellCoordinates(cell.id);
-        updateSelectionPreview();
-      }
-    });
-
-    cell.addEventListener('mouseleave', () => {
-      if (hoveredCellId === cell.id) {
-        hoveredCellId = null;
+    addEventListeners(cell, {
+      mouseenter: () => {
+        hoveredCellId = cell.id;
+        if (selectionMode && selectionStart) {
+          selectionEnd = getCellCoordinates(cell.id);
+          updateSelectionPreview();
+        }
+      },
+      mouseleave: () => {
+        if (hoveredCellId === cell.id) {
+          hoveredCellId = null;
+        }
       }
     });
   }
@@ -631,8 +702,9 @@ document.addEventListener('DOMContentLoaded', () => {
    * Creates a single grid cell with all event handlers
    */
   function createGridCell(row, col) {
-    const cell = document.createElement('div');
-    cell.className = 'grid-cell';
+    const cell = createElement('div', {
+      className: 'grid-cell'
+    });
 
     // Calculate the actual grid coordinates based on viewport position
     const actualRow = row + viewportY;
@@ -687,7 +759,7 @@ document.addEventListener('DOMContentLoaded', () => {
    * Creates grid axes after a short delay
    */
   function createGridAxes() {
-    setTimeout(() => {
+    createTimeout(() => {
       createLeftAxis();
       createBottomAxis();
     }, 0);
@@ -773,14 +845,14 @@ document.addEventListener('DOMContentLoaded', () => {
           lastError = `HTTP error for ${id}! Status: ${response.status} ${errorText}`;
           console.error(`${new Date().toISOString()} `, lastError);
           if (attempt < maxRetries) {
-            await new Promise((res) => setTimeout(res, retryDelay));
+            await delay(retryDelay);
           }
         }
       } catch (error) {
         lastError = error;
         handleFetchError(error, `sending cell ${id} update`);
         if (attempt < maxRetries) {
-          await new Promise((res) => setTimeout(res, retryDelay));
+          await delay(retryDelay);
         }
       }
     }
@@ -1024,22 +1096,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Handle absolute X positioning
     if (x !== undefined) {
-      newX = Math.round(x / config.grid.positionSnap) * config.grid.positionSnap;
+      newX = snapToGrid(x, config.grid.positionSnap);
     }
 
     // Handle absolute Y positioning
     if (y !== undefined) {
-      newY = Math.round(y / config.grid.positionSnap) * config.grid.positionSnap;
+      newY = snapToGrid(y, config.grid.positionSnap);
     }
 
     // Handle relative X movement (h/l commands)
     if (relativeX !== undefined) {
-      newX = viewportX + Math.round(relativeX / config.grid.positionSnap) * config.grid.positionSnap;
+      newX = viewportX + snapToGrid(relativeX, config.grid.positionSnap);
     }
 
     // Handle relative Y movement (j/k commands)
     if (relativeY !== undefined) {
-      newY = viewportY + Math.round(relativeY / config.grid.positionSnap) * config.grid.positionSnap;
+      newY = viewportY + snapToGrid(relativeY, config.grid.positionSnap);
     }
 
     // Clamp values to grid boundaries
@@ -1082,7 +1154,7 @@ document.addEventListener('DOMContentLoaded', () => {
       commandStatus.textContent = message;
 
       if (timeout > 0) {
-        setTimeout(() => {
+        createTimeout(() => {
           commandStatus.textContent = 'Type number + x/y/h/j/k/l to navigate (e.g., 100x, 50h, 30j)';
         }, timeout);
       }
@@ -1133,7 +1205,7 @@ document.addEventListener('DOMContentLoaded', () => {
         commandBuffer = '';
       } else {
         // Set a timeout to clear the command buffer if no key is pressed
-        commandTimeout = setTimeout(() => {
+        commandTimeout = createTimeout(() => {
           commandBuffer = '';
           updateCommandStatus('Command timeout. Type number + x/y to navigate', 2000);
         }, config.timing.commandTimeout);
@@ -1714,7 +1786,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    setTimeout(() => {
+    createTimeout(() => {
       document.addEventListener('mousedown', onDismiss, true);
       document.addEventListener('keydown', onDismiss, true);
     }, 0);
@@ -1900,7 +1972,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Hide after timeout if empty message
     if (!message) {
-      setTimeout(() => {
+      createTimeout(() => {
         statusElement.textContent = '';
       }, config.timing.selectionClearTimeout);
     }
@@ -2161,11 +2233,11 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('resize', () => {
     // Use debounce to avoid excessive recalculations during resize
     clearTimeout(window.resizeTimer);
-    window.resizeTimer = setTimeout(() => {
+    window.resizeTimer = createTimeout(() => {
       console.info(`${new Date().toISOString()} `, 'Window resized, recalculating grid dimensions...');
       createGrid();
       // Recreate axes after grid is resized
-      setTimeout(() => {
+      createTimeout(() => {
         createLeftAxis();
         createBottomAxis();
       }, 0);
@@ -2245,7 +2317,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Optional: Attempt to reconnect after a delay
         console.info(`${new Date().toISOString()} `, 'Agent step SSE Attempting to reconnect...');
-        setTimeout(connectToAgentStepStream, config.timing.reconnectDelay);
+        createTimeout(connectToAgentStepStream, config.timing.reconnectDelay);
       }
     };
   }
