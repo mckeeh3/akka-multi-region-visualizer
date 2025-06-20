@@ -408,90 +408,117 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /**
-   * Generates the grid cells dynamically.
+   * Sets up overlay hover events for a cell
    */
-  function createGrid() {
-    // Remove any lingering overlay from previous grid
-    removeGridCellOverlay();
-    // Calculate grid dimensions based on current viewport
-    calculateGridDimensions();
+  function setupCellOverlayEvents(cell) {
+    let hoverTimer = null;
+    
+    cell.addEventListener('mouseenter', () => {
+      removeGridCellOverlay();
+      // Only show overlay for cells with 'has-elapsed-time'
+      if (!cell.classList.contains('has-elapsed-time')) {
+        return;
+      }
+      hoverTimer = setTimeout(async () => {
+        // Double-check class in case cell state changed during delay
+        if (!cell.classList.contains('has-elapsed-time')) return;
+        fetchTimingOverlayData();
+      }, config.timing.overlayHoverDelay);
+    });
+    
+    cell.addEventListener('mouseleave', () => {
+      clearTimeout(hoverTimer);
+      removeGridCellOverlay();
+    });
+  }
 
-    // Clear existing grid
-    gridContainer.innerHTML = '';
+  /**
+   * Sets up hover tracking events for a cell
+   */
+  function setupCellHoverTracking(cell) {
+    cell.addEventListener('mouseenter', () => {
+      hoveredCellId = cell.id;
+      if (selectionMode && selectionStart) {
+        selectionEnd = getCellCoordinates(cell.id);
+        updateSelectionPreview();
+      }
+    });
 
-    // Create grid cells
+    cell.addEventListener('mouseleave', () => {
+      if (hoveredCellId === cell.id) {
+        hoveredCellId = null;
+      }
+    });
+  }
+
+  /**
+   * Sets up selection events for a cell
+   */
+  function setupCellSelectionEvents(cell) {
+    cell.addEventListener('mousedown', (event) => {
+      if (selectionMode) {
+        event.preventDefault();
+        selectionStart = getCellCoordinates(cell.id);
+        selectionEnd = selectionStart;
+        updateSelectionPreview();
+      }
+    });
+
+    cell.addEventListener('mouseup', (event) => {
+      if (selectionMode && selectionStart) {
+        event.preventDefault();
+        selectionEnd = getCellCoordinates(cell.id);
+        finalizeSelection();
+      }
+    });
+  }
+
+  /**
+   * Creates a single grid cell with all event handlers
+   */
+  function createGridCell(row, col) {
+    const cell = document.createElement('div');
+    cell.className = 'grid-cell';
+
+    // Calculate the actual grid coordinates based on viewport position
+    const actualRow = row + viewportY;
+    const actualCol = col + viewportX;
+    const cellId = `${actualRow}x${actualCol}`;
+    cell.id = `cell-${cellId}`;
+
+    // Set up all event handlers
+    setupCellOverlayEvents(cell);
+    setupCellHoverTracking(cell);
+    setupCellSelectionEvents(cell);
+
+    return cell;
+  }
+
+  /**
+   * Creates all grid cells and adds them to the container
+   */
+  function createGridCells() {
     for (let row = 0; row < gridRows; row++) {
       for (let col = 0; col < gridCols; col++) {
-        const cell = document.createElement('div');
-        cell.className = 'grid-cell';
-
-        // Calculate the actual grid coordinates based on viewport position
-        const actualRow = row + viewportY;
-        const actualCol = col + viewportX;
-        const cellId = `${actualRow}x${actualCol}`;
-        cell.id = `cell-${cellId}`;
-
-        // Grid cell overlay hover logic
-        let hoverTimer = null;
-        cell.addEventListener('mouseenter', () => {
-          removeGridCellOverlay();
-          // Only show overlay for cells with 'has-elapsed-time'
-          if (!cell.classList.contains('has-elapsed-time')) {
-            return;
-          }
-          hoverTimer = setTimeout(async () => {
-            // Double-check class in case cell state changed during delay
-            if (!cell.classList.contains('has-elapsed-time')) return;
-            fetchTimingOverlayData();
-          }, config.timing.overlayHoverDelay);
-        });
-        cell.addEventListener('mouseleave', () => {
-          clearTimeout(hoverTimer);
-          removeGridCellOverlay();
-        });
-
-        // Add hover tracking for keyboard shortcuts
-        cell.addEventListener('mouseenter', () => {
-          hoveredCellId = cell.id;
-          if (selectionMode && selectionStart) {
-            selectionEnd = getCellCoordinates(cell.id);
-            updateSelectionPreview();
-          }
-        });
-
-        cell.addEventListener('mouseleave', () => {
-          if (hoveredCellId === cell.id) {
-            hoveredCellId = null;
-          }
-        });
-
-        // Add mouse events for selection
-        cell.addEventListener('mousedown', (event) => {
-          if (selectionMode) {
-            event.preventDefault();
-            selectionStart = getCellCoordinates(cell.id);
-            selectionEnd = selectionStart;
-            updateSelectionPreview();
-          }
-        });
-
-        cell.addEventListener('mouseup', (event) => {
-          if (selectionMode && selectionStart) {
-            event.preventDefault();
-            selectionEnd = getCellCoordinates(cell.id);
-            finalizeSelection();
-          }
-        });
-
+        const cell = createGridCell(row, col);
         gridContainer.appendChild(cell);
       }
     }
     console.info(`${new Date().toISOString()} `, `Grid created with ${gridRows}x${gridCols} cells.`);
+  }
 
+  /**
+   * Applies CSS grid styling to the container
+   */
+  function applyGridStyling() {
     gridContainer.style.gridTemplateColumns = `repeat(${gridCols}, minmax(${config.grid.cellMinSize}px, 1fr))`;
     gridContainer.style.gridTemplateRows = `repeat(${gridRows}, minmax(${config.grid.cellMinSize}px, 1fr))`;
+  }
 
-    // Reset cell counts
+  /**
+   * Resets cell counters and updates display
+   */
+  function resetCellCounts() {
     cellCounts = {
       total: 0,
       red: 0,
@@ -500,15 +527,33 @@ document.addEventListener('DOMContentLoaded', () => {
       orange: 0,
       predator: 0,
     };
-
-    // Update the grid summary display
     updateGridSummary();
+  }
 
-    // Create axes after grid is populated
+  /**
+   * Creates grid axes after a short delay
+   */
+  function createGridAxes() {
     setTimeout(() => {
       createLeftAxis();
       createBottomAxis();
     }, 0);
+  }
+
+  /**
+   * Main grid creation function - orchestrates the grid building process
+   */
+  function createGrid() {
+    // Initialize
+    removeGridCellOverlay();
+    calculateGridDimensions();
+    gridContainer.innerHTML = '';
+
+    // Build grid
+    createGridCells();
+    applyGridStyling();
+    resetCellCounts();
+    createGridAxes();
   }
 
   /**
@@ -902,19 +947,22 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /**
-   * Handles global keydown events for cell updates, selection mode, and vim-like navigation.
-   * @param {KeyboardEvent} event
+   * Handles selection mode toggle with Shift key
    */
-  function handleGlobalKeyDown(event) {
-    // Toggle selection mode with Shift key
+  function handleSelectionModeToggle(event) {
     if (event.key === 'Shift' && !event.repeat) {
       selectionMode = true;
       document.body.classList.add('selection-active');
       updateSelectionStatus('Selection mode active - Click and drag to select cells');
-      return;
+      return true;
     }
+    return false;
+  }
 
-    // Handle navigation commands (numbers, minus sign, x, y, h, j, k, l)
+  /**
+   * Handles navigation command input (numbers, vim movements)
+   */
+  function handleNavigationCommand(event) {
     if (/^[0-9\-xyhjkl]$/.test(event.key)) {
       // Clear the command timeout if it exists
       if (commandTimeout) {
@@ -948,28 +996,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }, config.timing.commandTimeout);
       }
 
-      return;
+      return true;
     }
+    return false;
+  }
 
+  /**
+   * Handles command buffer escape/cancel
+   */
+  function handleCommandCancel(event) {
     if (commandBuffer.length > 0 && event.key === 'Escape') {
-      // Clear the command buffer if Escape is pressed
       commandBuffer = '';
       updateCommandStatus('Command canceled', 2000);
-      return;
+      return true;
     }
+    return false;
+  }
 
-    // Handle color keys
+  /**
+   * Gets the current cell status color character
+   */
+  function getCellColorChar(cellElement) {
+    if (cellElement.classList.contains('cell-red')) return 'r';
+    if (cellElement.classList.contains('cell-green')) return 'g';
+    if (cellElement.classList.contains('cell-blue')) return 'b';
+    if (cellElement.classList.contains('cell-orange')) return 'o';
+    if (cellElement.classList.contains('cell-predator')) return 'p';
+    return '';
+  }
+
+  /**
+   * Handles color key commands (r, g, b, o, d)
+   */
+  function handleColorCommand(event) {
     if (['r', 'g', 'b', 'o', 'd'].includes(event.key.toLowerCase())) {
-      event.preventDefault(); // Prevent default browser action
+      event.preventDefault();
       const colorChar = event.key.toLowerCase();
       const radius = commandBuffer.length == 0 ? 0 : parseInt(commandBuffer);
-      const cellElement = document.getElementById(hoveredCellId);
-      const hasElapsedTime = cellElement != null && cellElement.classList.contains('has-elapsed-time');
       const commandPath = 'create-shape';
 
       if (currentSelection.length > 0) {
         // Rectangle selection mode
-        const topLeftXy = currentSelection[0].split('x'); // RxC, YxX
+        const topLeftXy = currentSelection[0].split('x');
         const topLeftX = parseInt(topLeftXy[1]);
         const topLeftY = parseInt(topLeftXy[0]);
         const bottomRightXy = currentSelection[currentSelection.length - 1].split('x');
@@ -977,116 +1045,161 @@ document.addEventListener('DOMContentLoaded', () => {
         const bottomRightY = parseInt(bottomRightXy[0]);
         const width = Math.abs(bottomRightX - topLeftX) + 1;
         const height = Math.abs(bottomRightY - topLeftY) + 1;
-        const id = topLeftY + 'x' + topLeftX; // RxC, YxX
+        const id = topLeftY + 'x' + topLeftX;
         sendCellUpdate(id, colorChar, commandPath, 0, width, height);
 
-        // Clear selection after applying
         clearSelection();
         updateSelectionStatus('Color applied to selection');
       } else if (hoveredCellId) {
-        // Extract "RxC" from "cell-RxC"
-        const id = hoveredCellId.substring(5); // Remove "cell-" prefix
+        const id = hoveredCellId.substring(5);
         sendCellUpdate(id, colorChar, commandPath, radius);
       }
+      return true;
     }
+    return false;
+  }
 
-    // Handle clear command
+  /**
+   * Handles cell clear command (c)
+   */
+  function handleClearCommand(event) {
     if (event.key === 'c') {
-      event.preventDefault(); // Prevent default browser action
+      event.preventDefault();
       const cellElement = document.getElementById(hoveredCellId);
-      const hasElapsedTime = cellElement.classList.contains('has-elapsed-time');
+      const hasElapsedTime = cellElement && cellElement.classList.contains('has-elapsed-time');
 
       if (hasElapsedTime) {
         const commandPath = 'clear-cells';
-        const id = hoveredCellId.substring(5); // Remove "cell-" prefix
-        const colorChar = cellElement.classList.contains('cell-red')
-          ? 'r'
-          : cellElement.classList.contains('cell-green')
-          ? 'g'
-          : cellElement.classList.contains('cell-blue')
-          ? 'b'
-          : cellElement.classList.contains('cell-orange')
-          ? 'o'
-          : cellElement.classList.contains('cell-predator')
-          ? 'p'
-          : '';
+        const id = hoveredCellId.substring(5);
+        const colorChar = getCellColorChar(cellElement);
         if (colorChar.length > 0) {
           sendCellUpdate(id, colorChar, commandPath);
         }
       }
+      return true;
     }
+    return false;
+  }
 
-    // Handle erase command
+  /**
+   * Handles cell erase command (e)
+   */
+  function handleEraseCommand(event) {
     if (event.key === 'e') {
-      event.preventDefault(); // Prevent default browser action
+      event.preventDefault();
       const cellElement = document.getElementById(hoveredCellId);
-      const hasElapsedTime = cellElement.classList.contains('has-elapsed-time');
+      const hasElapsedTime = cellElement && cellElement.classList.contains('has-elapsed-time');
 
       if (hasElapsedTime) {
         const commandPath = 'erase-cells';
-        const id = hoveredCellId.substring(5); // Remove "cell-" prefix
+        const id = hoveredCellId.substring(5);
         sendCellUpdate(id, '', commandPath);
       }
+      return true;
     }
+    return false;
+  }
 
-    // Handle cell data details command
+  /**
+   * Handles overlay commands (q, t, p)
+   */
+  function handleOverlayCommands(event) {
+    // Cell data details command
     if (event.key === 'q') {
-      event.preventDefault(); // Prevent default browser action
+      event.preventDefault();
       if (hoveredCellId) {
         const cellElement = document.getElementById(hoveredCellId);
         if (cellElement && cellElement.classList.contains('has-elapsed-time')) {
           fetchGridCellOverlayData(cellElement);
         }
       }
+      return true;
     }
 
-    // Handle timings command
+    // Timings command
     if (event.key === 't') {
-      event.preventDefault(); // Prevent default browser action
+      event.preventDefault();
       const cellElement = document.getElementById(hoveredCellId);
-      const hasElapsedTime = cellElement.classList.contains('has-elapsed-time');
+      const hasElapsedTime = cellElement && cellElement.classList.contains('has-elapsed-time');
 
       if (hasElapsedTime) {
         fetchTimingOverlayData();
       }
+      return true;
     }
 
-    // Handle predator update command
+    // Predator command
     if (event.key === 'p') {
-      event.preventDefault(); // Prevent default browser action
-      const cellElement = document.getElementById(hoveredCellId);
-
-      const id = hoveredCellId.substring(5); // Remove "cell-" prefix
-      const range = commandBuffer.length == 0 ? 0 : parseInt(commandBuffer);
-
-      sendCreatePredator(id, range);
+      event.preventDefault();
+      if (hoveredCellId) {
+        const id = hoveredCellId.substring(5);
+        const range = commandBuffer.length == 0 ? 0 : parseInt(commandBuffer);
+        sendCreatePredator(id, range);
+      }
+      return true;
     }
 
-    // Handle toggle microphone command
+    return false;
+  }
+
+  /**
+   * Handles system commands (m, a)
+   */
+  function handleSystemCommands(event) {
+    // Toggle microphone
     if (event.key === 'm') {
-      event.preventDefault(); // Prevent default browser action
+      event.preventDefault();
       voiceCommand.toggleMicrophone();
+      return true;
     }
 
-    // Handle toggle agent message viewer
+    // Toggle agent message viewer
     if (event.key === 'a') {
-      event.preventDefault(); // Prevent default browser action
+      event.preventDefault();
       toggleAgentMessageOverlay();
+      return true;
     }
 
-    // Handle agent message navigation with arrow keys when overlay is visible
+    return false;
+  }
+
+  /**
+   * Handles agent overlay navigation
+   */
+  function handleAgentOverlayNavigation(event) {
     if (document.querySelector('.agent-message-overlay')) {
       if (event.key === 'ArrowUp') {
         event.preventDefault();
-        navigateAgentMessages(-1); // Previous message
+        navigateAgentMessages(-1);
+        return true;
       } else if (event.key === 'ArrowDown') {
         event.preventDefault();
-        navigateAgentMessages(1); // Next message
+        navigateAgentMessages(1);
+        return true;
       } else if (event.key === 'Escape') {
         event.preventDefault();
         removeAgentMessageOverlay();
+        return true;
       }
     }
+    return false;
+  }
+
+  /**
+   * Main keyboard event dispatcher - delegates to specific handlers
+   * @param {KeyboardEvent} event
+   */
+  function handleGlobalKeyDown(event) {
+    // Try each handler in order until one handles the event
+    if (handleSelectionModeToggle(event)) return;
+    if (handleNavigationCommand(event)) return;
+    if (handleCommandCancel(event)) return;
+    if (handleColorCommand(event)) return;
+    if (handleClearCommand(event)) return;
+    if (handleEraseCommand(event)) return;
+    if (handleOverlayCommands(event)) return;
+    if (handleSystemCommands(event)) return;
+    if (handleAgentOverlayNavigation(event)) return;
   }
 
   /**
@@ -1268,17 +1381,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /**
-   * Displays the timing overlay for a cell.
-   * @param {Array} dataList - List of timing data objects from all routes
-   * @param {HTMLElement} cellElement - The cell element to show overlay for
+   * Processes and validates timing data
    */
-  function showTimingOverlay(dataList, cellElement) {
-    removeGridCellOverlay();
-    // Defensive: filter nulls, parse dates, sort by viewAt ascending
+  function processTimingData(dataList) {
     const validData = dataList.filter((d) => d && d.viewAt && d.endpointAt && d.updatedAt);
-    if (!validData.length) return;
+    if (!validData.length) return null;
 
-    // Parse all relevant dates
     const parsed = validData.map((d) => {
       const obj = { ...d };
       for (const k in obj) {
@@ -1286,151 +1394,192 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       return obj;
     });
-    parsed.sort((a, b) => a.viewAt - b.viewAt); // oldest to youngest
+    
+    parsed.sort((a, b) => a.viewAt - b.viewAt);
+    return parsed;
+  }
 
-    const endpointAt0 = parsed[0].endpointAt; // all endpointAt should match
-    const updatedAt = parsed[0].updatedAt; // all updatedAt should match
+  /**
+   * Calculates timing values for visualization
+   */
+  function calculateTimingValues(parsed) {
+    const endpointAt0 = parsed[0].endpointAt;
+    const updatedAt = parsed[0].updatedAt;
     const youngestViewAt = parsed[parsed.length - 1].viewAt;
     const oldestViewAt = parsed[0].viewAt;
     const gap1 = updatedAt - endpointAt0;
     const gap2 = youngestViewAt - updatedAt;
+    
     // Compensate for excess endpoint to entity elapsed time
     const endpointAt = gap1 > gap2 ? new Date(updatedAt - gap2) : endpointAt0;
     const msRange = youngestViewAt - endpointAt;
-    const pxWidth = config.overlay.timingWidth;
-    const pxIndent = config.overlay.timingIndent;
-    const pxHeight = Math.max(config.overlay.timingMinHeight, parsed.length * config.overlay.timingRowHeight);
+    
+    return {
+      endpointAt0,
+      endpointAt,
+      updatedAt,
+      youngestViewAt,
+      oldestViewAt,
+      msRange
+    };
+  }
+
+  /**
+   * Creates the basic overlay container
+   */
+  function createTimingOverlayContainer(pxWidth, pxHeight) {
     const overlay = document.createElement('div');
     overlay.className = 'grid-cell-overlay';
-    overlay.style.position = 'fixed';
-    overlay.style.background = 'rgba(10,20,40,0.98)';
-    overlay.style.color = '#a7ecff';
-    overlay.style.zIndex = '10000';
-    overlay.style.display = 'flex';
-    overlay.style.flexDirection = 'column';
-    overlay.style.justifyContent = 'center';
-    overlay.style.alignItems = 'center';
-    overlay.style.fontSize = '0.75em';
-    overlay.style.padding = '16px 24px';
-    overlay.style.border = '2px solid #be43a4';
-    overlay.style.borderRadius = '7px';
-    overlay.style.boxShadow = '0 0 16px #be43a4';
-    overlay.style.minWidth = pxWidth + 40 + 'px';
-    overlay.style.minHeight = pxHeight + 20 + 'px';
-    overlay.style.maxWidth = '90vw';
-    overlay.style.maxHeight = '80vh';
+    
+    Object.assign(overlay.style, {
+      position: 'fixed',
+      background: 'rgba(10,20,40,0.98)',
+      color: '#a7ecff',
+      zIndex: '10000',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      alignItems: 'center',
+      fontSize: '0.75em',
+      padding: '16px 24px',
+      border: '2px solid #be43a4',
+      borderRadius: '7px',
+      boxShadow: '0 0 16px #be43a4',
+      minWidth: (pxWidth + 40) + 'px',
+      minHeight: (pxHeight + 20) + 'px',
+      maxWidth: '90vw',
+      maxHeight: '80vh'
+    });
+    
+    return overlay;
+  }
 
-    // function to create a key table cell
-    const createKeyValueRow = (idx, key, value, region) => {
-      const row = document.createElement('tr');
-      const i = document.createElement('td');
-      i.textContent = idx;
-      i.style.padding = '2px 6px';
-      i.style.textAlign = 'center';
-      i.style.color = '#ffffff';
-      const k = document.createElement('td');
-      k.textContent = key;
-      k.style.padding = '2px 6px';
-      k.style.fontWeight = 'bold';
-      k.style.textAlign = 'right';
-      k.style.color = '#6fffc8';
-      const v = document.createElement('td');
-      v.textContent = value;
-      v.style.padding = '2px 6px';
-      v.style.textAlign = 'left';
-      v.style.color = '#ffffff';
-      const r = document.createElement('td');
-      r.textContent = region;
-      r.style.padding = '2px 6px';
-      r.style.textAlign = 'left';
-      r.style.color = '#e7bf50';
-      row.appendChild(k);
-      row.appendChild(v);
-      row.appendChild(r);
-      row.appendChild(i);
-      return row;
-    };
+  /**
+   * Creates a table row for timing data
+   */
+  function createTimingTableRow(idx, key, value, region) {
+    const row = document.createElement('tr');
+    
+    const cells = [
+      { content: key, styles: { padding: '2px 6px', fontWeight: 'bold', textAlign: 'right', color: '#6fffc8' }},
+      { content: value, styles: { padding: '2px 6px', textAlign: 'left', color: '#ffffff' }},
+      { content: region, styles: { padding: '2px 6px', textAlign: 'left', color: '#e7bf50' }},
+      { content: idx, styles: { padding: '2px 6px', textAlign: 'center', color: '#ffffff' }}
+    ];
+    
+    cells.forEach(({ content, styles }) => {
+      const cell = document.createElement('td');
+      cell.textContent = content;
+      Object.assign(cell.style, styles);
+      row.appendChild(cell);
+    });
+    
+    return row;
+  }
 
+  /**
+   * Creates the timing data table
+   */
+  function createTimingTable(parsed) {
     const table = document.createElement('table');
     table.style.marginBottom = '10px';
     table.style.borderCollapse = 'collapse';
+    
     const p = parsed[0];
-    table.appendChild(createKeyValueRow('', 'ID', p.id, p.updated));
-    table.appendChild(createKeyValueRow('', 'Endpoint to entity', `${p.updatedAt - p.endpointAt} ms`, p.updated));
-    table.appendChild(createKeyValueRow('1', 'Entity to view', `${p.viewAt - p.updatedAt} ms`, p.view));
+    table.appendChild(createTimingTableRow('', 'ID', p.id, p.updated));
+    table.appendChild(createTimingTableRow('', 'Endpoint to entity', `${p.updatedAt - p.endpointAt} ms`, p.updated));
+    table.appendChild(createTimingTableRow('1', 'Entity to view', `${p.viewAt - p.updatedAt} ms`, p.view));
+    
     for (let i = 1; i < parsed.length; i++) {
       const p = parsed[i];
-      table.appendChild(createKeyValueRow(`${i + 1}`, 'Entity to view', `${p.viewAt - p.updatedAt} ms`, p.view));
+      table.appendChild(createTimingTableRow(`${i + 1}`, 'Entity to view', `${p.viewAt - p.updatedAt} ms`, p.view));
     }
-    overlay.appendChild(table);
+    
+    return table;
+  }
 
-    // Timings graph SVG setup
+  /**
+   * Creates the SVG container for timing visualization
+   */
+  function createTimingSVG(pxWidth, pxHeight) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', pxWidth);
     svg.setAttribute('height', pxHeight);
-    svg.style.display = 'block';
-    svg.style.background = 'rgba(20,30,60,0.9)';
-    svg.style.borderRadius = '6px';
-    svg.style.marginBottom = '8px';
+    
+    Object.assign(svg.style, {
+      display: 'block',
+      background: 'rgba(20,30,60,0.9)',
+      borderRadius: '6px',
+      marginBottom: '8px'
+    });
+    
+    return svg;
+  }
 
-    // Y spacing
-    const yStep = pxHeight / (parsed.length + 1);
-
-    // Helper: ms to px (with indent)
+  /**
+   * Draws the main timeline on the SVG
+   */
+  function drawMainTimeline(svg, timingValues, pxWidth, pxIndent, yStep) {
+    const { endpointAt0, endpointAt, updatedAt, oldestViewAt, msRange } = timingValues;
+    
     const msToX = (ms) => {
       if (msRange === 0) return pxIndent;
       return Math.round(((ms - endpointAt) / msRange) * (pxWidth - 2 * pxIndent)) + pxIndent;
     };
 
-    // First line: endpointAt -> updatedAt -> oldestViewAt
     const y0 = yStep;
     const xEndpoint = msToX(endpointAt);
     const xUpdated = msToX(updatedAt);
     const xOldestView = msToX(oldestViewAt);
-    {
-      // Yellow line when length adjusted to compensate for excess endpoint to entity time
-      const color = endpointAt0 == endpointAt ? '#a7ecff' : '#f8f53f';
-      svg.appendChild(svgLine(xEndpoint, y0, xUpdated, y0, color));
-    }
+    
+    // Draw lines
+    const color = endpointAt0 == endpointAt ? '#a7ecff' : '#f8f53f';
+    svg.appendChild(svgLine(xEndpoint, y0, xUpdated, y0, color));
     svg.appendChild(svgLine(xUpdated, y0, xOldestView, y0, '#a7ecff'));
 
-    // Markers for the three points
+    // Draw markers
     const markerColors = ['#44ddff', '#ff4d6f', '#ffd24d'];
     [xEndpoint, xUpdated, xOldestView].forEach((x, i) => {
       svg.appendChild(svgCircle(x, y0, 5, markerColors[i], '#222', '1'));
     });
 
-    // Place "1" above the oldest view circle
     svg.appendChild(svgText(xOldestView, y0 - 12, '1', '15', 'bold', '#ffffff'));
+    
+    return msToX;
+  }
 
-    // Straight lines for each additional region
+  /**
+   * Draws additional region lines on the SVG
+   */
+  function drawAdditionalRegions(svg, parsed, msToX, yStep, updatedAt) {
     for (let i = 1; i < parsed.length; i++) {
       const y = yStep * (i + 1);
-      const xStart = xUpdated;
+      const xStart = msToX(updatedAt);
       const xEnd = msToX(parsed[i].viewAt);
-      // Draw a straight line from xUpdated (main line) to this region's viewAt at y
+      
+      // Draw timing lines
       svg.appendChild(svgLine(xStart, y, xEnd, y, '#44ddff'));
-      // Draw a vertical line from xUpdated to prior line start
       svg.appendChild(svgLine(xStart, y - yStep + 7, xStart, y, '#44ddff'));
-      // Marker at start
+      
+      // Draw markers
       svg.appendChild(svgCircle(xStart, y, 5, '#ff4d6f', '#222', '1'));
-      // Marker at end
       svg.appendChild(svgCircle(xEnd, y, 5, '#ffd24d', '#222', '1'));
-      // Add centered text with the loop index 'i'
       svg.appendChild(svgText(xEnd, y - 12, i + 1, '15', 'bold', '#ffffff'));
     }
+  }
 
-    overlay.appendChild(svg);
-
-    // Position overlay near cell
+  /**
+   * Positions the overlay relative to the cell
+   */
+  function positionOverlay(overlay, cellElement) {
     document.body.appendChild(overlay);
     const cellRect = cellElement.getBoundingClientRect();
-    overlay.style.left = cellRect.right + 12 + 'px';
-    overlay.style.top = cellRect.top - 8 + 'px';
-    // Clamp if offscreen
+    
+    let left = cellRect.right + 12;
+    let top = cellRect.top - 8;
+    
+    // Clamp to viewport
     const overlayRect = overlay.getBoundingClientRect();
-    let left = overlayRect.left,
-      top = overlayRect.top;
     if (left + overlayRect.width > window.innerWidth - 8) {
       left = cellRect.left - overlayRect.width - 12;
     }
@@ -1439,28 +1588,65 @@ document.addEventListener('DOMContentLoaded', () => {
       top = window.innerHeight - overlayRect.height - 8;
     }
     if (top < 8) top = 8;
+    
     overlay.style.left = left + 'px';
     overlay.style.top = top + 'px';
     cellElement.classList.add('grid-cell-overlay-active');
+  }
 
-    // Dismiss overlay on click outside or Escape
+  /**
+   * Sets up overlay dismiss handlers
+   */
+  function setupOverlayDismiss(overlay) {
     function onDismiss(e) {
-      if (e.type === 'keydown' && e.key !== 'Escape') return;
-      if (e.type === 'mousedown' && !overlay.contains(e.target)) {
-        removeGridCellOverlay();
-        document.removeEventListener('mousedown', onDismiss, true);
-        document.removeEventListener('keydown', onDismiss, true);
-      }
-      if (e.type === 'keydown' && e.key === 'Escape') {
+      const shouldDismiss = 
+        (e.type === 'keydown' && e.key === 'Escape') ||
+        (e.type === 'mousedown' && !overlay.contains(e.target));
+        
+      if (shouldDismiss) {
         removeGridCellOverlay();
         document.removeEventListener('mousedown', onDismiss, true);
         document.removeEventListener('keydown', onDismiss, true);
       }
     }
+    
     setTimeout(() => {
       document.addEventListener('mousedown', onDismiss, true);
       document.addEventListener('keydown', onDismiss, true);
     }, 0);
+  }
+
+  /**
+   * Main function to display the timing overlay for a cell
+   * @param {Array} dataList - List of timing data objects from all routes
+   * @param {HTMLElement} cellElement - The cell element to show overlay for
+   */
+  function showTimingOverlay(dataList, cellElement) {
+    removeGridCellOverlay();
+    
+    const parsed = processTimingData(dataList);
+    if (!parsed) return;
+    
+    const timingValues = calculateTimingValues(parsed);
+    const pxWidth = config.overlay.timingWidth;
+    const pxIndent = config.overlay.timingIndent;
+    const pxHeight = Math.max(config.overlay.timingMinHeight, parsed.length * config.overlay.timingRowHeight);
+    
+    // Create overlay components
+    const overlay = createTimingOverlayContainer(pxWidth, pxHeight);
+    const table = createTimingTable(parsed);
+    const svg = createTimingSVG(pxWidth, pxHeight);
+    
+    // Draw timing visualization
+    const yStep = pxHeight / (parsed.length + 1);
+    const msToX = drawMainTimeline(svg, timingValues, pxWidth, pxIndent, yStep);
+    drawAdditionalRegions(svg, parsed, msToX, yStep, timingValues.updatedAt);
+    
+    // Assemble and position overlay
+    overlay.appendChild(table);
+    overlay.appendChild(svg);
+    positionOverlay(overlay, cellElement);
+    setupOverlayDismiss(overlay);
   }
 
   function svgLine(x1, y1, x2, y2, color) {
