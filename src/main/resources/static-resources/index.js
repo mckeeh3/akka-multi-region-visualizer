@@ -1,15 +1,101 @@
 document.addEventListener('DOMContentLoaded', () => {
   // --- Configuration ---
+  const config = {
+    session: {
+      idLength: 5,
+      idChars: '0123456789abcdefghijklmnopqrstuvwxyz',
+    },
+
+    grid: {
+      cellMinSize: 30,
+      cellGap: 3,
+      minCoord: -1000000,
+      maxCoord: 1000000,
+      maxCellsPerRegion: 500,
+      positionSnap: 10,
+    },
+
+    timing: {
+      defaultPollingInterval: 100,
+      overlayHoverDelay: 1500,
+      commandTimeout: 3000,
+      windowResizeDebounce: 250,
+      selectionClearTimeout: 3000,
+      reconnectDelay: 5000,
+    },
+
+    retry: {
+      maxAttempts: 10,
+      delay: 100,
+    },
+
+    overlay: {
+      maxWidth: 350,
+      maxHeightVh: 70,
+      timingWidth: 400,
+      timingIndent: 10,
+      timingMinHeight: 40,
+      timingRowHeight: 40,
+    },
+
+    agent: {
+      messageQueueMax: 100,
+    },
+
+    ui: {
+      axisTickIntervalMajor: 10,
+      axisTickIntervalMinor: 5,
+      maxElapsedTimeDisplay: 9999,
+      mousePositionStyles: {
+        marginLeft: '18px',
+        display: 'inline-block',
+        color: 'white',
+        fontSize: '0.9em',
+        fontWeight: 'bold',
+        background: 'rgba(5,10,25,0.4)',
+        padding: '3px 8px',
+        borderRadius: '3px',
+        border: '1px solid rgba(0,100,200,0.2)',
+      },
+    },
+
+    colors: {
+      statusMap: {
+        r: 'red',
+        g: 'green',
+        b: 'blue',
+        o: 'orange',
+        p: 'predator',
+        d: 'inactive',
+      },
+    },
+
+    endpoints: {
+      gridCellStream: '/grid-cell/stream',
+      gridCellList: '/grid-cell/list',
+      gridCellPaginatedList: '/grid-cell/paginated-list',
+      gridCellViewById: '/grid-cell/view-row-by-id',
+      gridCellRegion: '/grid-cell/region',
+      gridCellMultiRegionRoutes: '/grid-cell/multi-region-routes',
+      createShape: '/grid-cell/create-shape',
+      clearCells: '/grid-cell/clear-cells',
+      eraseCells: '/grid-cell/erase-cells',
+      createPredator: '/grid-cell/create-predator',
+      agentVoiceCommand: '/agent/voice-command',
+      agentStepsStream: '/agent/agent-steps-stream',
+      agentStepConsumed: '/agent/agent-step-consumed',
+    },
+  };
+
   // User's session ID
   function getSessionId() {
     let sessionId = sessionStorage.getItem('sessionId');
     if (sessionId == null || sessionId == undefined || sessionId == '') {
-      // Generate a random ID of 5 characters (0-9, a-z)
-      sessionId = Array(5)
+      // Generate a random ID
+      sessionId = Array(config.session.idLength)
         .fill(0)
         .map(() => {
-          const chars = '0123456789abcdefghijklmnopqrstuvwxyz';
-          return chars.charAt(Math.floor(Math.random() * chars.length));
+          return config.session.idChars.charAt(Math.floor(Math.random() * config.session.idChars.length));
         })
         .join('');
       sessionStorage.setItem('sessionId', sessionId);
@@ -20,21 +106,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // Grid dimensions will be calculated dynamically based on viewport size
   let gridRows = 0; // Will be calculated dynamically
   let gridCols = 0; // Will be calculated dynamically
-  const cellMinSize = 30; // Minimum cell size in pixels (increased from 20)
 
   // Recording state
   let isRecording = false; // Track recording state
 
   // Viewport configuration
-  const MIN_GRID_COORD = -1000000; // Minimum grid coordinate
-  const MAX_GRID_COORD = 1000000; // Maximum grid coordinate
   let viewportX = 0; // Current X offset of the viewport (horizontal)
   let viewportY = 0; // Current Y offset of the viewport (vertical)
 
   // Use the current origin for API calls and SSE stream
   const origin = window.location.origin; // Gets the protocol, hostname, and port
-  const viewStreamUrl = `${origin}/grid-cell/stream`; // SSE URL
-  const viewListUrl = `${origin}/grid-cell/list`; // SSE URL
+  const viewStreamUrl = `${origin}${config.endpoints.gridCellStream}`;
+  const viewListUrl = `${origin}${config.endpoints.gridCellList}`;
 
   // --- State ---
   let hoveredCellId = null; // ID of the currently hovered cell ('cell-R-C')
@@ -64,15 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!mousePositionElement && gridPositionElement && gridPositionElement.parentNode) {
     mousePositionElement = document.createElement('div');
     mousePositionElement.id = 'mouse-position';
-    mousePositionElement.style.marginLeft = '18px';
-    mousePositionElement.style.display = 'inline-block';
-    mousePositionElement.style.color = 'white';
-    mousePositionElement.style.fontSize = '0.9em';
-    mousePositionElement.style.fontWeight = 'bold';
-    mousePositionElement.style.background = 'rgba(5,10,25,0.4)';
-    mousePositionElement.style.padding = '3px 8px';
-    mousePositionElement.style.borderRadius = '3px';
-    mousePositionElement.style.border = '1px solid rgba(0,100,200,0.2)';
+    Object.assign(mousePositionElement.style, config.ui.mousePositionStyles);
     gridPositionElement.parentNode.insertBefore(mousePositionElement, gridPositionElement);
   }
 
@@ -113,8 +188,8 @@ document.addEventListener('DOMContentLoaded', () => {
       let gridX = Math.floor(px / cellWidth) + viewportX;
       let gridY = Math.floor(py / cellHeight) + viewportY;
       // Clamp to grid bounds
-      gridX = Math.max(MIN_GRID_COORD, Math.min(MAX_GRID_COORD, gridX));
-      gridY = Math.max(MIN_GRID_COORD, Math.min(MAX_GRID_COORD, gridY));
+      gridX = Math.max(config.grid.minCoord, Math.min(config.grid.maxCoord, gridX));
+      gridY = Math.max(config.grid.minCoord, Math.min(config.grid.maxCoord, gridY));
       mouseGridPosition.row = gridY;
       mouseGridPosition.col = gridX;
       updateMousePositionDisplay(gridX, gridY);
@@ -208,12 +283,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Use a fixed border for all 4 sides
     const sideMargin = infoPanelHeight * 2; // px
-    const availableWidth = Math.max(cellMinSize, window.innerWidth - 2 * sideMargin);
-    const availableHeight = Math.max(cellMinSize, window.innerHeight - infoPanelHeight - 2 * sideMargin);
+    const availableWidth = Math.max(config.grid.cellMinSize, window.innerWidth - 2 * sideMargin);
+    const availableHeight = Math.max(config.grid.cellMinSize, window.innerHeight - infoPanelHeight - 2 * sideMargin);
 
-    // Calculate number of cells that can fit (accounting for 3px gap between cells)
-    gridCols = Math.max(1, Math.floor(availableWidth / (cellMinSize + 3)));
-    gridRows = Math.max(1, Math.floor(availableHeight / (cellMinSize + 3)));
+    // Calculate number of cells that can fit (accounting for gap between cells)
+    gridCols = Math.max(1, Math.floor(availableWidth / (config.grid.cellMinSize + config.grid.cellGap)));
+    gridRows = Math.max(1, Math.floor(availableHeight / (config.grid.cellMinSize + config.grid.cellGap)));
 
     console.info(`${new Date().toISOString()} `, `Calculated grid dimensions: ${gridRows}x${gridCols} based on viewport ${window.innerWidth}x${window.innerHeight}, border ${sideMargin}px`);
   }
@@ -229,14 +304,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const gridContentHeight = gridContainer.clientHeight - parseInt(gridComputedStyle.paddingTop, 10) - parseInt(gridComputedStyle.paddingBottom, 10);
 
     // Get the exact cell height including gap
-    const totalGapHeight = (gridRows - 1) * 3; // 3px gap between cells
+    const totalGapHeight = (gridRows - 1) * config.grid.cellGap;
     const cellHeight = (gridContentHeight - totalGapHeight) / gridRows;
 
     // Get grid container's computed style
     const gridStyle = window.getComputedStyle(gridContainer);
     const topPadding = parseInt(gridStyle.paddingTop, 10) || 0;
     const borderWidth = parseInt(gridStyle.borderTopWidth, 10) || 0;
-    const gapSize = 3; // Match the gap size from CSS
+    const gapSize = config.grid.cellGap;
 
     // Create ticks and labels for each row
     for (let r = 0; r < gridRows; r++) {
@@ -245,7 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
       tick.classList.add('axis-tick', 'left-tick');
 
       // Add special classes for multiples of 5 and 10
-      if (r % 10 === 0) {
+      if (r % config.ui.axisTickIntervalMajor === 0) {
         tick.classList.add('tick-10');
 
         // Add label for multiples of 10
@@ -257,7 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const labelPosition = cellStart + cellHeight / 2;
         label.style.top = `${labelPosition}px`;
         leftAxis.appendChild(label);
-      } else if (r % 5 === 0) {
+      } else if (r % config.ui.axisTickIntervalMinor === 0) {
         tick.classList.add('tick-5');
       }
 
@@ -293,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const gridStyle = window.getComputedStyle(gridContainer);
     const leftPadding = parseInt(gridStyle.paddingLeft, 10) || 10;
     const borderWidth = parseInt(gridStyle.borderLeftWidth, 10) || 0;
-    const gapSize = 3; // Match the gap size from CSS
+    const gapSize = config.grid.cellGap;
 
     // Create ticks and labels for each column
     for (let c = 0; c < gridCols; c++) {
@@ -302,7 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
       tick.classList.add('axis-tick', 'bottom-tick');
 
       // Add special classes for multiples of 5 and 10
-      if (c % 10 === 0) {
+      if (c % config.ui.axisTickIntervalMajor === 0) {
         tick.classList.add('tick-10');
 
         // Add label for multiples of 10
@@ -314,7 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const labelPosition = cellStart + cellWidth / 2;
         label.style.left = `${labelPosition}px`;
         bottomAxis.appendChild(label);
-      } else if (c % 5 === 0) {
+      } else if (c % config.ui.axisTickIntervalMinor === 0) {
         tick.classList.add('tick-5');
       }
 
@@ -368,7 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Double-check class in case cell state changed during delay
             if (!cell.classList.contains('has-elapsed-time')) return;
             fetchTimingOverlayData();
-          }, 1500);
+          }, config.timing.overlayHoverDelay);
         });
         cell.addEventListener('mouseleave', () => {
           clearTimeout(hoverTimer);
@@ -413,8 +488,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     console.info(`${new Date().toISOString()} `, `Grid created with ${gridRows}x${gridCols} cells.`);
 
-    gridContainer.style.gridTemplateColumns = `repeat(${gridCols}, minmax(${cellMinSize}px, 1fr))`;
-    gridContainer.style.gridTemplateRows = `repeat(${gridRows}, minmax(${cellMinSize}px, 1fr))`;
+    gridContainer.style.gridTemplateColumns = `repeat(${gridCols}, minmax(${config.grid.cellMinSize}px, 1fr))`;
+    gridContainer.style.gridTemplateRows = `repeat(${gridRows}, minmax(${config.grid.cellMinSize}px, 1fr))`;
 
     // Reset cell counts
     cellCounts = {
@@ -447,12 +522,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Use 'RxC' as the service ID format (no conversion needed)
     const serverFormatId = id;
     const apiUrl = `${origin}/grid-cell/${commandPath}`;
-    const statusMap = { r: 'red', g: 'green', b: 'blue', o: 'orange', p: 'predator', d: 'inactive' };
-    const status = statusMap[colorChar];
+    const status = config.colors.statusMap[colorChar];
     const centerX = parseInt(id.split('x')[1]);
     const centerY = parseInt(id.split('x')[0]);
-    const maxRetries = 10;
-    const retryDelay = 100; // ms
+    const maxRetries = config.retry.maxAttempts;
+    const retryDelay = config.retry.delay; // ms
     let attempt = 0;
     let success = false;
     let lastError = null;
@@ -571,7 +645,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Calculate and display elapsed time if available
             if (gridCell.updatedAt && gridCell.status !== 'inactive') {
-              const elapsedMs = Math.min(9999, gridCell.elapsedMs);
+              const elapsedMs = Math.min(config.ui.maxElapsedTimeDisplay, gridCell.elapsedMs);
 
               if (elapsedMs >= 0) {
                 gridCellElement.textContent = elapsedMs;
@@ -603,7 +677,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function fetchGridCellList() {
     // await fetchGridCellData('start');
 
-    const regions = subdivideGrid(viewportY, viewportX, gridRows, gridCols, 500);
+    const regions = subdivideGrid(viewportY, viewportX, gridRows, gridCols, config.grid.maxCellsPerRegion);
 
     for (const region of regions) {
       await queryGridCellData(region, 'start');
@@ -760,27 +834,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Handle absolute X positioning
     if (x !== undefined) {
-      newX = Math.round(x / 10) * 10; // Round to nearest 10
+      newX = Math.round(x / config.grid.positionSnap) * config.grid.positionSnap;
     }
 
     // Handle absolute Y positioning
     if (y !== undefined) {
-      newY = Math.round(y / 10) * 10; // Round to nearest 10
+      newY = Math.round(y / config.grid.positionSnap) * config.grid.positionSnap;
     }
 
     // Handle relative X movement (h/l commands)
     if (relativeX !== undefined) {
-      newX = viewportX + Math.round(relativeX / 10) * 10; // Round to nearest 10
+      newX = viewportX + Math.round(relativeX / config.grid.positionSnap) * config.grid.positionSnap;
     }
 
     // Handle relative Y movement (j/k commands)
     if (relativeY !== undefined) {
-      newY = viewportY + Math.round(relativeY / 10) * 10; // Round to nearest 10
+      newY = viewportY + Math.round(relativeY / config.grid.positionSnap) * config.grid.positionSnap;
     }
 
     // Clamp values to grid boundaries
-    const clampedX = Math.max(MIN_GRID_COORD, Math.min(MAX_GRID_COORD, newX));
-    const clampedY = Math.max(MIN_GRID_COORD, Math.min(MAX_GRID_COORD, newY));
+    const clampedX = Math.max(config.grid.minCoord, Math.min(config.grid.maxCoord, newX));
+    const clampedY = Math.max(config.grid.minCoord, Math.min(config.grid.maxCoord, newY));
 
     // Check if position actually changed
     if (viewportX !== clampedX) {
@@ -867,11 +941,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Reset the command buffer
         commandBuffer = '';
       } else {
-        // Set a timeout to clear the command buffer if no key is pressed for 3 seconds
+        // Set a timeout to clear the command buffer if no key is pressed
         commandTimeout = setTimeout(() => {
           commandBuffer = '';
           updateCommandStatus('Command timeout. Type number + x/y to navigate', 2000);
-        }, 3000);
+        }, config.timing.commandTimeout);
       }
 
       return;
@@ -1022,7 +1096,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function fetchGridCellOverlayData(cellElement) {
     // Fetch and show grid cell data for the hovered cell
     const id = hoveredCellId.substring(5); // Remove "cell-" prefix
-    fetch(`${origin}/grid-cell/view-row-by-id/${id}`)
+    fetch(`${origin}${config.endpoints.gridCellViewById}/${id}`)
       .then((resp) => (resp.ok ? resp.json() : Promise.reject('Failed to fetch grid cell data')))
       .then((data) => {
         showGridCellOverlay(cellElement, data);
@@ -1055,8 +1129,8 @@ document.addEventListener('DOMContentLoaded', () => {
     overlay.style.boxShadow = '0 0 16px #be43a4';
     overlay.style.padding = '14px 18px';
     overlay.style.pointerEvents = 'none';
-    overlay.style.maxWidth = '350px';
-    overlay.style.maxHeight = '70vh';
+    overlay.style.maxWidth = config.overlay.maxWidth + 'px';
+    overlay.style.maxHeight = config.overlay.maxHeightVh + 'vh';
     overlay.style.overflowY = 'auto';
 
     // Format data as a table
@@ -1179,7 +1253,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resolve(routes);
       } else {
         // Otherwise fetch routes from the server
-        fetch('/grid-cell/multi-region-routes')
+        fetch(config.endpoints.gridCellMultiRegionRoutes)
           .then((resp) => resp.json())
           .then((routes) => {
             console.info(`${new Date().toISOString()} `, `Fetched multi-region routes: ${routes}`);
@@ -1223,9 +1297,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Compensate for excess endpoint to entity elapsed time
     const endpointAt = gap1 > gap2 ? new Date(updatedAt - gap2) : endpointAt0;
     const msRange = youngestViewAt - endpointAt;
-    const pxWidth = 400;
-    const pxIndent = 10;
-    const pxHeight = Math.max(40, parsed.length * 40);
+    const pxWidth = config.overlay.timingWidth;
+    const pxIndent = config.overlay.timingIndent;
+    const pxHeight = Math.max(config.overlay.timingMinHeight, parsed.length * config.overlay.timingRowHeight);
     const overlay = document.createElement('div');
     overlay.className = 'grid-cell-overlay';
     overlay.style.position = 'fixed';
@@ -1554,11 +1628,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     statusElement.textContent = message;
 
-    // Hide after 3 seconds if empty message
+    // Hide after timeout if empty message
     if (!message) {
       setTimeout(() => {
         statusElement.textContent = '';
-      }, 3000);
+      }, config.timing.selectionClearTimeout);
     }
   }
 
@@ -1572,7 +1646,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update the URL display to show the viewport position
     // Fetch region name from backend and display
-    fetch(`${origin}/grid-cell/region`)
+    fetch(`${origin}${config.endpoints.gridCellRegion}`)
       .then((resp) => (resp.ok ? resp.text() : Promise.reject('local-development')))
       .then((regionName) => {
         regionNameSpan.textContent = regionName.trim();
@@ -1679,7 +1753,7 @@ document.addEventListener('DOMContentLoaded', () => {
       console.info(`${new Date().toISOString()} `, 'Processing audio...');
       updateCommandStatus('Processing voice command...', 0);
 
-      fetch(`${origin}/agent/voice-command`, {
+      fetch(`${origin}${config.endpoints.agentVoiceCommand}`, {
         method: 'POST',
         headers: {
           // Custom headers for viewport information and user session ID
@@ -1812,9 +1886,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('keydown', handleGlobalKeyDown);
   document.addEventListener('keyup', handleGlobalKeyUp);
 
-  // Set up interval to fetch grid cell list every 250ms
+  // Set up interval to fetch grid cell list
   const urlParams = new URLSearchParams(window.location.search);
-  const interval = parseInt(urlParams.get('interval'), 10) || 100;
+  const interval = parseInt(urlParams.get('interval'), 10) || config.timing.defaultPollingInterval;
   gridCellListInterval = setInterval(fetchGridCellList, interval);
 
   // Add window resize event listener to adjust grid when window size changes
@@ -1829,12 +1903,12 @@ document.addEventListener('DOMContentLoaded', () => {
         createLeftAxis();
         createBottomAxis();
       }, 0);
-    }, 250); // Wait 250ms after resize ends before recalculating
+    }, config.timing.windowResizeDebounce);
   });
 
   // Store agent step messages in a FIFO queue with a maximum size
   const agentStepMessages = [];
-  const agentStepMessagesMax = 100; // Maximum number of messages to store
+  const agentStepMessagesMax = config.agent.messageQueueMax;
   let agentStepEventSource = null; // EventSource instance
 
   // Connect to agent step stream for the current session
@@ -1850,7 +1924,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const sessionId = getSessionId();
-    const url = `${origin}/agent/agent-steps-stream/${sessionId}`;
+    const url = `${origin}${config.endpoints.agentStepsStream}/${sessionId}`;
     console.info(`${new Date().toISOString()} `, `Agent step SSE Attempting to connect SSE to ${url}...`);
     updateConnectionStatus('Connecting...', '');
     agentStepEventSource = new EventSource(url);
@@ -1904,8 +1978,8 @@ document.addEventListener('DOMContentLoaded', () => {
         agentStepEventSource = null; // Clear the instance
 
         // Optional: Attempt to reconnect after a delay
-        console.info(`${new Date().toISOString()} `, 'Agent step SSE Attempting to reconnect in 5 seconds...');
-        setTimeout(connectToAgentStepStream, 5000);
+        console.info(`${new Date().toISOString()} `, 'Agent step SSE Attempting to reconnect...');
+        setTimeout(connectToAgentStepStream, config.timing.reconnectDelay);
       }
     };
   }
@@ -1934,7 +2008,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const putAgentStepConsumed = (message) => {
       console.info(`${new Date().toISOString()} `, 'Consuming agent step:', message);
-      fetch(`/agent/agent-step-consumed`, {
+      fetch(config.endpoints.agentStepConsumed, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
