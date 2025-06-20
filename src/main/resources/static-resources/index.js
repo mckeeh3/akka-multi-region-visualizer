@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   // --- Configuration ---
   const config = {
     session: {
@@ -211,29 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
   /**
    * Creates a base overlay element with standard styling
    */
-  function createOverlayElement(className, additionalStyles = {}) {
-    const overlay = document.createElement('div');
-    overlay.className = className;
-
-    const baseStyles = {
-      position: 'fixed',
-      background: 'rgba(10,20,40,0.98)',
-      color: '#a7ecff',
-      zIndex: '10000',
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      alignItems: 'center',
-      fontSize: '0.75em',
-      border: '2px solid #be43a4',
-      borderRadius: '7px',
-      boxShadow: '0 0 16px #be43a4',
-      padding: '14px 18px',
-    };
-
-    Object.assign(overlay.style, baseStyles, additionalStyles);
-    return overlay;
-  }
+  // Note: This function was replaced by the unified createOverlay function
 
   /**
    * Handles fetch errors with consistent logging
@@ -340,7 +318,71 @@ document.addEventListener('DOMContentLoaded', () => {
    * Creates a Promise that resolves after the specified delay
    */
   function delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Unified API fetch utility with consistent error handling
+   */
+  async function apiCall(url, options = {}) {
+    const defaultOptions = {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    };
+
+    const requestOptions = { ...defaultOptions, ...options };
+
+    try {
+      const response = await fetch(url, requestOptions);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return await response.json();
+      } else {
+        return await response.text();
+      }
+    } catch (error) {
+      handleFetchError(error, `API call to ${url}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Unified overlay creation with consistent styling
+   */
+  function createOverlay(className, options = {}) {
+    const overlay = createElement('div', {
+      className,
+      styles: {
+        position: 'fixed',
+        background: 'rgba(10,20,40,0.98)',
+        color: '#a7ecff',
+        zIndex: '10000',
+        padding: '8px 12px',
+        borderRadius: '4px',
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        maxWidth: '350px',
+        wordWrap: 'break-word',
+        ...options.styles,
+      },
+    });
+
+    if (options.parent) {
+      options.parent.appendChild(overlay);
+    } else {
+      document.body.appendChild(overlay);
+    }
+
+    return overlay;
   }
 
   // --- State ---
@@ -372,7 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
     mousePositionElement = createElement('div', {
       id: 'mouse-position',
       styles: config.ui.mousePositionStyles,
-      parent: gridPositionElement.parentNode
+      parent: gridPositionElement.parentNode,
     });
     gridPositionElement.parentNode.insertBefore(mousePositionElement, gridPositionElement);
   }
@@ -481,7 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
       createElement('div', {
         id: 'command-status',
         textContent: 'Type number + x/y/h/j/k/l to navigate (e.g., 100x, 50h, 30j)',
-        parent: infoPanel
+        parent: infoPanel,
       });
     }
   }
@@ -652,7 +694,7 @@ document.addEventListener('DOMContentLoaded', () => {
       mouseleave: () => {
         clearTimeout(hoverTimer);
         removeGridCellOverlay();
-      }
+      },
     });
   }
 
@@ -672,7 +714,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (hoveredCellId === cell.id) {
           hoveredCellId = null;
         }
-      }
+      },
     });
   }
 
@@ -703,7 +745,7 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   function createGridCell(row, col) {
     const cell = createElement('div', {
-      className: 'grid-cell'
+      className: 'grid-cell',
     });
 
     // Calculate the actual grid coordinates based on viewport position
@@ -1415,17 +1457,15 @@ document.addEventListener('DOMContentLoaded', () => {
    * Fetches and shows grid cell data for the hovered cell.
    * @param {HTMLElement} cellElement - The cell element to show overlay for
    */
-  function fetchGridCellOverlayData(cellElement) {
+  async function fetchGridCellOverlayData(cellElement) {
     // Fetch and show grid cell data for the hovered cell
     const id = hoveredCellId.substring(5); // Remove "cell-" prefix
-    fetch(`${origin}${config.endpoints.gridCellViewById}/${id}`)
-      .then((resp) => (resp.ok ? resp.json() : Promise.reject('Failed to fetch grid cell data')))
-      .then((data) => {
-        showGridCellOverlay(cellElement, data);
-      })
-      .catch((error) => {
-        handleFetchError(error, 'fetching grid cell data');
-      });
+    try {
+      const data = await apiCall(`${origin}${config.endpoints.gridCellViewById}/${id}`);
+      showGridCellOverlay(cellElement, data);
+    } catch (error) {
+      // Error already handled by apiCall
+    }
   }
 
   /**
@@ -1435,11 +1475,22 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   function showGridCellOverlay(cell, data) {
     removeGridCellOverlay();
-    const overlay = createOverlayElement('grid-cell-overlay', {
-      pointerEvents: 'none',
-      maxWidth: config.overlay.maxWidth + 'px',
-      maxHeight: config.overlay.maxHeightVh + 'vh',
-      overflowY: 'auto',
+    const overlay = createOverlay('grid-cell-overlay', {
+      styles: {
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        fontSize: '12px',
+        border: '2px solid #be43a4',
+        borderRadius: '7px',
+        boxShadow: '0 0 16px #be43a4',
+        padding: '14px 18px',
+        pointerEvents: 'none',
+        maxWidth: config.overlay.maxWidth + 'px',
+        maxHeight: config.overlay.maxHeightVh + 'vh',
+        overflowY: 'auto',
+      },
     });
 
     // Format data as a table
@@ -1614,30 +1665,23 @@ document.addEventListener('DOMContentLoaded', () => {
    * Creates the basic overlay container
    */
   function createTimingOverlayContainer(pxWidth, pxHeight) {
-    const overlay = document.createElement('div');
-    overlay.className = 'grid-cell-overlay';
-
-    Object.assign(overlay.style, {
-      position: 'fixed',
-      background: 'rgba(10,20,40,0.98)',
-      color: '#a7ecff',
-      zIndex: '10000',
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      alignItems: 'center',
-      fontSize: '0.75em',
-      padding: '16px 24px',
-      border: '2px solid #be43a4',
-      borderRadius: '7px',
-      boxShadow: '0 0 16px #be43a4',
-      minWidth: pxWidth + 40 + 'px',
-      minHeight: pxHeight + 20 + 'px',
-      maxWidth: '90vw',
-      maxHeight: '80vh',
+    return createOverlay('grid-cell-overlay', {
+      styles: {
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        fontSize: '12px',
+        padding: '16px 24px',
+        border: '2px solid #be43a4',
+        borderRadius: '7px',
+        boxShadow: '0 0 16px #be43a4',
+        minWidth: pxWidth + 40 + 'px',
+        minHeight: pxHeight + 20 + 'px',
+        maxWidth: '90vw',
+        maxHeight: '80vh',
+      },
     });
-
-    return overlay;
   }
 
   /**
@@ -1981,33 +2025,31 @@ document.addEventListener('DOMContentLoaded', () => {
   /**
    * Initialize the viewport position to default values
    */
-  function initializeViewport() {
+  async function initializeViewport() {
     // Set default viewport position (0,0)
     viewportX = 0;
     viewportY = 0;
 
     // Update the URL display to show the viewport position
     // Fetch region name from backend and display
-    fetch(`${origin}${config.endpoints.gridCellRegion}`)
-      .then((resp) => (resp.ok ? resp.text() : Promise.reject('local-development')))
-      .then((regionName) => {
-        regionNameSpan.textContent = regionName.trim();
-      })
-      .catch((error) => {
-        regionNameSpan.textContent = `${error}`;
-      });
+    try {
+      const regionName = await apiCall(`${origin}${config.endpoints.gridCellRegion}`);
+      regionNameSpan.textContent = regionName.trim();
+    } catch (error) {
+      regionNameSpan.textContent = 'local-development';
+    }
   }
 
   // Fetch and display project version
   // Run bash script version-to-static.sh to update version.txt
-  fetch('version.txt')
-    .then((resp) => (resp.ok ? resp.text() : Promise.reject('Version not found')))
-    .then((version) => {
+  (async () => {
+    try {
+      const version = await apiCall('version.txt');
       document.getElementById('project-version').textContent = `Version: ${version.trim()}`;
-    })
-    .catch((error) => {
-      document.getElementById('project-version').textContent = `Error: ${error}`;
-    });
+    } catch (error) {
+      document.getElementById('project-version').textContent = 'Version not found';
+    }
+  })();
 
   class VoiceCommand {
     constructor() {
@@ -2095,7 +2137,7 @@ document.addEventListener('DOMContentLoaded', () => {
       console.info(`${new Date().toISOString()} `, 'Processing audio...');
       updateCommandStatus('Processing voice command...', 0);
 
-      fetch(`${origin}${config.endpoints.agentVoiceCommand}`, {
+      apiCall(`${origin}${config.endpoints.agentVoiceCommand}`, {
         method: 'POST',
         headers: {
           // Custom headers for viewport information and user session ID
@@ -2109,12 +2151,6 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         body: formData,
       })
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
-          }
-          return response.text();
-        })
         .then((responseText) => {
           console.info(`${new Date().toISOString()} `, 'Audio processed: LLM agent response:', responseText);
           updateCommandStatus('Voice command received: ' + responseText, 5000);
@@ -2122,7 +2158,6 @@ document.addEventListener('DOMContentLoaded', () => {
           // No need to parse the response here as we'll get updates via SSE
         })
         .catch((error) => {
-          console.error(`${new Date().toISOString()} `, 'Error processing audio:', error);
           updateCommandStatus('Error processing voice command', 5000);
         })
         .finally(() => {
@@ -2215,7 +2250,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const voiceCommand = new VoiceCommand();
 
   // --- Initialization ---
-  initializeViewport(); // Set default viewport position
+  await initializeViewport(); // Set default viewport position
   createCommandDisplay(); // Add command status display to the info panel
   updateGridPositionDisplay(); // Update grid position display
   createGrid();
@@ -2344,25 +2379,20 @@ document.addEventListener('DOMContentLoaded', () => {
       agentStepMessages.shift();
     }
 
-    const putAgentStepConsumed = (message) => {
+    const putAgentStepConsumed = async (message) => {
       console.info(`${new Date().toISOString()} `, 'Consuming agent step:', message);
-      fetch(config.endpoints.agentStepConsumed, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: message.id,
-          sequenceId: message.sequenceId,
-          stepNumber: message.stepNumber,
-        }),
-      })
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error(`${new Date().toISOString()} `, `Error consuming agent step ${message.id}: ${response.status}`);
-          }
-        })
-        .catch((error) => console.error(`${new Date().toISOString()} `, `Error consuming agent step ${message.id}:`, error));
+      try {
+        await apiCall(config.endpoints.agentStepConsumed, {
+          method: 'PUT',
+          body: JSON.stringify({
+            id: message.id,
+            sequenceId: message.sequenceId,
+            stepNumber: message.stepNumber,
+          }),
+        });
+      } catch (error) {
+        // Error already logged by apiCall
+      }
     };
     putAgentStepConsumed(message);
 
@@ -2449,27 +2479,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // Create or update overlay
     let overlay = document.querySelector('.agent-message-overlay');
     if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.className = 'agent-message-overlay';
-      overlay.style.position = 'fixed';
-      overlay.style.background = 'rgba(10,20,40,0.98)';
-      overlay.style.color = '#a7ecff';
-      overlay.style.zIndex = '10000';
-      overlay.style.display = 'flex';
-      overlay.style.flexDirection = 'column';
-      overlay.style.justifyContent = 'flex-start';
-      overlay.style.alignItems = 'center';
-      overlay.style.fontSize = '0.75em';
-      overlay.style.border = '2px solid #be43a4';
-      overlay.style.borderRadius = '7px';
-      overlay.style.boxShadow = '0 0 16px #be43a4';
-      overlay.style.padding = '14px 18px';
-      overlay.style.maxWidth = '500px';
-      overlay.style.maxHeight = '80vh';
-      overlay.style.overflowY = 'auto';
-      overlay.style.right = '20px';
-      overlay.style.top = '20px';
-      document.body.appendChild(overlay);
+      overlay = createOverlay('agent-message-overlay', {
+        styles: {
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'flex-start',
+          alignItems: 'center',
+          fontSize: '12px',
+          border: '2px solid #be43a4',
+          borderRadius: '7px',
+          boxShadow: '0 0 16px #be43a4',
+          padding: '14px 18px',
+          maxWidth: '500px',
+          maxHeight: '80vh',
+          overflowY: 'auto',
+          right: '20px',
+          top: '20px',
+        },
+      });
     } else {
       // Clear existing content
       overlay.innerHTML = '';
