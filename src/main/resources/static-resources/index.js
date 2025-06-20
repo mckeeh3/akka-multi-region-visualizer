@@ -119,6 +119,144 @@ document.addEventListener('DOMContentLoaded', () => {
   const viewStreamUrl = `${origin}${config.endpoints.gridCellStream}`;
   const viewListUrl = `${origin}${config.endpoints.gridCellList}`;
 
+  // --- Utility Functions ---
+
+  /**
+   * Clamps coordinates to grid boundaries
+   */
+  function clampToGridBounds(x, y) {
+    return {
+      x: Math.max(config.grid.minCoord, Math.min(config.grid.maxCoord, x)),
+      y: Math.max(config.grid.minCoord, Math.min(config.grid.maxCoord, y)),
+    };
+  }
+
+  /**
+   * Creates a cell ID with the standard format
+   */
+  function createCellId(row, col) {
+    return `cell-${row}x${col}`;
+  }
+
+  /**
+   * Extracts the coordinate part from a cell element ID
+   */
+  function extractCellId(cellElementId) {
+    return cellElementId.startsWith('cell-') ? cellElementId.substring(5) : cellElementId;
+  }
+
+  /**
+   * Parses cell coordinates from a cell ID
+   */
+  function parseCellId(cellId) {
+    const cleanId = extractCellId(cellId);
+    const parts = cleanId.split('x');
+    if (parts.length !== 2) return null;
+    const row = parseInt(parts[0]);
+    const col = parseInt(parts[1]);
+    return isNaN(row) || isNaN(col) ? null : { row, col };
+  }
+
+  /**
+   * Parses coordinates from ID string (RxC format)
+   */
+  function parseCoordinatesFromId(id) {
+    const parts = id.split('x');
+    return {
+      x: parseInt(parts[1]),
+      y: parseInt(parts[0]),
+    };
+  }
+
+  /**
+   * Gets the cell status class name from element
+   */
+  function getCellStatusClass(cellElement) {
+    if (!cellElement) return null;
+    const statusClasses = ['cell-red', 'cell-green', 'cell-blue', 'cell-orange', 'cell-predator'];
+    return statusClasses.find((cls) => cellElement.classList.contains(cls)) || null;
+  }
+
+  /**
+   * Gets the cell status string from element classes
+   */
+  function getCellStatusFromElement(cellElement) {
+    const statusMap = {
+      'cell-red': 'red',
+      'cell-green': 'green',
+      'cell-blue': 'blue',
+      'cell-orange': 'orange',
+      'cell-predator': 'predator',
+    };
+    const statusClass = getCellStatusClass(cellElement);
+    return statusClass ? statusMap[statusClass] : 'inactive';
+  }
+
+  /**
+   * Gets the color character from cell element
+   */
+  function getCellColorCharFromElement(cellElement) {
+    const colorMap = {
+      'cell-red': 'r',
+      'cell-green': 'g',
+      'cell-blue': 'b',
+      'cell-orange': 'o',
+      'cell-predator': 'p',
+    };
+    const statusClass = getCellStatusClass(cellElement);
+    return statusClass ? colorMap[statusClass] : '';
+  }
+
+  /**
+   * Creates a base overlay element with standard styling
+   */
+  function createOverlayElement(className, additionalStyles = {}) {
+    const overlay = document.createElement('div');
+    overlay.className = className;
+
+    const baseStyles = {
+      position: 'fixed',
+      background: 'rgba(10,20,40,0.98)',
+      color: '#a7ecff',
+      zIndex: '10000',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      alignItems: 'center',
+      fontSize: '0.75em',
+      border: '2px solid #be43a4',
+      borderRadius: '7px',
+      boxShadow: '0 0 16px #be43a4',
+      padding: '14px 18px',
+    };
+
+    Object.assign(overlay.style, baseStyles, additionalStyles);
+    return overlay;
+  }
+
+  /**
+   * Handles fetch errors with consistent logging
+   */
+  function handleFetchError(error, context, timestamp = true) {
+    const logPrefix = timestamp ? `${new Date().toISOString()} ` : '';
+    console.error(logPrefix, `Error ${context}:`, error);
+  }
+
+  /**
+   * Logs info messages with consistent formatting
+   */
+  function logInfo(message, timestamp = true) {
+    const logPrefix = timestamp ? `${new Date().toISOString()} ` : '';
+    console.info(logPrefix, message);
+  }
+
+  /**
+   * Checks if cell has elapsed time data
+   */
+  function cellHasElapsedTime(cellElement) {
+    return cellElement && cellElement.classList.contains('has-elapsed-time');
+  }
+
   // --- State ---
   let hoveredCellId = null; // ID of the currently hovered cell ('cell-R-C')
   let gridCellEventSource = null; // EventSource instance
@@ -188,8 +326,9 @@ document.addEventListener('DOMContentLoaded', () => {
       let gridX = Math.floor(px / cellWidth) + viewportX;
       let gridY = Math.floor(py / cellHeight) + viewportY;
       // Clamp to grid bounds
-      gridX = Math.max(config.grid.minCoord, Math.min(config.grid.maxCoord, gridX));
-      gridY = Math.max(config.grid.minCoord, Math.min(config.grid.maxCoord, gridY));
+      const clamped = clampToGridBounds(gridX, gridY);
+      gridX = clamped.x;
+      gridY = clamped.y;
       mouseGridPosition.row = gridY;
       mouseGridPosition.col = gridX;
       updateMousePositionDisplay(gridX, gridY);
@@ -229,12 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
    * @returns {string} The cell status ('red', 'green', 'blue', 'orange', 'predator', or 'inactive')
    */
   function getCellStatus(cellElement) {
-    if (cellElement.classList.contains('cell-red')) return 'red';
-    if (cellElement.classList.contains('cell-green')) return 'green';
-    if (cellElement.classList.contains('cell-blue')) return 'blue';
-    if (cellElement.classList.contains('cell-orange')) return 'orange';
-    if (cellElement.classList.contains('cell-predator')) return 'predator';
-    return 'inactive';
+    return getCellStatusFromElement(cellElement);
   }
 
   /**
@@ -412,20 +546,20 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   function setupCellOverlayEvents(cell) {
     let hoverTimer = null;
-    
+
     cell.addEventListener('mouseenter', () => {
       removeGridCellOverlay();
-      // Only show overlay for cells with 'has-elapsed-time'
-      if (!cell.classList.contains('has-elapsed-time')) {
+      // Only show overlay for cells with elapsed time data
+      if (!cellHasElapsedTime(cell)) {
         return;
       }
       hoverTimer = setTimeout(async () => {
         // Double-check class in case cell state changed during delay
-        if (!cell.classList.contains('has-elapsed-time')) return;
+        if (!cellHasElapsedTime(cell)) return;
         fetchTimingOverlayData();
       }, config.timing.overlayHoverDelay);
     });
-    
+
     cell.addEventListener('mouseleave', () => {
       clearTimeout(hoverTimer);
       removeGridCellOverlay();
@@ -483,8 +617,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Calculate the actual grid coordinates based on viewport position
     const actualRow = row + viewportY;
     const actualCol = col + viewportX;
-    const cellId = `${actualRow}x${actualCol}`;
-    cell.id = `cell-${cellId}`;
+    cell.id = createCellId(actualRow, actualCol);
 
     // Set up all event handlers
     setupCellOverlayEvents(cell);
@@ -504,7 +637,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gridContainer.appendChild(cell);
       }
     }
-    console.info(`${new Date().toISOString()} `, `Grid created with ${gridRows}x${gridCols} cells.`);
+    logInfo(`Grid created with ${gridRows}x${gridCols} cells.`);
   }
 
   /**
@@ -568,8 +701,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const serverFormatId = id;
     const apiUrl = `${origin}/grid-cell/${commandPath}`;
     const status = config.colors.statusMap[colorChar];
-    const centerX = parseInt(id.split('x')[1]);
-    const centerY = parseInt(id.split('x')[0]);
+    const coords = parseCoordinatesFromId(id);
+    const centerX = coords.x;
+    const centerY = coords.y;
     const maxRetries = config.retry.maxAttempts;
     const retryDelay = config.retry.delay; // ms
     let attempt = 0;
@@ -626,7 +760,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } catch (error) {
         lastError = error;
-        console.error(`${new Date().toISOString()} `, `Error sending cell ${id} update:`, error);
+        handleFetchError(error, `sending cell ${id} update`);
         if (attempt < maxRetries) {
           await new Promise((res) => setTimeout(res, retryDelay));
         }
@@ -648,8 +782,8 @@ document.addEventListener('DOMContentLoaded', () => {
         id: id,
         status: 'predator',
         clientAt: new Date().toISOString(),
-        centerX: parseInt(id.split('x')[1]),
-        centerY: parseInt(id.split('x')[0]),
+        centerX: parseCoordinatesFromId(id).x,
+        centerY: parseCoordinatesFromId(id).y,
         radius: range,
       }),
     });
@@ -668,7 +802,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (gridCell.id && gridCell.status !== undefined) {
         // Server is using the 'rxc' format, just prepend 'cell-'
-        const cellId = `cell-${gridCell.id}`;
+        const cellId = createCellId(...gridCell.id.split('x').map((n) => parseInt(n)));
         const gridCellElement = document.getElementById(cellId);
 
         if (gridCellElement) {
@@ -898,8 +1032,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Clamp values to grid boundaries
-    const clampedX = Math.max(config.grid.minCoord, Math.min(config.grid.maxCoord, newX));
-    const clampedY = Math.max(config.grid.minCoord, Math.min(config.grid.maxCoord, newY));
+    const clamped = clampToGridBounds(newX, newY);
+    const clampedX = clamped.x;
+    const clampedY = clamped.y;
 
     // Check if position actually changed
     if (viewportX !== clampedX) {
@@ -1017,12 +1152,7 @@ document.addEventListener('DOMContentLoaded', () => {
    * Gets the current cell status color character
    */
   function getCellColorChar(cellElement) {
-    if (cellElement.classList.contains('cell-red')) return 'r';
-    if (cellElement.classList.contains('cell-green')) return 'g';
-    if (cellElement.classList.contains('cell-blue')) return 'b';
-    if (cellElement.classList.contains('cell-orange')) return 'o';
-    if (cellElement.classList.contains('cell-predator')) return 'p';
-    return '';
+    return getCellColorCharFromElement(cellElement);
   }
 
   /**
@@ -1037,12 +1167,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (currentSelection.length > 0) {
         // Rectangle selection mode
-        const topLeftXy = currentSelection[0].split('x');
-        const topLeftX = parseInt(topLeftXy[1]);
-        const topLeftY = parseInt(topLeftXy[0]);
-        const bottomRightXy = currentSelection[currentSelection.length - 1].split('x');
-        const bottomRightX = parseInt(bottomRightXy[1]);
-        const bottomRightY = parseInt(bottomRightXy[0]);
+        const topLeftCoords = parseCoordinatesFromId(currentSelection[0]);
+        const topLeftX = topLeftCoords.x;
+        const topLeftY = topLeftCoords.y;
+        const bottomRightCoords = parseCoordinatesFromId(currentSelection[currentSelection.length - 1]);
+        const bottomRightX = bottomRightCoords.x;
+        const bottomRightY = bottomRightCoords.y;
         const width = Math.abs(bottomRightX - topLeftX) + 1;
         const height = Math.abs(bottomRightY - topLeftY) + 1;
         const id = topLeftY + 'x' + topLeftX;
@@ -1051,7 +1181,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearSelection();
         updateSelectionStatus('Color applied to selection');
       } else if (hoveredCellId) {
-        const id = hoveredCellId.substring(5);
+        const id = extractCellId(hoveredCellId);
         sendCellUpdate(id, colorChar, commandPath, radius);
       }
       return true;
@@ -1066,12 +1196,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (event.key === 'c') {
       event.preventDefault();
       const cellElement = document.getElementById(hoveredCellId);
-      const hasElapsedTime = cellElement && cellElement.classList.contains('has-elapsed-time');
+      const hasElapsedTime = cellHasElapsedTime(cellElement);
 
       if (hasElapsedTime) {
         const commandPath = 'clear-cells';
-        const id = hoveredCellId.substring(5);
-        const colorChar = getCellColorChar(cellElement);
+        const id = extractCellId(hoveredCellId);
+        const colorChar = getCellColorCharFromElement(cellElement);
         if (colorChar.length > 0) {
           sendCellUpdate(id, colorChar, commandPath);
         }
@@ -1092,7 +1222,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (hasElapsedTime) {
         const commandPath = 'erase-cells';
-        const id = hoveredCellId.substring(5);
+        const id = extractCellId(hoveredCellId);
         sendCellUpdate(id, '', commandPath);
       }
       return true;
@@ -1109,7 +1239,7 @@ document.addEventListener('DOMContentLoaded', () => {
       event.preventDefault();
       if (hoveredCellId) {
         const cellElement = document.getElementById(hoveredCellId);
-        if (cellElement && cellElement.classList.contains('has-elapsed-time')) {
+        if (cellHasElapsedTime(cellElement)) {
           fetchGridCellOverlayData(cellElement);
         }
       }
@@ -1120,9 +1250,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (event.key === 't') {
       event.preventDefault();
       const cellElement = document.getElementById(hoveredCellId);
-      const hasElapsedTime = cellElement && cellElement.classList.contains('has-elapsed-time');
 
-      if (hasElapsedTime) {
+      if (cellHasElapsedTime(cellElement)) {
         fetchTimingOverlayData();
       }
       return true;
@@ -1132,7 +1261,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (event.key === 'p') {
       event.preventDefault();
       if (hoveredCellId) {
-        const id = hoveredCellId.substring(5);
+        const id = extractCellId(hoveredCellId);
         const range = commandBuffer.length == 0 ? 0 : parseInt(commandBuffer);
         sendCreatePredator(id, range);
       }
@@ -1215,7 +1344,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showGridCellOverlay(cellElement, data);
       })
       .catch((error) => {
-        console.error(`${new Date().toISOString()} `, `Error fetching grid cell data: ${error}`);
+        handleFetchError(error, 'fetching grid cell data');
       });
   }
 
@@ -1226,25 +1355,12 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   function showGridCellOverlay(cell, data) {
     removeGridCellOverlay();
-    const overlay = document.createElement('div');
-    overlay.className = 'grid-cell-overlay';
-    overlay.style.position = 'fixed';
-    overlay.style.background = 'rgba(10,20,40,0.98)';
-    overlay.style.color = '#a7ecff';
-    overlay.style.zIndex = '10000';
-    overlay.style.display = 'flex';
-    overlay.style.flexDirection = 'column';
-    overlay.style.justifyContent = 'center';
-    overlay.style.alignItems = 'center';
-    overlay.style.fontSize = '0.75em';
-    overlay.style.border = '2px solid #be43a4';
-    overlay.style.borderRadius = '7px';
-    overlay.style.boxShadow = '0 0 16px #be43a4';
-    overlay.style.padding = '14px 18px';
-    overlay.style.pointerEvents = 'none';
-    overlay.style.maxWidth = config.overlay.maxWidth + 'px';
-    overlay.style.maxHeight = config.overlay.maxHeightVh + 'vh';
-    overlay.style.overflowY = 'auto';
+    const overlay = createOverlayElement('grid-cell-overlay', {
+      pointerEvents: 'none',
+      maxWidth: config.overlay.maxWidth + 'px',
+      maxHeight: config.overlay.maxHeightVh + 'vh',
+      overflowY: 'auto',
+    });
 
     // Format data as a table
     const table = document.createElement('table');
@@ -1394,7 +1510,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       return obj;
     });
-    
+
     parsed.sort((a, b) => a.viewAt - b.viewAt);
     return parsed;
   }
@@ -1409,18 +1525,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const oldestViewAt = parsed[0].viewAt;
     const gap1 = updatedAt - endpointAt0;
     const gap2 = youngestViewAt - updatedAt;
-    
+
     // Compensate for excess endpoint to entity elapsed time
     const endpointAt = gap1 > gap2 ? new Date(updatedAt - gap2) : endpointAt0;
     const msRange = youngestViewAt - endpointAt;
-    
+
     return {
       endpointAt0,
       endpointAt,
       updatedAt,
       youngestViewAt,
       oldestViewAt,
-      msRange
+      msRange,
     };
   }
 
@@ -1430,7 +1546,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function createTimingOverlayContainer(pxWidth, pxHeight) {
     const overlay = document.createElement('div');
     overlay.className = 'grid-cell-overlay';
-    
+
     Object.assign(overlay.style, {
       position: 'fixed',
       background: 'rgba(10,20,40,0.98)',
@@ -1445,12 +1561,12 @@ document.addEventListener('DOMContentLoaded', () => {
       border: '2px solid #be43a4',
       borderRadius: '7px',
       boxShadow: '0 0 16px #be43a4',
-      minWidth: (pxWidth + 40) + 'px',
-      minHeight: (pxHeight + 20) + 'px',
+      minWidth: pxWidth + 40 + 'px',
+      minHeight: pxHeight + 20 + 'px',
       maxWidth: '90vw',
-      maxHeight: '80vh'
+      maxHeight: '80vh',
     });
-    
+
     return overlay;
   }
 
@@ -1459,21 +1575,21 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   function createTimingTableRow(idx, key, value, region) {
     const row = document.createElement('tr');
-    
+
     const cells = [
-      { content: key, styles: { padding: '2px 6px', fontWeight: 'bold', textAlign: 'right', color: '#6fffc8' }},
-      { content: value, styles: { padding: '2px 6px', textAlign: 'left', color: '#ffffff' }},
-      { content: region, styles: { padding: '2px 6px', textAlign: 'left', color: '#e7bf50' }},
-      { content: idx, styles: { padding: '2px 6px', textAlign: 'center', color: '#ffffff' }}
+      { content: key, styles: { padding: '2px 6px', fontWeight: 'bold', textAlign: 'right', color: '#6fffc8' } },
+      { content: value, styles: { padding: '2px 6px', textAlign: 'left', color: '#ffffff' } },
+      { content: region, styles: { padding: '2px 6px', textAlign: 'left', color: '#e7bf50' } },
+      { content: idx, styles: { padding: '2px 6px', textAlign: 'center', color: '#ffffff' } },
     ];
-    
+
     cells.forEach(({ content, styles }) => {
       const cell = document.createElement('td');
       cell.textContent = content;
       Object.assign(cell.style, styles);
       row.appendChild(cell);
     });
-    
+
     return row;
   }
 
@@ -1484,17 +1600,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const table = document.createElement('table');
     table.style.marginBottom = '10px';
     table.style.borderCollapse = 'collapse';
-    
+
     const p = parsed[0];
     table.appendChild(createTimingTableRow('', 'ID', p.id, p.updated));
     table.appendChild(createTimingTableRow('', 'Endpoint to entity', `${p.updatedAt - p.endpointAt} ms`, p.updated));
     table.appendChild(createTimingTableRow('1', 'Entity to view', `${p.viewAt - p.updatedAt} ms`, p.view));
-    
+
     for (let i = 1; i < parsed.length; i++) {
       const p = parsed[i];
       table.appendChild(createTimingTableRow(`${i + 1}`, 'Entity to view', `${p.viewAt - p.updatedAt} ms`, p.view));
     }
-    
+
     return table;
   }
 
@@ -1505,14 +1621,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', pxWidth);
     svg.setAttribute('height', pxHeight);
-    
+
     Object.assign(svg.style, {
       display: 'block',
       background: 'rgba(20,30,60,0.9)',
       borderRadius: '6px',
-      marginBottom: '8px'
+      marginBottom: '8px',
     });
-    
+
     return svg;
   }
 
@@ -1521,7 +1637,7 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   function drawMainTimeline(svg, timingValues, pxWidth, pxIndent, yStep) {
     const { endpointAt0, endpointAt, updatedAt, oldestViewAt, msRange } = timingValues;
-    
+
     const msToX = (ms) => {
       if (msRange === 0) return pxIndent;
       return Math.round(((ms - endpointAt) / msRange) * (pxWidth - 2 * pxIndent)) + pxIndent;
@@ -1531,7 +1647,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const xEndpoint = msToX(endpointAt);
     const xUpdated = msToX(updatedAt);
     const xOldestView = msToX(oldestViewAt);
-    
+
     // Draw lines
     const color = endpointAt0 == endpointAt ? '#a7ecff' : '#f8f53f';
     svg.appendChild(svgLine(xEndpoint, y0, xUpdated, y0, color));
@@ -1544,7 +1660,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     svg.appendChild(svgText(xOldestView, y0 - 12, '1', '15', 'bold', '#ffffff'));
-    
+
     return msToX;
   }
 
@@ -1556,11 +1672,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const y = yStep * (i + 1);
       const xStart = msToX(updatedAt);
       const xEnd = msToX(parsed[i].viewAt);
-      
+
       // Draw timing lines
       svg.appendChild(svgLine(xStart, y, xEnd, y, '#44ddff'));
       svg.appendChild(svgLine(xStart, y - yStep + 7, xStart, y, '#44ddff'));
-      
+
       // Draw markers
       svg.appendChild(svgCircle(xStart, y, 5, '#ff4d6f', '#222', '1'));
       svg.appendChild(svgCircle(xEnd, y, 5, '#ffd24d', '#222', '1'));
@@ -1574,10 +1690,10 @@ document.addEventListener('DOMContentLoaded', () => {
   function positionOverlay(overlay, cellElement) {
     document.body.appendChild(overlay);
     const cellRect = cellElement.getBoundingClientRect();
-    
+
     let left = cellRect.right + 12;
     let top = cellRect.top - 8;
-    
+
     // Clamp to viewport
     const overlayRect = overlay.getBoundingClientRect();
     if (left + overlayRect.width > window.innerWidth - 8) {
@@ -1588,7 +1704,7 @@ document.addEventListener('DOMContentLoaded', () => {
       top = window.innerHeight - overlayRect.height - 8;
     }
     if (top < 8) top = 8;
-    
+
     overlay.style.left = left + 'px';
     overlay.style.top = top + 'px';
     cellElement.classList.add('grid-cell-overlay-active');
@@ -1599,17 +1715,15 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   function setupOverlayDismiss(overlay) {
     function onDismiss(e) {
-      const shouldDismiss = 
-        (e.type === 'keydown' && e.key === 'Escape') ||
-        (e.type === 'mousedown' && !overlay.contains(e.target));
-        
+      const shouldDismiss = (e.type === 'keydown' && e.key === 'Escape') || (e.type === 'mousedown' && !overlay.contains(e.target));
+
       if (shouldDismiss) {
         removeGridCellOverlay();
         document.removeEventListener('mousedown', onDismiss, true);
         document.removeEventListener('keydown', onDismiss, true);
       }
     }
-    
+
     setTimeout(() => {
       document.addEventListener('mousedown', onDismiss, true);
       document.addEventListener('keydown', onDismiss, true);
@@ -1623,25 +1737,25 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   function showTimingOverlay(dataList, cellElement) {
     removeGridCellOverlay();
-    
+
     const parsed = processTimingData(dataList);
     if (!parsed) return;
-    
+
     const timingValues = calculateTimingValues(parsed);
     const pxWidth = config.overlay.timingWidth;
     const pxIndent = config.overlay.timingIndent;
     const pxHeight = Math.max(config.overlay.timingMinHeight, parsed.length * config.overlay.timingRowHeight);
-    
+
     // Create overlay components
     const overlay = createTimingOverlayContainer(pxWidth, pxHeight);
     const table = createTimingTable(parsed);
     const svg = createTimingSVG(pxWidth, pxHeight);
-    
+
     // Draw timing visualization
     const yStep = pxHeight / (parsed.length + 1);
     const msToX = drawMainTimeline(svg, timingValues, pxWidth, pxIndent, yStep);
     drawAdditionalRegions(svg, parsed, msToX, yStep, timingValues.updatedAt);
-    
+
     // Assemble and position overlay
     overlay.appendChild(table);
     overlay.appendChild(svg);
@@ -1704,32 +1818,12 @@ document.addEventListener('DOMContentLoaded', () => {
    * @returns {Object} - Object with row and col properties
    */
   function getCellCoordinates(cellId) {
-    // Make sure the cell ID starts with 'cell-'
-    if (!cellId.startsWith('cell-')) {
-      console.error('Invalid cell ID format, missing prefix:', cellId);
+    const parsed = parseCellId(cellId);
+    if (!parsed) {
+      console.error('Invalid cell coordinates:', cellId);
       return { row: 0, col: 0 };
     }
-
-    // Extract the coordinates part (after 'cell-')
-    const coordPart = cellId.substring(5); // Remove 'cell-' prefix
-    const xIndex = coordPart.indexOf('x');
-
-    if (xIndex === -1) {
-      console.error('Invalid cell ID format, missing x separator:', cellId);
-      return { row: 0, col: 0 };
-    }
-
-    // Parse the row and column parts
-    const row = parseInt(coordPart.substring(0, xIndex));
-    const col = parseInt(coordPart.substring(xIndex + 1));
-
-    // Validate the parsed values
-    if (isNaN(row) || isNaN(col)) {
-      console.error('Invalid cell coordinates:', cellId, row, col);
-      return { row: 0, col: 0 };
-    }
-
-    return { row, col };
+    return parsed;
   }
 
   /**
@@ -1751,7 +1845,7 @@ document.addEventListener('DOMContentLoaded', () => {
     for (let r = startRow; r <= endRow; r++) {
       for (let c = startCol; c <= endCol; c++) {
         // Use the actual cell coordinates (already include viewport offset)
-        const cellId = `cell-${r}x${c}`;
+        const cellId = createCellId(r, c);
         const cell = document.getElementById(cellId);
         if (cell) {
           highlightCell(cell);
