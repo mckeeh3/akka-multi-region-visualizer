@@ -90,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // User's session ID
   function getSessionId() {
     let sessionId = sessionStorage.getItem('sessionId');
-    if (sessionId == null || sessionId == undefined || sessionId == '') {
+    if (!sessionId) {
       // Generate a random ID
       sessionId = Array(config.session.idLength)
         .fill(0)
@@ -168,12 +168,21 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
+  // Unified cell status configuration
+  const cellStatusConfig = {
+    red: { className: 'cell-red', char: 'r', color: 'red' },
+    green: { className: 'cell-green', char: 'g', color: 'green' },
+    blue: { className: 'cell-blue', char: 'b', color: 'blue' },
+    orange: { className: 'cell-orange', char: 'o', color: 'orange' },
+    predator: { className: 'cell-predator', char: 'p', color: 'predator' },
+  };
+
   /**
    * Gets the cell status class name from element
    */
   function getCellStatusClass(cellElement) {
     if (!cellElement) return null;
-    const statusClasses = ['cell-red', 'cell-green', 'cell-blue', 'cell-orange', 'cell-predator'];
+    const statusClasses = Object.values(cellStatusConfig).map((config) => config.className);
     return statusClasses.find((cls) => cellElement.classList.contains(cls)) || null;
   }
 
@@ -181,30 +190,22 @@ document.addEventListener('DOMContentLoaded', () => {
    * Gets the cell status string from element classes
    */
   function getCellStatusFromElement(cellElement) {
-    const statusMap = {
-      'cell-red': 'red',
-      'cell-green': 'green',
-      'cell-blue': 'blue',
-      'cell-orange': 'orange',
-      'cell-predator': 'predator',
-    };
     const statusClass = getCellStatusClass(cellElement);
-    return statusClass ? statusMap[statusClass] : 'inactive';
+    if (!statusClass) return 'inactive';
+
+    const status = Object.keys(cellStatusConfig).find((key) => cellStatusConfig[key].className === statusClass);
+    return status || 'inactive';
   }
 
   /**
    * Gets the color character from cell element
    */
   function getCellColorCharFromElement(cellElement) {
-    const colorMap = {
-      'cell-red': 'r',
-      'cell-green': 'g',
-      'cell-blue': 'b',
-      'cell-orange': 'o',
-      'cell-predator': 'p',
-    };
     const statusClass = getCellStatusClass(cellElement);
-    return statusClass ? colorMap[statusClass] : '';
+    if (!statusClass) return '';
+
+    const status = Object.keys(cellStatusConfig).find((key) => cellStatusConfig[key].className === statusClass);
+    return status ? cellStatusConfig[status].char : '';
   }
 
   /**
@@ -255,6 +256,25 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   function cellHasElapsedTime(cellElement) {
     return cellElement && cellElement.classList.contains('has-elapsed-time');
+  }
+
+  /**
+   * Clamps overlay position to stay within viewport
+   */
+  function clampOverlayPosition(left, top, overlayRect, cellRect) {
+    const margin = 8;
+    const offset = 12;
+
+    // Adjust horizontal position - try right side first, then left side, then clamp
+    if (left + overlayRect.width > window.innerWidth - margin) {
+      left = cellRect.left - overlayRect.width - offset;
+    }
+    left = Math.max(margin, left);
+
+    // Adjust vertical position - clamp to viewport bounds
+    top = Math.max(margin, Math.min(window.innerHeight - overlayRect.height - margin, top));
+
+    return { left, top };
   }
 
   // --- State ---
@@ -701,9 +721,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const serverFormatId = id;
     const apiUrl = `${origin}/grid-cell/${commandPath}`;
     const status = config.colors.statusMap[colorChar];
-    const coords = parseCoordinatesFromId(id);
-    const centerX = coords.x;
-    const centerY = coords.y;
+    const { x: centerX, y: centerY } = parseCoordinatesFromId(id);
     const maxRetries = config.retry.maxAttempts;
     const retryDelay = config.retry.delay; // ms
     let attempt = 0;
@@ -981,22 +999,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Create the appropriate movement object based on the command
-    switch (lastChar) {
-      case 'x': // Absolute X position
-        return { x: value };
-      case 'y': // Absolute Y position
-        return { y: value };
-      case 'h': // Move left
-        return { relativeX: -value };
-      case 'j': // Move down
-        return { relativeY: value };
-      case 'k': // Move up
-        return { relativeY: -value };
-      case 'l': // Move right
-        return { relativeX: value };
-      default:
-        return null;
-    }
+    const commandMap = {
+      x: (value) => ({ x: value }), // Absolute X position
+      y: (value) => ({ y: value }), // Absolute Y position
+      h: (value) => ({ relativeX: -value }), // Move left
+      j: (value) => ({ relativeY: value }), // Move down
+      k: (value) => ({ relativeY: -value }), // Move up
+      l: (value) => ({ relativeX: value }), // Move right
+    };
+
+    return commandMap[lastChar]?.(value) || null;
   }
 
   /**
@@ -1007,7 +1019,6 @@ document.addEventListener('DOMContentLoaded', () => {
    * @param {number} relativeY - Relative Y movement (optional)
    */
   function updateViewport(x, y, relativeX, relativeY) {
-    let changed = false;
     let newX = viewportX;
     let newY = viewportY;
 
@@ -1037,15 +1048,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const clampedY = clamped.y;
 
     // Check if position actually changed
-    if (viewportX !== clampedX) {
-      viewportX = clampedX;
-      changed = true;
-    }
+    const xChanged = viewportX !== clampedX;
+    const yChanged = viewportY !== clampedY;
+    const changed = xChanged || yChanged;
 
-    if (viewportY !== clampedY) {
-      viewportY = clampedY;
-      changed = true;
-    }
+    if (xChanged) viewportX = clampedX;
+    if (yChanged) viewportY = clampedY;
 
     if (changed) {
       // Update the grid position display
@@ -1167,12 +1175,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (currentSelection.length > 0) {
         // Rectangle selection mode
-        const topLeftCoords = parseCoordinatesFromId(currentSelection[0]);
-        const topLeftX = topLeftCoords.x;
-        const topLeftY = topLeftCoords.y;
-        const bottomRightCoords = parseCoordinatesFromId(currentSelection[currentSelection.length - 1]);
-        const bottomRightX = bottomRightCoords.x;
-        const bottomRightY = bottomRightCoords.y;
+        const { x: topLeftX, y: topLeftY } = parseCoordinatesFromId(currentSelection[0]);
+        const { x: bottomRightX, y: bottomRightY } = parseCoordinatesFromId(currentSelection[currentSelection.length - 1]);
         const width = Math.abs(bottomRightX - topLeftX) + 1;
         const height = Math.abs(bottomRightY - topLeftY) + 1;
         const id = topLeftY + 'x' + topLeftX;
@@ -1319,16 +1323,20 @@ document.addEventListener('DOMContentLoaded', () => {
    * @param {KeyboardEvent} event
    */
   function handleGlobalKeyDown(event) {
-    // Try each handler in order until one handles the event
-    if (handleSelectionModeToggle(event)) return;
-    if (handleNavigationCommand(event)) return;
-    if (handleCommandCancel(event)) return;
-    if (handleColorCommand(event)) return;
-    if (handleClearCommand(event)) return;
-    if (handleEraseCommand(event)) return;
-    if (handleOverlayCommands(event)) return;
-    if (handleSystemCommands(event)) return;
-    if (handleAgentOverlayNavigation(event)) return;
+    const keyHandlers = [
+      handleSelectionModeToggle,
+      handleNavigationCommand,
+      handleCommandCancel,
+      handleColorCommand,
+      handleClearCommand,
+      handleEraseCommand,
+      handleOverlayCommands,
+      handleSystemCommands,
+      handleAgentOverlayNavigation,
+    ];
+
+    // Try each handler until one successfully handles the event
+    keyHandlers.some((handler) => handler(event));
   }
 
   /**
@@ -1388,20 +1396,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Position overlay near the cell, but within viewport
     const cellRect = cell.getBoundingClientRect();
     const overlayRect = overlay.getBoundingClientRect();
-    let left = cellRect.right + 12;
-    let top = cellRect.top;
-    // If overlay would go off right edge, move to left side
-    if (left + overlayRect.width > window.innerWidth - 8) {
-      left = cellRect.left - overlayRect.width - 12;
-    }
-    // If overlay would go off left edge, clamp to 8px
-    if (left < 8) left = 8;
-    // If overlay would go off bottom, clamp
-    if (top + overlayRect.height > window.innerHeight - 8) {
-      top = window.innerHeight - overlayRect.height - 8;
-    }
-    // If overlay would go off top, clamp
-    if (top < 8) top = 8;
+    const initialLeft = cellRect.right + 12;
+    const initialTop = cellRect.top;
+
+    const { left, top } = clampOverlayPosition(initialLeft, initialTop, overlayRect, cellRect);
     overlay.style.left = `${left}px`;
     overlay.style.top = `${top}px`;
     cell.classList.add('grid-cell-overlay-active');
@@ -1690,21 +1688,12 @@ document.addEventListener('DOMContentLoaded', () => {
   function positionOverlay(overlay, cellElement) {
     document.body.appendChild(overlay);
     const cellRect = cellElement.getBoundingClientRect();
-
-    let left = cellRect.right + 12;
-    let top = cellRect.top - 8;
-
-    // Clamp to viewport
     const overlayRect = overlay.getBoundingClientRect();
-    if (left + overlayRect.width > window.innerWidth - 8) {
-      left = cellRect.left - overlayRect.width - 12;
-    }
-    if (left < 8) left = 8;
-    if (top + overlayRect.height > window.innerHeight - 8) {
-      top = window.innerHeight - overlayRect.height - 8;
-    }
-    if (top < 8) top = 8;
 
+    const initialLeft = cellRect.right + 12;
+    const initialTop = cellRect.top - 8;
+
+    const { left, top } = clampOverlayPosition(initialLeft, initialTop, overlayRect, cellRect);
     overlay.style.left = left + 'px';
     overlay.style.top = top + 'px';
     cellElement.classList.add('grid-cell-overlay-active');
@@ -1715,9 +1704,10 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   function setupOverlayDismiss(overlay) {
     function onDismiss(e) {
-      const shouldDismiss = (e.type === 'keydown' && e.key === 'Escape') || (e.type === 'mousedown' && !overlay.contains(e.target));
+      const isEscapeKey = e.type === 'keydown' && e.key === 'Escape';
+      const isClickOutside = e.type === 'mousedown' && !overlay.contains(e.target);
 
-      if (shouldDismiss) {
+      if (isEscapeKey || isClickOutside) {
         removeGridCellOverlay();
         document.removeEventListener('mousedown', onDismiss, true);
         document.removeEventListener('keydown', onDismiss, true);
@@ -2131,21 +2121,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const amount = command.parameters.amount;
       let moveCommand = '';
 
-      switch (direction) {
-        case 'left':
-          moveCommand = `${amount}h`;
-          break;
-        case 'right':
-          moveCommand = `${amount}l`;
-          break;
-        case 'up':
-          moveCommand = `${amount}k`;
-          break;
-        case 'down':
-          moveCommand = `${amount}j`;
-          break;
-        default:
-          console.error(`${new Date().toISOString()} `, 'Audio processed: LLM agent response command:', command);
+      const directionMap = {
+        left: 'h',
+        right: 'l',
+        up: 'k',
+        down: 'j',
+      };
+
+      if (directionMap[direction]) {
+        moveCommand = `${amount}${directionMap[direction]}`;
+      } else {
+        console.error(`${new Date().toISOString()} `, 'Audio processed: LLM agent response command:', command);
       }
 
       const parsedCommand = parseViewportCommand(moveCommand);
