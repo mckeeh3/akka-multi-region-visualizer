@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import akka.javasdk.client.ComponentClient;
 import io.example.application.AgentStepEntity;
+import io.example.application.VisualizerAgent;
 import io.example.domain.AgentStep;
 
 /**
@@ -142,9 +143,19 @@ public class GridAgentAudioToText {
       var llmNextPrompt = textFromAudio;
       var command = AgentStep.Command.CreateStep.ofStepZero(llmPrompt, llmNextPrompt, viewport, userSessionId);
 
-      componentClient.forEventSourcedEntity(command.id())
-          .method(AgentStepEntity::createStep)
-          .invoke(command);
+      // componentClient.forEventSourcedEntity(command.id())
+      // .method(AgentStepEntity::createStep)
+      // .invoke(command);
+
+      var agentViewPort = new VisualizerAgent.ViewPort(
+          new VisualizerAgent.Location(viewport.topLeft().row(), viewport.topLeft().col()),
+          new VisualizerAgent.Location(viewport.bottomRight().row(), viewport.bottomRight().col()),
+          new VisualizerAgent.Location(viewport.mouse().row(), viewport.mouse().col()));
+      var prompt = new VisualizerAgent.Prompt(textFromAudio, agentViewPort);
+      componentClient.forAgent()
+          .inSession(command.sequenceId())
+          .method(VisualizerAgent::chat)
+          .invoke(prompt);
 
       return command.sequenceId();
     } catch (IOException | InterruptedException e) {

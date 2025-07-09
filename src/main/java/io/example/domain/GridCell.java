@@ -61,7 +61,8 @@ public interface GridCell {
             command.region));
       }
 
-      // If first cell is inactive, fill the shape, which fills only empty (no color) cells
+      // If first cell is inactive, fill the shape, which fills only empty (no color)
+      // cells
       // Otherwise, span the shape, which spans only active (has color) cells
       if (status.equals(Status.inactive)) {
         var fillCommand = new Command.FillCells(
@@ -509,12 +510,14 @@ public interface GridCell {
     }
 
     // Radius is limited to min(50, radius)
-    static boolean insideRadius(String id, int centerX, int centerY, int radius) {
-      var rc = id.split("x"); // RxC / YxX
-      var x = Integer.parseInt(rc[1]);
-      var y = Integer.parseInt(rc[0]);
-      return Math.pow(centerX - x, 2) + Math.pow(centerY - y, 2) <= Math.pow(Math.min(50, radius), 2);
-    }
+    // static boolean insideRadius(String id, int centerX, int centerY, int radius)
+    // {
+    // var rc = id.split("x"); // RxC / YxX
+    // var x = Integer.parseInt(rc[1]);
+    // var y = Integer.parseInt(rc[0]);
+    // return Math.pow(centerX - x, 2) + Math.pow(centerY - y, 2) <=
+    // Math.pow(Math.min(50, radius), 2);
+    // }
 
     static List<String> neighborIds(String centerId) {
       var rc = centerId.split("x"); // RxC / YxX
@@ -669,7 +672,8 @@ public interface GridCell {
         Instant clientAt,
         Instant endpointAt,
         String created,
-        String updated) implements Event {}
+        String updated) implements Event {
+    }
 
     @TypeName("predator-moved")
     public record PredatorMoved(
@@ -684,7 +688,8 @@ public interface GridCell {
         Integer range,
         String lastCellId,
         Queue<String> tail,
-        String updated) implements Event {}
+        String updated) implements Event {
+    }
 
     @TypeName("predator-updated")
     public record PredatorUpdated(
@@ -694,7 +699,8 @@ public interface GridCell {
         Instant updatedAt,
         Instant clientAt,
         Instant endpointAt,
-        String updated) implements Event {}
+        String updated) implements Event {
+    }
 
     @TypeName("span-to-neighbor")
     public record SpanToNeighbor(
@@ -707,7 +713,8 @@ public interface GridCell {
         Integer radius,
         Shape shape,
         String created,
-        String updated) implements Event {}
+        String updated) implements Event {
+    }
 
     @TypeName("fill-to-neighbor")
     public record FillToNeighbor(
@@ -720,16 +727,19 @@ public interface GridCell {
         Integer radius,
         Shape shape,
         String created,
-        String updated) implements Event {}
+        String updated) implements Event {
+    }
 
     @TypeName("clear-to-neighbor")
     public record ClearToNeighbor(
         String id,
-        Status status) implements Event {}
+        Status status) implements Event {
+    }
 
     @TypeName("erase-to-neighbor")
     public record EraseToNeighbor(
-        String id) implements Event {}
+        String id) implements Event {
+    }
   }
 
   public record Shape(

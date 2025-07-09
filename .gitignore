@@ -6,6 +6,7 @@
 .metals
 .bloop
 .idea
+akka-context/
 
 # Java - from https://raw.githubusercontent.com/github/gitignore/master/Java.gitignore
 #=====================================================================================
