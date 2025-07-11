@@ -23,6 +23,7 @@ import akka.stream.Materializer;
 import io.example.agent.GridAgentAudioToText;
 import io.example.application.AgentStepEntity;
 import io.example.application.AgentStepView;
+import io.example.application.VisualizerAgent;
 import io.example.domain.AgentStep;
 
 @Acl(allow = @Acl.Matcher(principal = Acl.Principal.INTERNET))
@@ -52,8 +53,8 @@ public class AgentEndpoint extends AbstractHttpEndpoint {
     var viewport = viewportFromHttpHeaders(request);
     log.info("Voice command: Viewport: {}", viewport);
 
-    var userSessionId = request.getHeader("X-User-Session-Id").map(header -> header.value()).orElse("unknown");
-    log.info("Voice command: User session ID: {}", userSessionId);
+    var sessionId = request.getHeader("X-User-Session-Id").map(header -> header.value()).orElse("unknown");
+    log.info("Voice command: User session ID: {}", sessionId);
 
     return request.entity().toStrict(Duration.ofSeconds(10).toMillis(), materializer)
         .thenCompose(strict -> {
@@ -67,7 +68,22 @@ public class AgentEndpoint extends AbstractHttpEndpoint {
                 viewport,
                 contentType,
                 input,
-                userSessionId);
+                sessionId)
+                .thenApply(audioToText -> {
+                  log.info("Voice command: Audio to text: {}", audioToText);
+
+                  var agentViewPort = new VisualizerAgent.ViewPort(
+                      new VisualizerAgent.Location(viewport.topLeft().row(), viewport.topLeft().col()),
+                      new VisualizerAgent.Location(viewport.bottomRight().row(), viewport.bottomRight().col()),
+                      new VisualizerAgent.Location(viewport.mouse().row(), viewport.mouse().col()));
+                  var prompt = new VisualizerAgent.Prompt(sessionId, audioToText, agentViewPort);
+
+                  componentClient.forAgent()
+                      .inSession(sessionId)
+                      .method(VisualizerAgent::chat)
+                      .invoke(prompt);
+                  return audioToText;
+                });
           } catch (GridAgentAudioToText.GridAgentAudioToTextException e) {
             log.error("Voice command: LLM agent error", e);
             throw HttpException.badRequest(e.getMessage());

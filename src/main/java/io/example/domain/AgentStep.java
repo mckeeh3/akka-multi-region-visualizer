@@ -1,5 +1,6 @@
 package io.example.domain;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.Random;
 import java.util.stream.Collectors;
@@ -11,31 +12,23 @@ public interface AgentStep {
   public enum Status {
     empty,
     pending,
-    processed,
     consumed
   }
 
   public record State(
       String id,
       String sequenceId,
-      int stepNumber,
-      String llmPrompt,
-      String llmResponse,
-      String llmNextPrompt,
+      String stepId,
+      Instant createdAt,
+      String message,
       Status status) {
 
     public static State empty() {
-      return new State("", "", 0, "", "", "", Status.empty);
+      return new State("", "", "", Instant.now(), "", Status.empty);
     }
 
     public boolean isEmpty() {
       return id.isEmpty();
-    }
-
-    public static String randomSequenceId() {
-      return new Random().ints(5, 0, 36)
-          .mapToObj(i -> i < 10 ? String.valueOf(i) : String.valueOf((char) ('a' + i - 10)))
-          .collect(Collectors.joining());
     }
 
     // ============================================================
@@ -49,27 +42,11 @@ public interface AgentStep {
       return Optional.of(
           new Event.StepCreated(
               command.id,
-              command.sequenceId,
-              command.stepNumber,
+              command.sessionId,
+              command.stepId,
+              Instant.now(),
+              command.message,
               Status.pending,
-              command.llmPrompt,
-              command.llmNextPrompt,
-              command.viewport,
-              command.userSessionId));
-    }
-
-    public Optional<Event> onCommand(Command.ProcessedStep command) {
-      if (isEmpty()) {
-        return Optional.empty();
-      }
-
-      return Optional.of(
-          new Event.StepProcessed(
-              id,
-              sequenceId,
-              stepNumber,
-              Status.processed,
-              command.llmResponse,
               command.viewport));
     }
 
@@ -81,8 +58,6 @@ public interface AgentStep {
       return Optional.of(
           new Event.StepConsumed(
               id,
-              sequenceId,
-              stepNumber,
               Status.consumed));
     }
 
@@ -92,34 +67,33 @@ public interface AgentStep {
     public State onEvent(Event.StepCreated event) {
       return new State(
           event.id,
-          event.sequenceId,
-          event.stepNumber,
-          event.llmPrompt,
-          llmResponse,
-          event.llmNextPrompt,
-          event.status);
-    }
-
-    public State onEvent(Event.StepProcessed event) {
-      return new State(
-          event.id,
-          event.sequenceId,
-          event.stepNumber,
-          llmPrompt,
-          event.llmResponse,
-          llmNextPrompt,
+          event.sessionId,
+          event.stepId,
+          event.createdAt,
+          event.message,
           event.status);
     }
 
     public State onEvent(Event.StepConsumed event) {
       return new State(
           event.id,
-          event.sequenceId,
-          event.stepNumber,
-          llmPrompt,
-          llmResponse,
-          llmNextPrompt,
+          sequenceId,
+          stepId,
+          createdAt,
+          message,
           event.status);
+    }
+
+    public static String randomSequenceId() {
+      return new Random().ints(5, 0, 36)
+          .mapToObj(i -> i < 10 ? String.valueOf(i) : String.valueOf((char) ('a' + i - 10)))
+          .collect(Collectors.joining());
+    }
+
+    public static String randomStepId() {
+      return new Random().ints(6, 0, 36)
+          .mapToObj(i -> i < 10 ? String.valueOf(i) : String.valueOf((char) ('a' + i - 10)))
+          .collect(Collectors.joining());
     }
   }
 
@@ -130,47 +104,23 @@ public interface AgentStep {
 
     public record CreateStep(
         String id,
-        String sequenceId,
-        int stepNumber,
-        String llmPrompt,
-        String llmNextPrompt,
-        ViewPort viewport,
-        String userSessionId) implements Command {
-
-      public static CreateStep of(String sequenceId, int stepNumber, String llmPrompt, String llmNextPrompt, ViewPort viewport, String userSessionId) {
-        var id = "%s-%d".formatted(sequenceId, stepNumber);
-        return new CreateStep(id, sequenceId, stepNumber, llmPrompt, llmNextPrompt, viewport, userSessionId);
-      }
-
-      public static CreateStep ofStepZero(String llmPrompt, String llmNextPrompt, ViewPort viewport, String userSessionId) {
-        var sequenceId = State.randomSequenceId();
-        return of(sequenceId, 0, llmPrompt, llmNextPrompt, viewport, userSessionId);
-      }
-    }
-
-    public record ProcessedStep(
-        String id,
-        String sequenceId,
-        int stepNumber,
-        String llmResponse,
+        String sessionId,
+        String stepId,
+        Instant createdAt,
+        String message,
         ViewPort viewport) implements Command {
 
-      public static ProcessedStep of(String sequenceId, int stepNumber, String llmResponse, ViewPort viewport) {
-        var id = "%s-%d".formatted(sequenceId, stepNumber);
-        return new ProcessedStep(id, sequenceId, stepNumber, llmResponse, viewport);
+      public static CreateStep of(String sessionId, String message, ViewPort viewport) {
+        var stepId = State.randomStepId();
+        var id = "%s-%s".formatted(sessionId, stepId);
+        var createdAt = Instant.now();
+        return new CreateStep(id, sessionId, stepId, createdAt, message, viewport);
       }
     }
 
     public record ConsumedStep(
         String id,
-        String sequenceId,
-        int stepNumber) implements Command {
-
-      public static ConsumedStep of(String sequenceId, int stepNumber) {
-        var id = "%s-%d".formatted(sequenceId, stepNumber);
-        return new ConsumedStep(id, sequenceId, stepNumber);
-      }
-    }
+        Status status) implements Command {}
   }
 
   // ============================================================
@@ -181,28 +131,16 @@ public interface AgentStep {
     @TypeName("step-created")
     public record StepCreated(
         String id,
-        String sequenceId,
-        int stepNumber,
+        String sessionId,
+        String stepId,
+        Instant createdAt,
+        String message,
         Status status,
-        String llmPrompt,
-        String llmNextPrompt,
-        ViewPort viewport,
-        String userSessionId) implements Event {}
-
-    @TypeName("step-processed")
-    public record StepProcessed(
-        String id,
-        String sequenceId,
-        int stepNumber,
-        Status status,
-        String llmResponse,
         ViewPort viewport) implements Event {}
 
     @TypeName("step-consumed")
     public record StepConsumed(
         String id,
-        String sequenceId,
-        int stepNumber,
         Status status) implements Event {}
   }
 

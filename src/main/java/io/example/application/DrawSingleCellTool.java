@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import akka.javasdk.annotations.Description;
 import akka.javasdk.annotations.FunctionTool;
 import akka.javasdk.client.ComponentClient;
+import io.example.domain.AgentStep;
 import io.example.domain.GridCell;
 
 public class DrawSingleCellTool {
@@ -26,11 +27,13 @@ public class DrawSingleCellTool {
       detailed patterns, making small adjustments, or placing individual elements on the grid.
       """)
   public void drawSingleCell(
+      @Description("The user session id") String sessionId,
+      @Description("The viewport") AgentStep.ViewPort viewport,
       @Description("The row coordinate of the cell to draw") int row,
       @Description("The column coordinate of the cell to draw") int col,
       @Description("The status/color to apply to the cell. Valid values: 'red', 'green', 'blue', 'orange', 'predator', 'inactive'") String status) {
 
-    log.info("Drawing single cell at row {} and column {} with status {}", row, col, status);
+    log.info("Region: {}, Drawing single cell at row: {} and col: {} with status: {}", region, row, col, status);
 
     var cellId = String.format("%dx%d", row, col);
     var cellStatus = GridCell.Status.valueOf(status.toLowerCase());
@@ -44,5 +47,33 @@ public class DrawSingleCellTool {
     componentClient.forEventSourcedEntity(cellId)
         .method(GridCellEntity::updateStatus)
         .invoke(command);
+
+    {
+      var message = """
+          {
+            "action": "draw_single_cell",
+            "parameters": {
+              "sessionId": "%s",
+              "viewport": {
+                "topLeft": {"row": %d, "col": %d},
+                "bottomRight": {"row": %d, "col": %d},
+                "mouse": {"row": %d, "col": %d}
+              },
+              "row": %d,
+              "col": %d,
+              "status": "%s"
+            }
+          }
+          """.formatted(sessionId,
+          viewport.topLeft().row(), viewport.topLeft().col(),
+          viewport.bottomRight().row(), viewport.bottomRight().col(),
+          viewport.mouse().row(), viewport.mouse().col(),
+          row, col, status);
+      var stepCommand = AgentStep.Command.CreateStep.of(sessionId, message, viewport);
+
+      componentClient.forEventSourcedEntity(stepCommand.id())
+          .method(AgentStepEntity::createStep)
+          .invoke(stepCommand);
+    }
   }
 }

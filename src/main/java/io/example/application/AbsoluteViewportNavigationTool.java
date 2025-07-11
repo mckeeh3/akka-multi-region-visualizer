@@ -1,15 +1,23 @@
 package io.example.application;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import akka.javasdk.annotations.FunctionTool;
 import akka.javasdk.annotations.Description;
 import akka.javasdk.client.ComponentClient;
+import io.example.domain.AgentStep;
 import io.example.domain.AgentStep.ViewPort;
 
 public class AbsoluteViewportNavigationTool {
+    static final Logger log = LoggerFactory.getLogger(AbsoluteViewportNavigationTool.class);
+
+    final ComponentClient componentClient;
+    final String region;
 
     public AbsoluteViewportNavigationTool(ComponentClient componentClient, String region) {
-        // componentClient and region are not used in this tool, but are kept for
-        // consistency
+        this.componentClient = componentClient;
+        this.region = region;
     }
 
     @FunctionTool(description = """
@@ -19,9 +27,11 @@ public class AbsoluteViewportNavigationTool {
             Coordinates are automatically rounded to the nearest 10 for grid alignment.
             """)
     public ViewPort absoluteViewportNavigation(
+            @Description("The user session id") String sessionId,
             @Description("The target row coordinate for the top-left corner of the viewport") int row,
             @Description("The target column coordinate for the top-left corner of the viewport") int col,
             @Description("The current viewport information containing dimensions and mouse position") ViewPort viewport) {
+        log.info("Region: {}, Absolute viewport navigation: sessionId={}, row={}, col={}, viewport={}", region, sessionId, row, col, viewport);
         int viewportWidth = viewport.bottomRight().col() - viewport.topLeft().col();
         int viewportHeight = viewport.bottomRight().row() - viewport.topLeft().row();
 
@@ -32,6 +42,24 @@ public class AbsoluteViewportNavigationTool {
         int updatedTopLeftCol = newCol;
         int updatedBottomRightRow = updatedTopLeftRow + viewportHeight;
         int updatedBottomRightCol = updatedTopLeftCol + viewportWidth;
+
+        {
+            var message = """
+                    {
+                        "action": "absolute_viewport_navigation",
+                        "parameters": {
+                            "sessionId": "%s",
+                            "row": %d,
+                            "col": %d,
+                            "viewport": %s
+                        }
+                    }
+                    """.formatted(sessionId, row, col, viewport);
+            var command = AgentStep.Command.CreateStep.of(sessionId, message, viewport);
+            componentClient.forEventSourcedEntity(command.id())
+                    .method(AgentStepEntity::createStep)
+                    .invoke(command);
+        }
 
         return ViewPort.of(
                 updatedTopLeftRow,

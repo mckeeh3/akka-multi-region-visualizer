@@ -10,15 +10,18 @@ import akka.javasdk.agent.AgentContext;
 import akka.javasdk.agent.ModelProvider;
 import akka.javasdk.annotations.ComponentId;
 import akka.javasdk.client.ComponentClient;
+import io.example.domain.AgentStep;
 
 @ComponentId("visualizer-agent")
 public class VisualizerAgent extends Agent {
   final Logger log = LoggerFactory.getLogger(getClass());
-  final String systemPrompt;
+  final ComponentClient componentClient;
   final String region;
+  final String systemPrompt;
   final List<Object> functionTools;
 
   public VisualizerAgent(AgentContext context, ComponentClient componentClient) {
+    this.componentClient = componentClient;
     this.region = context.selfRegion();
 
     // In a real implementation, we would load the system prompt from a file.
@@ -149,9 +152,26 @@ public class VisualizerAgent extends Agent {
   public Effect<String> chat(Prompt prompt) {
     log.info("Prompt: {}", prompt);
 
-    var userMessage = String.format(
-        "%s\n\nCurrent UI view port location: top left row %d, col %d, bottom right row %d, col %d\nMouse location: row %d, col %d",
+    var agentStepViewport = new AgentStep.ViewPort(
+        new AgentStep.Location(prompt.viewport().topLeft().row(), prompt.viewport().topLeft().col()),
+        new AgentStep.Location(prompt.viewport().bottomRight().row(), prompt.viewport().bottomRight().col()),
+        new AgentStep.Location(prompt.viewport().mouse().row(), prompt.viewport().mouse().col()));
+    var command = AgentStep.Command.CreateStep.of(prompt.sessionId(), prompt.prompt(), agentStepViewport);
+
+    componentClient.forEventSourcedEntity(command.id())
+        .method(AgentStepEntity::createStep)
+        .invoke(command);
+
+    var userMessage = """
+        %s
+
+        Session ID: %s
+
+        Current UI view port location: top left row %d, col %d, bottom right row %d, col %d
+        Mouse location: row %d, col %d
+        """.formatted(
         prompt.prompt(),
+        prompt.sessionId(),
         prompt.viewport().topLeft().row(),
         prompt.viewport().topLeft().col(),
         prompt.viewport().bottomRight().row(),
@@ -185,5 +205,5 @@ public class VisualizerAgent extends Agent {
     }
   }
 
-  public record Prompt(String prompt, ViewPort viewport) {}
+  public record Prompt(String sessionId, String prompt, ViewPort viewport) {}
 }

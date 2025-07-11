@@ -1,5 +1,6 @@
 package io.example.application;
 
+import java.time.Instant;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -20,20 +21,20 @@ public class AgentStepView extends View {
   @Query("""
       SELECT * AS agentSteps
         FROM agent_step_view
-        WHERE sequenceId = :sequenceId
-        ORDER BY stepNumber ASC
+        WHERE sessionId = :sessionId
+        ORDER BY createdAt ASC
       """)
-  public QueryEffect<AgentSteps> getSequenceAgentSteps(String sequenceId) {
+  public QueryEffect<AgentSteps> getSequenceAgentSteps(String sessionId) {
     return queryResult();
   }
 
   @Query(value = """
       SELECT *
         FROM agent_step_view
-        WHERE userSessionId = :userSessionId
+        WHERE sessionId = :sessionId
         AND status != 'consumed'
       """, streamUpdates = true)
-  public QueryStreamEffect<AgentStepRow> getActiveAgentSteps(String userSessionId) {
+  public QueryStreamEffect<AgentStepRow> getActiveAgentSteps(String sessionId) {
     return queryStreamResult();
   }
 
@@ -45,7 +46,6 @@ public class AgentStepView extends View {
 
       return switch (event) {
         case AgentStep.Event.StepCreated e -> effects().updateRow(onEvent(e));
-        case AgentStep.Event.StepProcessed e -> effects().updateRow(onEvent(e));
         case AgentStep.Event.StepConsumed e -> effects().updateRow(onEvent(e));
         default -> effects().ignore();
       };
@@ -54,49 +54,34 @@ public class AgentStepView extends View {
     AgentStepRow onEvent(AgentStep.Event.StepCreated event) {
       return new AgentStepRow(
           event.id(),
-          event.sequenceId(),
-          event.stepNumber(),
+          event.sessionId(),
+          event.stepId(),
+          event.createdAt(),
           event.status().toString(),
-          event.llmPrompt(),
-          "",
-          event.viewport(),
-          event.userSessionId());
-    }
-
-    AgentStepRow onEvent(AgentStep.Event.StepProcessed event) {
-      return new AgentStepRow(
-          rowState().id(),
-          rowState().sequenceId(),
-          rowState().stepNumber(),
-          event.status().toString(),
-          rowState().llmPrompt(),
-          event.llmResponse(),
-          event.viewport(),
-          rowState().userSessionId());
+          event.message(),
+          event.viewport());
     }
 
     AgentStepRow onEvent(AgentStep.Event.StepConsumed event) {
       return new AgentStepRow(
           rowState().id(),
-          rowState().sequenceId(),
-          rowState().stepNumber(),
+          rowState().sessionId(),
+          rowState().stepId(),
+          rowState().createdAt(),
           event.status().toString(),
-          rowState().llmPrompt(),
-          rowState().llmResponse(),
-          rowState().viewport(),
-          rowState().userSessionId());
+          rowState().message(),
+          rowState().viewport());
     }
   }
 
   public record AgentStepRow(
       String id,
-      String sequenceId,
-      int stepNumber,
+      String sessionId,
+      String stepId,
+      Instant createdAt,
       String status,
-      String llmPrompt,
-      String llmResponse,
-      ViewPort viewport,
-      String userSessionId) {}
+      String message,
+      ViewPort viewport) {}
 
   public record AgentSteps(List<AgentStepRow> agentSteps) {}
 }

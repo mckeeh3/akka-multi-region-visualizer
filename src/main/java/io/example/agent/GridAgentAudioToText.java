@@ -113,11 +113,12 @@ public class GridAgentAudioToText {
    *
    * @param contentType The HTTP content type of the request
    * @param audioInput  The input stream containing the audio data
+   * @param sessionId   The user session id
    * @return The transcribed text
    * @throws IOException          If an I/O error occurs
    * @throws InterruptedException If the thread is interrupted
    */
-  public String transcribeAudio(String contentType, InputStream audioInput, String userSessionId) throws IOException, InterruptedException {
+  public String transcribeAudio(String contentType, InputStream audioInput, String sessionId) throws IOException, InterruptedException {
     // Parse the HTTP multipart content data and extract the audio data
     var parser = new MultipartFormDataParser(contentType, audioInput);
     try {
@@ -136,28 +137,27 @@ public class GridAgentAudioToText {
 
     // Transcribe the audio to text
     try {
-      var textFromAudio = transcribeAudio(audioData);
-      log.info("Text from audio: {}", textFromAudio);
+      var audioToText = transcribeAudio(audioData);
+      log.info("Audio to text: {}", audioToText);
 
-      var llmPrompt = "Transcribe the user's audio to text";
-      var llmNextPrompt = textFromAudio;
-      var command = AgentStep.Command.CreateStep.ofStepZero(llmPrompt, llmNextPrompt, viewport, userSessionId);
+      // var agentViewPort = new VisualizerAgent.ViewPort(
+      // new VisualizerAgent.Location(viewport.topLeft().row(), viewport.topLeft().col()),
+      // new VisualizerAgent.Location(viewport.bottomRight().row(), viewport.bottomRight().col()),
+      // new VisualizerAgent.Location(viewport.mouse().row(), viewport.mouse().col()));
+      // var prompt = new VisualizerAgent.Prompt(sessionId, audioToText, agentViewPort);
+
+      // componentClient.forAgent()
+      // .inSession(sessionId)
+      // .method(VisualizerAgent::chat)
+      // .invoke(prompt);
+
+      // var command = AgentStep.Command.CreateStep.of(sessionId, audioToText, viewport);
 
       // componentClient.forEventSourcedEntity(command.id())
       // .method(AgentStepEntity::createStep)
       // .invoke(command);
 
-      var agentViewPort = new VisualizerAgent.ViewPort(
-          new VisualizerAgent.Location(viewport.topLeft().row(), viewport.topLeft().col()),
-          new VisualizerAgent.Location(viewport.bottomRight().row(), viewport.bottomRight().col()),
-          new VisualizerAgent.Location(viewport.mouse().row(), viewport.mouse().col()));
-      var prompt = new VisualizerAgent.Prompt(textFromAudio, agentViewPort);
-      componentClient.forAgent()
-          .inSession(command.sequenceId())
-          .method(VisualizerAgent::chat)
-          .invoke(prompt);
-
-      return command.sequenceId();
+      return audioToText;
     } catch (IOException | InterruptedException e) {
       log.error("Failed to transcribe audio", e);
       throw new GridAgentAudioToTextException("Failed to transcribe audio", e);
@@ -222,7 +222,7 @@ public class GridAgentAudioToText {
    * @param contentType     The HTTP content type of the request containing audio data
    * @param audioInput      The input stream containing the raw audio data
    * @param userSessionId   The user's web app session ID
-   * @return A CompletionStage that completes with the sequence ID when processing starts
+   * @return A CompletionStage that completes with the the transcribed text
    */
   public static CompletionStage<String> convertAudioToText(
       ComponentClient componentClient,
@@ -237,12 +237,11 @@ public class GridAgentAudioToText {
       executor.submit(() -> {
         try {
           var agent = new GridAgentAudioToText(componentClient, viewport);
-          var sequenceId = agent.transcribeAudio(contentType, audioInput, userSessionId);
-          future.complete(sequenceId);
+          var audioToText = agent.transcribeAudio(contentType, audioInput, userSessionId);
+          future.complete(audioToText);
         } catch (Exception e) {
           log.error("Error processing audio in virtual thread", e);
           future.completeExceptionally(e);
-          // throw new GridAgentAudioToTextException("Error processing audio", e);
         }
         return null;
       });

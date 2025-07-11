@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import akka.javasdk.annotations.Description;
 import akka.javasdk.annotations.FunctionTool;
 import akka.javasdk.client.ComponentClient;
+import io.example.domain.AgentStep;
 import io.example.domain.GridCell;
 
 public class DrawRectangleTool {
@@ -26,26 +27,60 @@ public class DrawRectangleTool {
       Useful for creating large shapes, backgrounds, or clearing areas of the grid.
       """)
   public void drawRectangle(
+      @Description("The user session id") String sessionId,
+      @Description("The viewport") AgentStep.ViewPort viewport,
       @Description("The row coordinate of the top-left corner of the rectangle") int topLeftRow,
       @Description("The column coordinate of the top-left corner of the rectangle") int topLeftCol,
       @Description("The row coordinate of the bottom-right corner of the rectangle") int bottomRightRow,
       @Description("The column coordinate of the bottom-right corner of the rectangle") int bottomRightCol,
       @Description("The status/color to apply to all cells in the rectangle. Valid values: 'red', 'green', 'blue', 'orange', 'predator', 'inactive'") String status) {
 
-    log.info("Drawing rectangle at top left row {} and column {} to bottom right row {} and column {}", topLeftRow, topLeftCol, bottomRightRow, bottomRightCol, status);
+    log.info("Region: {}, Drawing rectangle at top left row: {} and col: {} to bottom right row: {} and col: {}, status: {}", region, topLeftRow, topLeftCol, bottomRightRow, bottomRightCol, status);
 
     var cellId = String.format("%dx%d", topLeftRow, topLeftCol);
     var shape = GridCell.Shape.ofRectangle(topLeftCol, topLeftRow, bottomRightCol, bottomRightRow);
-    var command = new GridCell.Command.CreateShape(
-        cellId,
-        GridCell.Status.valueOf(status.toLowerCase()),
-        Instant.now(),
-        Instant.now(),
-        shape,
-        region);
+    {
+      var command = new GridCell.Command.CreateShape(
+          cellId,
+          GridCell.Status.valueOf(status.toLowerCase()),
+          Instant.now(),
+          Instant.now(),
+          shape,
+          region);
 
-    componentClient.forEventSourcedEntity(cellId)
-        .method(GridCellEntity::createShape)
-        .invoke(command);
+      componentClient.forEventSourcedEntity(cellId)
+          .method(GridCellEntity::createShape)
+          .invoke(command);
+    }
+
+    {
+      var message = """
+          {
+            "action": "draw_rectangle",
+            "parameters": {
+              "sessionId": "%s",
+              "viewport": {
+                "topLeft": {"row": %d, "col": %d},
+                "bottomRight": {"row": %d, "col": %d},
+                "mouse": {"row": %d, "col": %d}
+              },
+              "topLeftRow": %d,
+              "topLeftCol": %d,
+              "bottomRightRow": %d,
+              "bottomRightCol": %d,
+              "status": "%s"
+            }
+          }
+          """.formatted(sessionId,
+          viewport.topLeft().row(), viewport.topLeft().col(),
+          viewport.bottomRight().row(), viewport.bottomRight().col(),
+          viewport.mouse().row(), viewport.mouse().col(),
+          topLeftRow, topLeftCol, bottomRightRow, bottomRightCol, status);
+      var command = AgentStep.Command.CreateStep.of(sessionId, message, viewport);
+
+      componentClient.forEventSourcedEntity(command.id())
+          .method(AgentStepEntity::createStep)
+          .invoke(command);
+    }
   }
 }
