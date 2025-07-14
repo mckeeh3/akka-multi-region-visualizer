@@ -15,6 +15,29 @@ import io.example.application.GridCellEntity;
 
 public class GridCellEntityTest {
   @Test
+  void testCreateSingleCellShape() {
+    var testKit = EventSourcedTestKit.of(GridCellEntity::new);
+    var id = "1x2";
+    var status = GridCell.Status.green;
+    var now = Instant.now();
+    var region = "test";
+    var shape = GridCell.Shape.ofSingleCell();
+    var command = new GridCell.Command.CreateShape(id, status, now, now, shape, region);
+    var result = testKit.method(GridCellEntity::createShape).invoke(command);
+
+    assertTrue(result.isReply());
+    assertEquals(done(), result.getReply());
+
+    var event = result.getNextEventOfType(GridCell.Event.StatusUpdated.class);
+    assertEquals(id, event.id());
+    assertEquals(status, event.status());
+
+    var state = testKit.getState();
+    assertEquals(id, state.id());
+    assertEquals(status, state.status());
+  }
+
+  @Test
   void testCreateShape() {
     var testKit = EventSourcedTestKit.of(GridCellEntity::new);
     var centerX = 10;
@@ -87,7 +110,7 @@ public class GridCellEntityTest {
       var endpointAt = Instant.now();
       var region = "test";
       var shape = GridCell.Shape.ofCircle(centerX, centerY, radius);
-      var command = new GridCell.Command.SpanCells(id, status, clientAt, endpointAt, centerX, centerY, radius, shape, region);
+      var command = new GridCell.Command.SpanCells(id, status, clientAt, endpointAt, shape, region);
       var result = testKit.method(GridCellEntity::updateSpanStatus).invoke(command);
 
       assertTrue(result.isReply());
@@ -104,9 +127,7 @@ public class GridCellEntityTest {
         var event = result.getNextEventOfType(GridCell.Event.SpanToNeighbor.class);
         assertNotEquals(id, event.id());
         assertEquals(status, event.status());
-        assertEquals(centerX, event.centerX());
-        assertEquals(centerY, event.centerY());
-        assertEquals(radius, event.radius());
+        assertEquals(shape, event.shape());
       }
 
       var state = testKit.getState();
@@ -134,7 +155,7 @@ public class GridCellEntityTest {
 
     { // then, attempt to span with the same status
       var shape = GridCell.Shape.ofCircle(2, 3, 5);
-      var command = new GridCell.Command.SpanCells(id, status, now, now, 2, 3, 5, shape, region);
+      var command = new GridCell.Command.SpanCells(id, status, now, now, shape, region);
       var result = testKit.method(GridCellEntity::updateSpanStatus).invoke(command);
 
       assertTrue(result.isReply());
@@ -167,7 +188,7 @@ public class GridCellEntityTest {
       var clientAt = Instant.now();
       var endpointAt = Instant.now();
       var shape = GridCell.Shape.ofCircle(centerX, centerY, radius);
-      var command = new GridCell.Command.FillCells(id, status, clientAt, endpointAt, centerX, centerY, radius, shape, region);
+      var command = new GridCell.Command.FillCells(id, status, clientAt, endpointAt, shape, region);
       var result = testKit.method(GridCellEntity::updateFillStatus).invoke(command);
 
       assertTrue(result.isReply());
@@ -207,7 +228,7 @@ public class GridCellEntityTest {
       var clientAt = Instant.now();
       var endpointAt = Instant.now();
       var shape = GridCell.Shape.ofCircle(centerX, centerY, radius);
-      var command = new GridCell.Command.FillCells(id, status, clientAt, endpointAt, centerX, centerY, radius, shape, region);
+      var command = new GridCell.Command.FillCells(id, status, clientAt, endpointAt, shape, region);
       var result = testKit.method(GridCellEntity::updateFillStatus).invoke(command);
 
       assertTrue(result.isReply());

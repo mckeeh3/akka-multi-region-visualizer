@@ -50,7 +50,16 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
   public Done createShape(CreateShapeRequest request) {
     log.info("Region: {}, {}", region(), request);
 
-    var shape = new GridCell.Shape(request.locationX(), request.locationY(), request.radius(), request.width(), request.height());
+    GridCell.Shape shape;
+    if (request.radius() > 0) {
+      shape = GridCell.Shape.ofCircle(request.locationX(), request.locationY(), request.radius());
+    } else if (request.width() > 0 && request.height() > 0) {
+      shape = GridCell.Shape.ofRectangle(request.locationX(), request.locationY(),
+          request.locationX() + request.width() - 1, request.locationY() + request.height() - 1);
+    } else {
+      shape = GridCell.Shape.ofSingleCell();
+    }
+
     var command = new GridCell.Command.CreateShape(
         request.id(),
         GridCell.Status.valueOf(request.status()),

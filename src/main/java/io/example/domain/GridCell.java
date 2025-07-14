@@ -7,6 +7,9 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.stream.Stream;
 
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+
 import akka.javasdk.annotations.TypeName;
 
 public interface GridCell {
@@ -61,8 +64,7 @@ public interface GridCell {
             command.region));
       }
 
-      // If first cell is inactive, fill the shape, which fills only empty (no color)
-      // cells
+      // If first cell is inactive, fill the shape, which fills only empty (no color) cells
       // Otherwise, span the shape, which spans only active (has color) cells
       if (status.equals(Status.inactive)) {
         var fillCommand = new Command.FillCells(
@@ -70,9 +72,6 @@ public interface GridCell {
             command.status,
             command.clientAt,
             command.endpointAt,
-            0,
-            0,
-            0,
             command.shape(),
             command.region);
         return onCommand(fillCommand);
@@ -82,9 +81,6 @@ public interface GridCell {
             command.status,
             command.clientAt,
             command.endpointAt,
-            0,
-            0,
-            0,
             command.shape(),
             command.region);
         return onCommand(spanCommand);
@@ -339,9 +335,6 @@ public interface GridCell {
               command.status,
               command.clientAt,
               command.endpointAt,
-              command.centerX,
-              command.centerY,
-              command.radius,
               command.shape,
               newCreated,
               command.region))
@@ -386,9 +379,6 @@ public interface GridCell {
               command.status,
               command.clientAt,
               command.endpointAt,
-              command.centerX,
-              command.centerY,
-              command.radius,
               command.shape,
               newCreated,
               command.region))
@@ -506,18 +496,8 @@ public interface GridCell {
       var rc = id.split("x"); // RxC / YxX
       var x = Integer.parseInt(rc[1]);
       var y = Integer.parseInt(rc[0]);
-      return shape.isInsideShape(x, y);
+      return shape.isInside(x, y);
     }
-
-    // Radius is limited to min(50, radius)
-    // static boolean insideRadius(String id, int centerX, int centerY, int radius)
-    // {
-    // var rc = id.split("x"); // RxC / YxX
-    // var x = Integer.parseInt(rc[1]);
-    // var y = Integer.parseInt(rc[0]);
-    // return Math.pow(centerX - x, 2) + Math.pow(centerY - y, 2) <=
-    // Math.pow(Math.min(50, radius), 2);
-    // }
 
     static List<String> neighborIds(String centerId) {
       var rc = centerId.split("x"); // RxC / YxX
@@ -614,14 +594,11 @@ public interface GridCell {
         Status status,
         Instant clientAt,
         Instant endpointAt,
-        Integer centerX,
-        Integer centerY,
-        Integer radius,
         Shape shape,
         String region) implements Command {
 
       public SpanCells withRegion(String newRegion) {
-        return new SpanCells(id, status, clientAt, endpointAt, centerX, centerY, radius, shape, newRegion);
+        return new SpanCells(id, status, clientAt, endpointAt, shape, newRegion);
       }
     }
 
@@ -630,14 +607,11 @@ public interface GridCell {
         Status status,
         Instant clientAt,
         Instant endpointAt,
-        Integer centerX,
-        Integer centerY,
-        Integer radius,
         Shape shape,
         String region) implements Command {
 
       public FillCells withRegion(String newRegion) {
-        return new FillCells(id, status, clientAt, endpointAt, centerX, centerY, radius, shape, newRegion);
+        return new FillCells(id, status, clientAt, endpointAt, shape, newRegion);
       }
     }
 
@@ -672,8 +646,7 @@ public interface GridCell {
         Instant clientAt,
         Instant endpointAt,
         String created,
-        String updated) implements Event {
-    }
+        String updated) implements Event {}
 
     @TypeName("predator-moved")
     public record PredatorMoved(
@@ -688,8 +661,7 @@ public interface GridCell {
         Integer range,
         String lastCellId,
         Queue<String> tail,
-        String updated) implements Event {
-    }
+        String updated) implements Event {}
 
     @TypeName("predator-updated")
     public record PredatorUpdated(
@@ -699,8 +671,7 @@ public interface GridCell {
         Instant updatedAt,
         Instant clientAt,
         Instant endpointAt,
-        String updated) implements Event {
-    }
+        String updated) implements Event {}
 
     @TypeName("span-to-neighbor")
     public record SpanToNeighbor(
@@ -708,13 +679,9 @@ public interface GridCell {
         Status status,
         Instant clientAt,
         Instant endpointAt,
-        Integer centerX,
-        Integer centerY,
-        Integer radius,
         Shape shape,
         String created,
-        String updated) implements Event {
-    }
+        String updated) implements Event {}
 
     @TypeName("fill-to-neighbor")
     public record FillToNeighbor(
@@ -722,68 +689,77 @@ public interface GridCell {
         Status status,
         Instant clientAt,
         Instant endpointAt,
-        Integer centerX,
-        Integer centerY,
-        Integer radius,
         Shape shape,
         String created,
-        String updated) implements Event {
-    }
+        String updated) implements Event {}
 
     @TypeName("clear-to-neighbor")
     public record ClearToNeighbor(
         String id,
-        Status status) implements Event {
-    }
+        Status status) implements Event {}
 
     @TypeName("erase-to-neighbor")
     public record EraseToNeighbor(
-        String id) implements Event {
-    }
+        String id) implements Event {}
   }
 
-  public record Shape(
-      int locationX,
-      int locationY,
-      int radius,
-      int width,
-      int height) {
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes({
+      @JsonSubTypes.Type(value = Shape.Circle.class, name = "circle"),
+      @JsonSubTypes.Type(value = Shape.Rectangle.class, name = "rectangle"),
+      @JsonSubTypes.Type(value = Shape.SingleCell.class, name = "single-cell")
+  })
+  public sealed interface Shape {
+    boolean isInside(int x, int y);
+
+    default boolean isSingleCell() {
+      return false;
+    }
+
+    @TypeName("shape-circle")
+    public record Circle(int centerX, int centerY, int radius) implements Shape {
+      @Override
+      public boolean isInside(int x, int y) {
+        var maxRadius = Math.min(30, radius);
+        return Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2) <= Math.pow(maxRadius, 2);
+      }
+    }
+
+    @TypeName("shape-rectangle")
+    public record Rectangle(int topLeftX, int topLeftY, int width, int height) implements Shape {
+      @Override
+      public boolean isInside(int x, int y) {
+        var maxWidth = Math.min(60, width);
+        var maxHeight = Math.min(60, height);
+        return x >= topLeftX && x < topLeftX + maxWidth && y >= topLeftY && y < topLeftY + maxHeight;
+      }
+    }
+
+    @TypeName("shape-single-cell")
+    public record SingleCell() implements Shape {
+      @Override
+      public boolean isInside(int x, int y) {
+        return true;
+      }
+
+      @Override
+      public boolean isSingleCell() {
+        return true;
+      }
+    }
 
     public static Shape ofCircle(int centerX, int centerY, int radius) {
-      return new Shape(centerX, centerY, radius, 0, 0);
+      return new Circle(centerX, centerY, radius);
     }
 
     public static Shape ofRectangle(int topLeftX, int topLeftY, int bottomRightX, int bottomRightY) {
       var width = Math.abs(bottomRightX - topLeftX) + 1;
       var height = Math.abs(bottomRightY - topLeftY) + 1;
-      return new Shape(topLeftX, topLeftY, 0, width, height);
+      return new Rectangle(topLeftX, topLeftY, width, height);
     }
 
-    public boolean isCircle() {
-      return radius > 0;
-    }
-
-    public boolean isRectangle() {
-      return width > 0 && height > 0;
-    }
-
-    public boolean isSingleCell() {
-      return radius == 0 && width == 0 && height == 0;
-    }
-
-    // Returns true if the given point is inside the shape
-    // Radius is limited to min(30, radius)
-    // Width and height are limited to min(30, width) and min(30, height)
-    public boolean isInsideShape(int x, int y) {
-      if (isCircle()) {
-        var maxRadius = Math.min(30, radius);
-        return Math.pow(x - locationX, 2) + Math.pow(y - locationY, 2) <= Math.pow(maxRadius, 2);
-      } else if (isRectangle()) {
-        var maxWidth = Math.min(60, width);
-        var maxHeight = Math.min(60, height);
-        return x >= locationX && x < locationX + maxWidth && y >= locationY && y < locationY + maxHeight;
-      }
-      return false;
+    public static Shape ofSingleCell() {
+      return new SingleCell();
     }
   }
 }

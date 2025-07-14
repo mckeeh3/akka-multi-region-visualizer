@@ -95,9 +95,6 @@ public class GridCellToGridCellConsumer extends Consumer {
         event.status(),
         event.clientAt(),
         event.endpointAt(),
-        event.centerX(),
-        event.centerY(),
-        event.radius(),
         event.shape(),
         region());
     componentClient.forEventSourcedEntity(event.id())
@@ -115,9 +112,6 @@ public class GridCellToGridCellConsumer extends Consumer {
         event.status(),
         event.clientAt(),
         event.endpointAt(),
-        event.centerX(),
-        event.centerY(),
-        event.radius(),
         event.shape(),
         region());
     componentClient.forEventSourcedEntity(event.id())

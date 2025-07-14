@@ -19,8 +19,6 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import akka.javasdk.client.ComponentClient;
-import io.example.application.AgentStepEntity;
-import io.example.application.VisualizerAgent;
 import io.example.domain.AgentStep;
 
 /**
@@ -139,23 +137,6 @@ public class GridAgentAudioToText {
     try {
       var audioToText = transcribeAudio(audioData);
       log.info("Audio to text: {}", audioToText);
-
-      // var agentViewPort = new VisualizerAgent.ViewPort(
-      // new VisualizerAgent.Location(viewport.topLeft().row(), viewport.topLeft().col()),
-      // new VisualizerAgent.Location(viewport.bottomRight().row(), viewport.bottomRight().col()),
-      // new VisualizerAgent.Location(viewport.mouse().row(), viewport.mouse().col()));
-      // var prompt = new VisualizerAgent.Prompt(sessionId, audioToText, agentViewPort);
-
-      // componentClient.forAgent()
-      // .inSession(sessionId)
-      // .method(VisualizerAgent::chat)
-      // .invoke(prompt);
-
-      // var command = AgentStep.Command.CreateStep.of(sessionId, audioToText, viewport);
-
-      // componentClient.forEventSourcedEntity(command.id())
-      // .method(AgentStepEntity::createStep)
-      // .invoke(command);
 
       return audioToText;
     } catch (IOException | InterruptedException e) {

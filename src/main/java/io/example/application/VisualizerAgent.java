@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import akka.javasdk.agent.Agent;
 import akka.javasdk.agent.AgentContext;
+import akka.javasdk.agent.MemoryProvider;
 import akka.javasdk.agent.ModelProvider;
 import akka.javasdk.annotations.ComponentId;
 import akka.javasdk.client.ComponentClient;
@@ -180,6 +181,7 @@ public class VisualizerAgent extends Agent {
         prompt.viewport().mouse().col());
 
     return effects()
+        .memory(MemoryProvider.limitedWindow().readLast(10))
         .model(ModelProvider
             .openAi()
             .withModelName("o3")
