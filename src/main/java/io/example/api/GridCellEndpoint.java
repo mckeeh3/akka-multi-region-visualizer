@@ -52,10 +52,15 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
 
     GridCell.Shape shape;
     if (request.radius() > 0) {
-      shape = GridCell.Shape.ofCircle(request.locationX(), request.locationY(), request.radius());
+      var row = request.locationY();
+      var col = request.locationX();
+      shape = GridCell.Shape.ofCircle(row, col, request.radius());
     } else if (request.width() > 0 && request.height() > 0) {
-      shape = GridCell.Shape.ofRectangle(request.locationX(), request.locationY(),
-          request.locationX() + request.width() - 1, request.locationY() + request.height() - 1);
+      var topLeftRow = request.locationY();
+      var topLeftCol = request.locationX();
+      var bottomRightRow = topLeftRow + request.height() - 1;
+      var bottomRightCol = topLeftCol + request.width() - 1;
+      shape = GridCell.Shape.ofRectangle(topLeftRow, topLeftCol, bottomRightRow, bottomRightCol);
     } else {
       shape = GridCell.Shape.ofSingleCell();
     }
@@ -273,7 +278,8 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
         .toList();
   }
 
-  record CreateShapeRequest(String id, String status, Instant clientAt, int locationX, int locationY, int radius, int width, int height) {}
+  record CreateShapeRequest(String id, String status, Instant clientAt, int locationX, int locationY, int radius, int width, int height,
+      int row1, int col1, int row2, int col2, int row3, int col3) {}
 
   record UpdateGridCellRequest(String id, String status, Instant clientAt, Integer centerX, Integer centerY, Integer radius) {}
 

@@ -108,6 +108,7 @@ public class VisualizerAgent extends Agent {
         - **Single Cell**: Change the color of one specific pixel
         - **Rectangle**: Fill a rectangular area with a specific color
         - **Circle**: Fill a circular area with a specific color
+        - **Triangle**: Fill a triangular area with a specific color
         - **Clear**: Remove specific colors in a flood-fill pattern
         - **Erase**: Remove all colored cells in a flood-fill pattern
 
@@ -117,6 +118,13 @@ public class VisualizerAgent extends Agent {
         - **Absolute Navigation**: Jump to specific coordinates on the grid
         - **Relative Navigation**: Move the viewport by a relative amount
         - **Coordinate Rounding**: All navigation coordinates are rounded to the nearest 10 for grid alignment
+
+        ## Output Format and Agentic Loop
+
+        Your primary goal is to fulfill the user's request by making tool calls.
+        -   When a tool call is necessary, your response should ONLY consist of the tool call(s). Do NOT include any conversational text, explanations, or extraneous remarks.
+        -   If the request is fully satisfied by a tool call, simply output the tool call.
+        -   If no tool call is necessary to fulfill the request, provide a concise, direct answer to the user.
 
         ## Decomposition and Expansion Guidelines
 
@@ -142,6 +150,7 @@ public class VisualizerAgent extends Agent {
         new DrawRectangleTool(componentClient, region),
         new DrawCircleTool(componentClient, region),
         new DrawSingleCellTool(componentClient, region),
+        new DrawTriangleTool(componentClient, region),
         new CreatePredatorTool(componentClient, region),
         new AbsoluteViewportNavigationTool(componentClient, region),
         new RelativeViewportNavigationTool(componentClient, region),
@@ -157,11 +166,13 @@ public class VisualizerAgent extends Agent {
         new AgentStep.Location(prompt.viewport().topLeft().row(), prompt.viewport().topLeft().col()),
         new AgentStep.Location(prompt.viewport().bottomRight().row(), prompt.viewport().bottomRight().col()),
         new AgentStep.Location(prompt.viewport().mouse().row(), prompt.viewport().mouse().col()));
-    var command = AgentStep.Command.CreateStep.of(prompt.sessionId(), prompt.prompt(), agentStepViewport);
+    {
+      var command = AgentStep.Command.CreateStep.of(prompt.sessionId(), prompt.prompt(), agentStepViewport);
 
-    componentClient.forEventSourcedEntity(command.id())
-        .method(AgentStepEntity::createStep)
-        .invoke(command);
+      componentClient.forEventSourcedEntity(command.id())
+          .method(AgentStepEntity::createStep)
+          .invoke(command);
+    }
 
     var userMessage = """
         %s
@@ -189,6 +200,15 @@ public class VisualizerAgent extends Agent {
         .tools(functionTools)
         .systemMessage(systemPrompt)
         .userMessage(userMessage)
+        .onFailure(e -> {
+          log.error("Error: {}", e);
+          var message = "Agent failure, prompt: %s\nError: %s".formatted(prompt.prompt(), e.getMessage());
+          var command = AgentStep.Command.CreateStep.of(prompt.sessionId(), message, agentStepViewport);
+          componentClient.forEventSourcedEntity(command.id())
+              .method(AgentStepEntity::createStep)
+              .invoke(command);
+          return message;
+        })
         .thenReply();
   }
 

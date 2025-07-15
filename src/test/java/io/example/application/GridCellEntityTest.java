@@ -1,7 +1,8 @@
-package io.example.domain;
+package io.example.application;
 
 import static akka.Done.done;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -11,7 +12,7 @@ import java.util.LinkedList;
 import org.junit.jupiter.api.Test;
 
 import akka.javasdk.testkit.EventSourcedTestKit;
-import io.example.application.GridCellEntity;
+import io.example.domain.GridCell;
 
 public class GridCellEntityTest {
   @Test
@@ -27,6 +28,59 @@ public class GridCellEntityTest {
 
     assertTrue(result.isReply());
     assertEquals(done(), result.getReply());
+
+    var event = result.getNextEventOfType(GridCell.Event.StatusUpdated.class);
+    assertEquals(id, event.id());
+    assertEquals(status, event.status());
+
+    var state = testKit.getState();
+    assertEquals(id, state.id());
+    assertEquals(status, state.status());
+  }
+
+  // rectangle with top left (10,10), bottom right (20,20) with status: red
+  @Test
+  void testCreateRectangleShape() {
+    var testKit = EventSourcedTestKit.of(GridCellEntity::new);
+    var id = "10x10";
+    var status = GridCell.Status.red;
+    var now = Instant.now();
+    var region = "test";
+    var shape = GridCell.Shape.ofRectangle(10, 10, 20, 20);
+    var command = new GridCell.Command.CreateShape(id, status, now, now, shape, region);
+    var result = testKit.method(GridCellEntity::createShape).invoke(command);
+
+    assertTrue(result.isReply());
+    assertEquals(done(), result.getReply());
+
+    var events = result.getAllEvents();
+    assertEquals(9, events.size());
+
+    var event = result.getNextEventOfType(GridCell.Event.StatusUpdated.class);
+    assertEquals(id, event.id());
+    assertEquals(status, event.status());
+
+    var state = testKit.getState();
+    assertEquals(id, state.id());
+    assertEquals(status, state.status());
+  }
+
+  @Test
+  void testCreateTriangleShape() {
+    var testKit = EventSourcedTestKit.of(GridCellEntity::new);
+    var id = "22x37";
+    var status = GridCell.Status.red;
+    var now = Instant.now();
+    var region = "test";
+    var shape = GridCell.Shape.ofTriangle(22, 37, 22, 56, 12, 47);
+    var command = new GridCell.Command.CreateShape(id, status, now, now, shape, region);
+    var result = testKit.method(GridCellEntity::createShape).invoke(command);
+
+    assertTrue(result.isReply());
+    assertEquals(done(), result.getReply());
+
+    var events = result.getAllEvents();
+    assertEquals(9, events.size());
 
     var event = result.getNextEventOfType(GridCell.Event.StatusUpdated.class);
     assertEquals(id, event.id());
@@ -387,5 +441,41 @@ public class GridCellEntityTest {
     var state = testKit.getState();
     assertEquals(id, state.id());
     assertEquals(GridCell.Status.predator, state.status());
+  }
+
+  @Test
+  void testTriangleShape() {
+    var shape = GridCell.Shape.ofTriangle(1, 1, 3, 1, 2, 3);
+    assertTrue(shape.isInside(1, 1));
+    assertTrue(shape.isInside(3, 1));
+    assertTrue(shape.isInside(2, 3));
+    assertTrue(shape.isInside(2, 2)); // Center of triangle
+    assertFalse(shape.isInside(0, 0));
+    assertFalse(shape.isInside(4, 4));
+    assertFalse(shape.isInside(2, 0));
+  }
+
+  @Test
+  void testTriangleVertices() {
+    var shape = GridCell.Shape.ofTriangle(22, 37, 22, 56, 12, 47);
+    assertTrue(shape.isInside(22, 37)); // Vertex 1
+    assertTrue(shape.isInside(22, 56)); // Vertex 2
+    assertTrue(shape.isInside(12, 47)); // Vertex 3
+  }
+
+  // create a test for the rectangle shape with top left (10,10), bottom right (20,15) with status: red
+  // test that all 4 corners are inside the shape
+  // test that all cells between the top left and bottom right are inside the shape
+  // test that all cells outside the shape are not inside the shape
+  @Test
+  void testRectangleShape() {
+    var shape = GridCell.Shape.ofRectangle(10, 10, 20, 15);
+    assertTrue(shape.isInside(10, 10));
+    assertTrue(shape.isInside(20, 15));
+    assertTrue(shape.isInside(10, 15));
+    assertTrue(shape.isInside(20, 10));
+    assertFalse(shape.isInside(9, 10));
+    assertFalse(shape.isInside(21, 10));
+    assertFalse(shape.isInside(10, 9));
   }
 }

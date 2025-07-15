@@ -17,7 +17,7 @@
             <Pattern>%yellow(%d{YYYY-MM-dd HH:mm:ss.SSS}) %blue(%-5level) %green(%-15.15thread) %cyan(%logger{25}): %msg%n</Pattern>
         </encoder>
     </appender>
-    <root level="debug">
+    <root level="info">
         <appender-ref ref="STDOUT"/>
     </root>
 </included>

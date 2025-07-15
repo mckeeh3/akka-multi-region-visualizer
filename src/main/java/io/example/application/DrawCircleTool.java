@@ -31,13 +31,13 @@ public class DrawCircleTool {
       @Description("The viewport") AgentStep.ViewPort viewport,
       @Description("The row coordinate of the center of the circle") int row,
       @Description("The column coordinate of the center of the circle") int col,
-      @Description("The status/color to apply to all cells in the circle. Valid values: 'red', 'green', 'blue', 'orange', 'predator', 'inactive'") String status,
+      @Description("The status/color to apply to all cells in the circle. Valid values: 'red', 'green', 'blue', 'orange'") String status,
       @Description("The radius of the circle in grid cells. Maximum effective radius is 30 cells for performance reasons") int radius) {
 
     log.info("Region: {}, Drawing circle at row: {} and col: {} with status: {} and radius: {}", region, row, col, status, radius);
 
     var cellId = String.format("%dx%d", row, col);
-    var shape = GridCell.Shape.ofCircle(col, row, Math.min(30, radius));
+    var shape = GridCell.Shape.ofCircle(row, col, radius);
     var command = new GridCell.Command.CreateShape(
         cellId,
         GridCell.Status.valueOf(status.toLowerCase()),

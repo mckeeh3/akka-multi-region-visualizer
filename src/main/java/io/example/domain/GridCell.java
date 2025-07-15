@@ -397,9 +397,6 @@ public interface GridCell {
       if (!status.equals(command.status)) {
         return List.of();
       }
-      if (isTooSoonToChange(updatedAt)) {
-        return List.of();
-      }
 
       var newUpdatedAt = Instant.now();
       var updateStatusEvent = new Event.StatusUpdated(
@@ -424,9 +421,6 @@ public interface GridCell {
     // ============================================================
     public List<Event> onCommand(Command.EraseCells command) {
       if (isEmpty() || status.equals(Status.inactive)) {
-        return List.of();
-      }
-      if (isTooSoonToChange(updatedAt)) {
         return List.of();
       }
 
@@ -489,14 +483,14 @@ public interface GridCell {
 
     static boolean isTooSoonToChange(Instant lastUpdatedAt) {
       var now = Instant.now();
-      return now.isBefore(lastUpdatedAt.plusSeconds(10));
+      return now.isBefore(lastUpdatedAt.plusSeconds(3));
     }
 
     static boolean insideShape(String id, Shape shape) {
       var rc = id.split("x"); // RxC / YxX
-      var x = Integer.parseInt(rc[1]);
-      var y = Integer.parseInt(rc[0]);
-      return shape.isInside(x, y);
+      var row = Integer.parseInt(rc[0]);
+      var col = Integer.parseInt(rc[1]);
+      return shape.isInside(row, col);
     }
 
     static List<String> neighborIds(String centerId) {
@@ -707,38 +701,39 @@ public interface GridCell {
   @JsonSubTypes({
       @JsonSubTypes.Type(value = Shape.Circle.class, name = "circle"),
       @JsonSubTypes.Type(value = Shape.Rectangle.class, name = "rectangle"),
+      @JsonSubTypes.Type(value = Shape.Triangle.class, name = "triangle"),
       @JsonSubTypes.Type(value = Shape.SingleCell.class, name = "single-cell")
   })
   public sealed interface Shape {
-    boolean isInside(int x, int y);
+    boolean isInside(int row, int col);
 
     default boolean isSingleCell() {
       return false;
     }
 
     @TypeName("shape-circle")
-    public record Circle(int centerX, int centerY, int radius) implements Shape {
+    public record Circle(int centerRow, int centerCol, int radius) implements Shape {
       @Override
-      public boolean isInside(int x, int y) {
+      public boolean isInside(int row, int col) {
         var maxRadius = Math.min(30, radius);
-        return Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2) <= Math.pow(maxRadius, 2);
+        return Math.pow(col - centerCol, 2) + Math.pow(row - centerRow, 2) <= Math.pow(maxRadius, 2);
       }
     }
 
     @TypeName("shape-rectangle")
-    public record Rectangle(int topLeftX, int topLeftY, int width, int height) implements Shape {
+    public record Rectangle(int topLeftRow, int topLeftCol, int width, int height) implements Shape {
       @Override
-      public boolean isInside(int x, int y) {
+      public boolean isInside(int row, int col) {
         var maxWidth = Math.min(60, width);
         var maxHeight = Math.min(60, height);
-        return x >= topLeftX && x < topLeftX + maxWidth && y >= topLeftY && y < topLeftY + maxHeight;
+        return row >= topLeftRow && row < topLeftRow + maxHeight && col >= topLeftCol && col < topLeftCol + maxWidth;
       }
     }
 
     @TypeName("shape-single-cell")
     public record SingleCell() implements Shape {
       @Override
-      public boolean isInside(int x, int y) {
+      public boolean isInside(int row, int col) {
         return true;
       }
 
@@ -748,18 +743,40 @@ public interface GridCell {
       }
     }
 
-    public static Shape ofCircle(int centerX, int centerY, int radius) {
-      return new Circle(centerX, centerY, radius);
+    @TypeName("shape-triangle")
+    public record Triangle(int row1, int col1, int row2, int col2, int row3, int col3) implements Shape {
+      @Override
+      public boolean isInside(int row, int col) {
+        // Barycentric coordinate system check
+        // Calculate barycentric coordinates
+        double denom = ((col2 - col3) * (row1 - row3) + (row3 - row2) * (col1 - col3));
+        if (denom == 0)
+          return false; // Degenerate triangle
+
+        double alpha = ((col2 - col3) * (row - row3) + (row3 - row2) * (col - col3)) / denom;
+        double beta = ((col3 - col1) * (row - row3) + (row1 - row3) * (col - col3)) / denom;
+        double gamma = 1.0 - alpha - beta;
+
+        return alpha >= 0 && beta >= 0 && gamma >= 0;
+      }
     }
 
-    public static Shape ofRectangle(int topLeftX, int topLeftY, int bottomRightX, int bottomRightY) {
-      var width = Math.abs(bottomRightX - topLeftX) + 1;
-      var height = Math.abs(bottomRightY - topLeftY) + 1;
-      return new Rectangle(topLeftX, topLeftY, width, height);
+    public static Shape ofCircle(int centerRow, int centerCol, int radius) {
+      return new Circle(centerRow, centerCol, radius);
+    }
+
+    public static Shape ofRectangle(int topLeftRow, int topLeftCol, int bottomRightRow, int bottomRightCol) {
+      var width = Math.abs(bottomRightCol - topLeftCol) + 1;
+      var height = Math.abs(bottomRightRow - topLeftRow) + 1;
+      return new Rectangle(topLeftRow, topLeftCol, width, height);
     }
 
     public static Shape ofSingleCell() {
       return new SingleCell();
+    }
+
+    public static Shape ofTriangle(int row1, int col1, int row2, int col2, int row3, int col3) {
+      return new Triangle(row1, col1, row2, col2, row3, col3);
     }
   }
 }

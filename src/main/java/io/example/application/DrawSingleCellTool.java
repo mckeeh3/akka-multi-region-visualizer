@@ -31,7 +31,7 @@ public class DrawSingleCellTool {
       @Description("The viewport") AgentStep.ViewPort viewport,
       @Description("The row coordinate of the cell to draw") int row,
       @Description("The column coordinate of the cell to draw") int col,
-      @Description("The status/color to apply to the cell. Valid values: 'red', 'green', 'blue', 'orange', 'predator', 'inactive'") String status) {
+      @Description("The status/color to apply to the cell. Valid values: 'red', 'green', 'blue', 'orange'") String status) {
 
     log.info("Region: {}, Drawing single cell at row: {} and col: {} with status: {}", region, row, col, status);
 
@@ -52,23 +52,10 @@ public class DrawSingleCellTool {
       var message = """
           {
             "action": "draw_single_cell",
-            "parameters": {
-              "sessionId": "%s",
-              "viewport": {
-                "topLeft": {"row": %d, "col": %d},
-                "bottomRight": {"row": %d, "col": %d},
-                "mouse": {"row": %d, "col": %d}
-              },
-              "row": %d,
-              "col": %d,
-              "status": "%s"
-            }
+            "row": %d,
+            "col": %d
           }
-          """.formatted(sessionId,
-          viewport.topLeft().row(), viewport.topLeft().col(),
-          viewport.bottomRight().row(), viewport.bottomRight().col(),
-          viewport.mouse().row(), viewport.mouse().col(),
-          row, col, status);
+          """.formatted(row, col);
       var stepCommand = AgentStep.Command.CreateStep.of(sessionId, message, viewport);
 
       componentClient.forEventSourcedEntity(stepCommand.id())

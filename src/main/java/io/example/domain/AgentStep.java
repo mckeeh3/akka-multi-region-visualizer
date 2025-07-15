@@ -11,7 +11,7 @@ public interface AgentStep {
 
   public enum Status {
     empty,
-    pending,
+    created,
     consumed
   }
 
@@ -46,7 +46,7 @@ public interface AgentStep {
               command.stepId,
               Instant.now(),
               command.message,
-              Status.pending,
+              Status.created,
               command.viewport));
     }
 

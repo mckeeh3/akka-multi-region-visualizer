@@ -28,7 +28,7 @@ public class GridCellToGridCellConsumer extends Consumer {
 
   public Effect onEvent(GridCell.Event event) {
     if (!messageContext().hasLocalOrigin()) {
-      log.info("Ignore event: {}\n_HasLocalOrigin: {}, OriginRegion: {}, SelfRegion: {}",
+      log.debug("Ignore event: {}\n_HasLocalOrigin: {}, OriginRegion: {}, SelfRegion: {}",
           event,
           messageContext().hasLocalOrigin(),
           messageContext().originRegion(),
@@ -48,7 +48,7 @@ public class GridCellToGridCellConsumer extends Consumer {
   }
 
   Effect onEvent(GridCell.Event.PredatorMoved event) {
-    log.info("Region: {}, Event: {}", region(), event);
+    log.debug("Region: {}, Event: {}", region(), event);
 
     var gridCellsInRange = queryGridCellsInRange(event.id(), event.range());
     var nextGridCellId = Predator.nextGridCellId(event.id(), gridCellsInRange, event.range());
@@ -71,7 +71,7 @@ public class GridCellToGridCellConsumer extends Consumer {
   }
 
   Effect onEvent(GridCell.Event.PredatorUpdated event) {
-    log.info("Region: {}, Event: {}", region(), event);
+    log.debug("Region: {}, Event: {}", region(), event);
 
     var command = new GridCell.Command.UpdatePredator(
         event.id(),
@@ -88,7 +88,7 @@ public class GridCellToGridCellConsumer extends Consumer {
   }
 
   Effect onEvent(GridCell.Event.SpanToNeighbor event) {
-    log.info("Region: {}, Event: {}", region(), event);
+    log.debug("Region: {}, Event: {}", region(), event);
 
     var command = new GridCell.Command.SpanCells(
         event.id(),
@@ -105,7 +105,7 @@ public class GridCellToGridCellConsumer extends Consumer {
   }
 
   Effect onEvent(GridCell.Event.FillToNeighbor event) {
-    log.info("Region: {}, Event: {}", region(), event);
+    log.debug("Region: {}, Event: {}", region(), event);
 
     var command = new GridCell.Command.FillCells(
         event.id(),
@@ -122,7 +122,7 @@ public class GridCellToGridCellConsumer extends Consumer {
   }
 
   Effect onEvent(GridCell.Event.ClearToNeighbor event) {
-    log.info("Region: {}, Event: {}", region(), event);
+    log.debug("Region: {}, Event: {}", region(), event);
 
     var command = new GridCell.Command.ClearCells(
         event.id(),
@@ -135,7 +135,7 @@ public class GridCellToGridCellConsumer extends Consumer {
   }
 
   Effect onEvent(GridCell.Event.EraseToNeighbor event) {
-    log.info("Region: {}, Event: {}", region(), event);
+    log.debug("Region: {}, Event: {}", region(), event);
 
     var command = new GridCell.Command.EraseCells(event.id());
     componentClient.forEventSourcedEntity(event.id())

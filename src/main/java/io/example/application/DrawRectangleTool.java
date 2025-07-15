@@ -33,12 +33,12 @@ public class DrawRectangleTool {
       @Description("The column coordinate of the top-left corner of the rectangle") int topLeftCol,
       @Description("The row coordinate of the bottom-right corner of the rectangle") int bottomRightRow,
       @Description("The column coordinate of the bottom-right corner of the rectangle") int bottomRightCol,
-      @Description("The status/color to apply to all cells in the rectangle. Valid values: 'red', 'green', 'blue', 'orange', 'predator', 'inactive'") String status) {
+      @Description("The status/color to apply to all cells in the rectangle. Valid values: 'red', 'green', 'blue', 'orange'") String status) {
 
     log.info("Region: {}, Drawing rectangle at top left row: {} and col: {} to bottom right row: {} and col: {}, status: {}", region, topLeftRow, topLeftCol, bottomRightRow, bottomRightCol, status);
 
     var cellId = String.format("%dx%d", topLeftRow, topLeftCol);
-    var shape = GridCell.Shape.ofRectangle(topLeftCol, topLeftRow, bottomRightCol, bottomRightRow);
+    var shape = GridCell.Shape.ofRectangle(topLeftRow, topLeftCol, bottomRightRow, bottomRightCol);
     {
       var command = new GridCell.Command.CreateShape(
           cellId,
@@ -57,25 +57,12 @@ public class DrawRectangleTool {
       var message = """
           {
             "action": "draw_rectangle",
-            "parameters": {
-              "sessionId": "%s",
-              "viewport": {
-                "topLeft": {"row": %d, "col": %d},
-                "bottomRight": {"row": %d, "col": %d},
-                "mouse": {"row": %d, "col": %d}
-              },
-              "topLeftRow": %d,
-              "topLeftCol": %d,
-              "bottomRightRow": %d,
-              "bottomRightCol": %d,
-              "status": "%s"
-            }
+            "topLeftRow": %d,
+            "topLeftCol": %d,
+            "bottomRightRow": %d,
+            "bottomRightCol": %d
           }
-          """.formatted(sessionId,
-          viewport.topLeft().row(), viewport.topLeft().col(),
-          viewport.bottomRight().row(), viewport.bottomRight().col(),
-          viewport.mouse().row(), viewport.mouse().col(),
-          topLeftRow, topLeftCol, bottomRightRow, bottomRightCol, status);
+          """.formatted(topLeftRow, topLeftCol, bottomRightRow, bottomRightCol);
       var command = AgentStep.Command.CreateStep.of(sessionId, message, viewport);
 
       componentClient.forEventSourcedEntity(command.id())

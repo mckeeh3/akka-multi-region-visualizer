@@ -36,7 +36,7 @@ public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.
   }
 
   public Effect<Done> updateStatus(GridCell.Command.UpdateCell command) {
-    log.info("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
+    log.debug("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
 
     return effects()
         .persistAll(currentState().onCommand(command.withRegion(selfRegion)).stream().toList())
@@ -52,7 +52,7 @@ public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.
   }
 
   public Effect<Done> movePredator(GridCell.Command.MovePredator command) {
-    log.info("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
+    log.debug("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
 
     return effects()
         .persistAll(currentState().onCommand(command.withRegion(selfRegion)).stream().toList())
@@ -60,7 +60,7 @@ public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.
   }
 
   public Effect<Done> updatePredator(GridCell.Command.UpdatePredator command) {
-    log.info("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
+    log.debug("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
 
     return effects()
         .persistAll(currentState().onCommand(command.withRegion(selfRegion)).stream().toList())
@@ -68,7 +68,7 @@ public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.
   }
 
   public Effect<Done> updateSpanStatus(GridCell.Command.SpanCells command) {
-    log.info("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
+    log.debug("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
 
     return effects()
         .persistAll(currentState().onCommand(command.withRegion(selfRegion)).stream().toList())
@@ -76,7 +76,7 @@ public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.
   }
 
   public Effect<Done> updateFillStatus(GridCell.Command.FillCells command) {
-    log.info("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
+    log.debug("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
 
     return effects()
         .persistAll(currentState().onCommand(command.withRegion(selfRegion)).stream().toList())
@@ -84,7 +84,7 @@ public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.
   }
 
   public Effect<Done> updateClearStatus(GridCell.Command.ClearCells command) {
-    log.info("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
+    log.debug("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
 
     return effects()
         .persistAll(currentState().onCommand(command.withRegion(selfRegion)).stream().toList())
@@ -92,7 +92,7 @@ public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.
   }
 
   public Effect<Done> updateEraseStatus(GridCell.Command.EraseCells command) {
-    log.info("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
+    log.debug("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
 
     return effects()
         .persistAll(currentState().onCommand(command.withRegion(selfRegion)).stream().toList())
@@ -100,7 +100,7 @@ public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.
   }
 
   public ReadOnlyEffect<GridCell.State> get() {
-    log.info("Region: {}, EntityId: {}\n_State: {}", selfRegion, entityId, currentState());
+    log.debug("Region: {}, EntityId: {}\n_State: {}", selfRegion, entityId, currentState());
 
     if (currentState().isEmpty()) {
       return effects().error("GridCell '%s' not found".formatted(entityId));
@@ -110,7 +110,7 @@ public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.
 
   @Override
   public GridCell.State applyEvent(GridCell.Event event) {
-    log.info("Region: {}, EntityId: {}\n_State: {}\n_Event: {}", selfRegion, entityId, currentState(), event);
+    log.debug("Region: {}, EntityId: {}\n_State: {}\n_Event: {}", selfRegion, entityId, currentState(), event);
 
     return switch (event) {
       case GridCell.Event.StatusUpdated e -> currentState().onEvent(e);
