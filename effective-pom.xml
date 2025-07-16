@@ -52,7 +52,7 @@
     <docker.base.image>alpine:3.14</docker.base.image>
     <docker.image>akka-multi-region-visualizer</docker.image>
     <docker.platform>linux/amd64</docker.platform>
-    <docker.tag>1.0.1-20250707155221</docker.tag>
+    <docker.tag>1.0.1-20250716173922</docker.tag>
     <logback.configurationFile>logback-runtime-dev-mode.xml</logback.configurationFile>
     <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
     <maven-deploy-plugin.version>3.1.1</maven-deploy-plugin.version>
@@ -143,11 +143,11 @@
     </pluginRepository>
   </pluginRepositories>
   <build>
-    <sourceDirectory>/tmp/akka-multi-region-visualizer/src/main/java</sourceDirectory>
-    <scriptSourceDirectory>/tmp/akka-multi-region-visualizer/src/main/scripts</scriptSourceDirectory>
-    <testSourceDirectory>/tmp/akka-multi-region-visualizer/src/test/java</testSourceDirectory>
-    <outputDirectory>/tmp/akka-multi-region-visualizer/target/classes</outputDirectory>
-    <testOutputDirectory>/tmp/akka-multi-region-visualizer/target/test-classes</testOutputDirectory>
+    <sourceDirectory>/home/hxmc/akka/akka-sdk/akka-multi-region-visualizer/src/main/java</sourceDirectory>
+    <scriptSourceDirectory>/home/hxmc/akka/akka-sdk/akka-multi-region-visualizer/src/main/scripts</scriptSourceDirectory>
+    <testSourceDirectory>/home/hxmc/akka/akka-sdk/akka-multi-region-visualizer/src/test/java</testSourceDirectory>
+    <outputDirectory>/home/hxmc/akka/akka-sdk/akka-multi-region-visualizer/target/classes</outputDirectory>
+    <testOutputDirectory>/home/hxmc/akka/akka-sdk/akka-multi-region-visualizer/target/test-classes</testOutputDirectory>
     <extensions>
       <extension>
         <groupId>kr.motd.maven</groupId>
@@ -157,15 +157,15 @@
     </extensions>
     <resources>
       <resource>
-        <directory>/tmp/akka-multi-region-visualizer/src/main/resources</directory>
+        <directory>/home/hxmc/akka/akka-sdk/akka-multi-region-visualizer/src/main/resources</directory>
       </resource>
     </resources>
     <testResources>
       <testResource>
-        <directory>/tmp/akka-multi-region-visualizer/src/test/resources</directory>
+        <directory>/home/hxmc/akka/akka-sdk/akka-multi-region-visualizer/src/test/resources</directory>
       </testResource>
     </testResources>
-    <directory>/tmp/akka-multi-region-visualizer/target</directory>
+    <directory>/home/hxmc/akka/akka-sdk/akka-multi-region-visualizer/target</directory>
     <finalName>akka-multi-region-visualizer-1.0.1</finalName>
     <pluginManagement>
       <plugins>
@@ -227,7 +227,7 @@
                         <platform>linux/amd64</platform>
                       </buildOptions>
                       <tags>
-                        <tag>1.0.1-20250707155221</tag>
+                        <tag>1.0.1-20250716173922</tag>
                       </tags>
                       <assembly>
                         <inline>
@@ -315,7 +315,7 @@
                     <platform>linux/amd64</platform>
                   </buildOptions>
                   <tags>
-                    <tag>1.0.1-20250707155221</tag>
+                    <tag>1.0.1-20250716173922</tag>
                   </tags>
                   <assembly>
                     <inline>
@@ -417,7 +417,7 @@
               <configuration>
                 <resources>
                   <resource>
-                    <directory>/tmp/akka-multi-region-visualizer/src/it/resources</directory>
+                    <directory>/home/hxmc/akka/akka-sdk/akka-multi-region-visualizer/src/it/resources</directory>
                   </resource>
                 </resources>
               </configuration>
@@ -430,7 +430,7 @@
               </goals>
               <configuration>
                 <sources>
-                  <source>/tmp/akka-multi-region-visualizer/target/generated-sources/akka-grpc-java</source>
+                  <source>/home/hxmc/akka/akka-sdk/akka-multi-region-visualizer/target/generated-sources/akka-grpc-java</source>
                 </sources>
               </configuration>
             </execution>
@@ -672,7 +672,7 @@
             <configuration>
               <resources>
                 <resource>
-                  <directory>/tmp/akka-multi-region-visualizer/src/it/resources</directory>
+                  <directory>/home/hxmc/akka/akka-sdk/akka-multi-region-visualizer/src/it/resources</directory>
                 </resource>
               </resources>
             </configuration>
@@ -685,7 +685,7 @@
             </goals>
             <configuration>
               <sources>
-                <source>/tmp/akka-multi-region-visualizer/target/generated-sources/akka-grpc-java</source>
+                <source>/home/hxmc/akka/akka-sdk/akka-multi-region-visualizer/target/generated-sources/akka-grpc-java</source>
               </sources>
             </configuration>
           </execution>
@@ -713,7 +713,7 @@
                       <platform>linux/amd64</platform>
                     </buildOptions>
                     <tags>
-                      <tag>1.0.1-20250707155221</tag>
+                      <tag>1.0.1-20250716173922</tag>
                     </tags>
                     <assembly>
                       <inline>
@@ -801,7 +801,7 @@
                   <platform>linux/amd64</platform>
                 </buildOptions>
                 <tags>
-                  <tag>1.0.1-20250707155221</tag>
+                  <tag>1.0.1-20250716173922</tag>
                 </tags>
                 <assembly>
                   <inline>
@@ -879,18 +879,11 @@
       </plugin>
       <plugin>
         <artifactId>maven-clean-plugin</artifactId>
-        <version>3.4.0</version>
+        <version>3.2.0</version>
         <executions>
           <execution>
             <id>default-clean</id>
             <phase>clean</phase>
-            <goals>
-              <goal>clean</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>clean-on-missing-descriptor</id>
-            <phase>initialize</phase>
             <goals>
               <goal>clean</goal>
             </goals>
@@ -954,7 +947,7 @@
               <goal>site</goal>
             </goals>
             <configuration>
-              <outputDirectory>/tmp/akka-multi-region-visualizer/target/site</outputDirectory>
+              <outputDirectory>/home/hxmc/akka/akka-sdk/akka-multi-region-visualizer/target/site</outputDirectory>
               <reportPlugins>
                 <reportPlugin>
                   <groupId>org.apache.maven.plugins</groupId>
@@ -970,7 +963,7 @@
               <goal>deploy</goal>
             </goals>
             <configuration>
-              <outputDirectory>/tmp/akka-multi-region-visualizer/target/site</outputDirectory>
+              <outputDirectory>/home/hxmc/akka/akka-sdk/akka-multi-region-visualizer/target/site</outputDirectory>
               <reportPlugins>
                 <reportPlugin>
                   <groupId>org.apache.maven.plugins</groupId>
@@ -981,7 +974,7 @@
           </execution>
         </executions>
         <configuration>
-          <outputDirectory>/tmp/akka-multi-region-visualizer/target/site</outputDirectory>
+          <outputDirectory>/home/hxmc/akka/akka-sdk/akka-multi-region-visualizer/target/site</outputDirectory>
           <reportPlugins>
             <reportPlugin>
               <groupId>org.apache.maven.plugins</groupId>
@@ -993,6 +986,6 @@
     </plugins>
   </build>
   <reporting>
-    <outputDirectory>/tmp/akka-multi-region-visualizer/target/site</outputDirectory>
+    <outputDirectory>/home/hxmc/akka/akka-sdk/akka-multi-region-visualizer/target/site</outputDirectory>
   </reporting>
 </project>

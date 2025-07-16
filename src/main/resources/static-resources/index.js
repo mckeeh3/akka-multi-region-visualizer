@@ -190,6 +190,9 @@ document.addEventListener('DOMContentLoaded', async () => {
    * Gets the cell status string from element classes
    */
   function getCellStatusFromElement(cellElement) {
+    if (cellElement.style.backgroundColor) {
+      return 'custom';
+    }
     const statusClass = getCellStatusClass(cellElement);
     if (!statusClass) return 'inactive';
 
@@ -201,6 +204,9 @@ document.addEventListener('DOMContentLoaded', async () => {
    * Gets the color character from cell element
    */
   function getCellColorCharFromElement(cellElement) {
+    if (cellElement.style.backgroundColor) {
+      return ''; // Custom colors don't have a single char
+    }
     const statusClass = getCellStatusClass(cellElement);
     if (!statusClass) return '';
 
@@ -240,7 +246,15 @@ document.addEventListener('DOMContentLoaded', async () => {
    * Updates cell status class
    */
   function updateCellStatus(cellElement, gridCell) {
-    if (gridCell.status !== 'inactive') {
+    // Remove all existing status classes and inline styles
+    cellElement.classList.remove('cell-red', 'cell-green', 'cell-blue', 'cell-orange', 'cell-predator');
+    cellElement.style.backgroundColor = ''; // Clear any previous inline background color
+
+    if (gridCell.status === 'custom') {
+      if (gridCell.color) {
+        cellElement.style.backgroundColor = gridCell.color;
+      }
+    } else if (gridCell.status !== 'inactive') {
       cellElement.classList.add(`cell-${gridCell.status}`);
     }
   }
@@ -434,6 +448,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     blue: 0,
     orange: 0,
     predator: 0,
+    custom: 0,
   };
 
   // --- DOM References ---
@@ -500,7 +515,7 @@ document.addEventListener('DOMContentLoaded', async () => {
    * Updates the grid summary display with current cell counts
    */
   function updateGridSummary() {
-    gridSummary.textContent = `Total: ${cellCounts.total}, R: ${cellCounts.red}, G: ${cellCounts.green}, B: ${cellCounts.blue}, O: ${cellCounts.orange}, P: ${cellCounts.predator}`;
+    gridSummary.textContent = `Total: ${cellCounts.total}, R: ${cellCounts.red}, G: ${cellCounts.green}, B: ${cellCounts.blue}, O: ${cellCounts.orange}, P: ${cellCounts.predator}, C: ${cellCounts.custom}`;
   }
 
   /**
@@ -518,6 +533,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Increment the new status count if it's active
     if (newStatus !== 'inactive') {
       cellCounts[newStatus]++;
+      cellCounts.total++;
+    } else if (newStatus === 'custom') {
+      cellCounts.custom++;
       cellCounts.total++;
     }
   }
@@ -971,11 +989,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           // Get the previous status before removing classes
           const previousStatus = getCellStatus(gridCellElement);
 
-          // Only update if the status has changed
-          if (previousStatus !== gridCell.status) {
-            // Remove existing status classes first
-            gridCellElement.classList.remove('cell-red', 'cell-green', 'cell-blue', 'cell-orange', 'cell-predator');
-
+          // Only update if the status has changed or if it's a custom color update
+          // (custom colors might change without a status change from 'custom' to 'custom')
+          if (previousStatus !== gridCell.status || (gridCell.status === 'custom' && gridCellElement.style.backgroundColor !== gridCell.color)) {
             // Update cell counts
             updateCellCounts(previousStatus, gridCell.status);
 

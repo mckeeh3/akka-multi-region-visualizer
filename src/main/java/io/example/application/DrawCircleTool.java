@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import akka.javasdk.annotations.Description;
 import akka.javasdk.annotations.FunctionTool;
 import akka.javasdk.client.ComponentClient;
+import akka.javasdk.JsonSupport;
 import io.example.domain.AgentStep;
 import io.example.domain.GridCell;
 
@@ -22,26 +23,28 @@ public class DrawCircleTool {
   }
 
   @FunctionTool(description = """
-      Draws a circular pattern of cells on the grid with the specified status. This tool creates a filled circle
+      Draws a circular pattern of cells on the grid with the specified color. This tool creates a filled circle
       centered at the given coordinates with the specified radius. The circle is drawn using a simple distance-based algorithm
       and is useful for creating circular shapes, targets, or decorative elements on the grid.
+      Returns the circle shape as a JSON formatted string.
       """)
-  public void drawCircle(
+  public String drawCircle(
       @Description("The user session id") String sessionId,
       @Description("The viewport") AgentStep.ViewPort viewport,
       @Description("The row coordinate of the center of the circle") int row,
       @Description("The column coordinate of the center of the circle") int col,
-      @Description("The status/color to apply to all cells in the circle. Valid values: 'red', 'green', 'blue', 'orange'") String status,
-      @Description("The radius of the circle in grid cells. Maximum effective radius is 30 cells for performance reasons") int radius) {
+      @Description("The radius of the circle in grid cells. Maximum effective radius is 30 cells for performance reasons") int radius,
+      @Description("The color to apply to the cell. Use hex #RRGGBB or #RRGGBBAA colors") String color) {
 
-    log.info("Region: {}, Drawing circle at row: {} and col: {} with status: {} and radius: {}", region, row, col, status, radius);
+    log.info("Region: {}, Drawing circle at row: {} and col: {} with radius: {} and color: {}", region, row, col, radius, color);
 
     var cellId = String.format("%dx%d", row, col);
+    var status = GridCell.Status.custom;
     var shape = GridCell.Shape.ofCircle(row, col, radius);
     var command = new GridCell.Command.DrawShape(
         cellId,
-        GridCell.Status.valueOf(status.toLowerCase()),
-        GridCell.Color.of(status),
+        status,
+        GridCell.Color.of(color),
         Instant.now(),
         Instant.now(),
         shape,
@@ -55,29 +58,19 @@ public class DrawCircleTool {
       var message = """
           {
             "action": "draw_circle",
-            "parameters": {
-              "userSessionId": "%s",
-              "viewport": {
-                "topLeft": {"row": %d, "col": %d},
-                "bottomRight": {"row": %d, "col": %d},
-                "mouse": {"row": %d, "col": %d}
-              },
-              "row": %d,
-              "col": %d,
-              "status": "%s",
-              "radius": %d
-            }
+            "row": %d,
+            "col": %d,
+            "radius": %d,
+            "color": "%s"
           }
-          """.formatted(sessionId,
-          viewport.topLeft().row(), viewport.topLeft().col(),
-          viewport.bottomRight().row(), viewport.bottomRight().col(),
-          viewport.mouse().row(), viewport.mouse().col(),
-          row, col, status, radius);
+          """.formatted(row, col, radius, color);
       var stepCommand = AgentStep.Command.CreateStep.of(sessionId, message, viewport);
 
       componentClient.forEventSourcedEntity(stepCommand.id())
           .method(AgentStepEntity::createStep)
           .invoke(stepCommand);
     }
+
+    return JsonSupport.encodeToString(shape);
   }
 }

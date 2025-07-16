@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import akka.javasdk.annotations.Description;
 import akka.javasdk.annotations.FunctionTool;
 import akka.javasdk.client.ComponentClient;
+import akka.javasdk.JsonSupport;
 import io.example.domain.AgentStep;
 import io.example.domain.GridCell;
 
@@ -22,28 +23,30 @@ public class DrawRectangleTool {
   }
 
   @FunctionTool(description = """
-      Draws a rectangular area on the grid with cells of a specific status. This tool creates a filled rectangle
-      from the top-left corner to the bottom-right corner, setting all cells within that area to the specified status.
+      Draws a rectangular area on the grid with cells of a specific color. This tool creates a filled rectangle
+      from the top-left corner to the bottom-right corner, setting all cells within that area to the specified color.
       Useful for creating large shapes, backgrounds, or clearing areas of the grid.
+      Returns the rectangle shape as a JSON formatted string.
       """)
-  public void drawRectangle(
+  public String drawRectangle(
       @Description("The user session id") String sessionId,
       @Description("The viewport") AgentStep.ViewPort viewport,
       @Description("The row coordinate of the top-left corner of the rectangle") int topLeftRow,
       @Description("The column coordinate of the top-left corner of the rectangle") int topLeftCol,
       @Description("The row coordinate of the bottom-right corner of the rectangle") int bottomRightRow,
       @Description("The column coordinate of the bottom-right corner of the rectangle") int bottomRightCol,
-      @Description("The status/color to apply to all cells in the rectangle. Valid values: 'red', 'green', 'blue', 'orange'") String status) {
+      @Description("The color to apply to the cell. Use hex #RRGGBB or #RRGGBBAA colors") String color) {
 
-    log.info("Region: {}, Drawing rectangle at top left row: {} and col: {} to bottom right row: {} and col: {}, status: {}", region, topLeftRow, topLeftCol, bottomRightRow, bottomRightCol, status);
+    log.info("Region: {}, Drawing rectangle at top left row: {} and col: {} to bottom right row: {} and col: {}, color: {}", region, topLeftRow, topLeftCol, bottomRightRow, bottomRightCol, color);
 
     var cellId = String.format("%dx%d", topLeftRow, topLeftCol);
     var shape = GridCell.Shape.ofRectangle(topLeftRow, topLeftCol, bottomRightRow, bottomRightCol);
     {
+      var status = GridCell.Status.custom;
       var command = new GridCell.Command.DrawShape(
           cellId,
-          GridCell.Status.valueOf(status.toLowerCase()),
-          GridCell.Color.of(status),
+          status,
+          GridCell.Color.of(color),
           Instant.now(),
           Instant.now(),
           shape,
@@ -61,14 +64,17 @@ public class DrawRectangleTool {
             "topLeftRow": %d,
             "topLeftCol": %d,
             "bottomRightRow": %d,
-            "bottomRightCol": %d
+            "bottomRightCol": %d,
+            "color": "%s"
           }
-          """.formatted(topLeftRow, topLeftCol, bottomRightRow, bottomRightCol);
+          """.formatted(topLeftRow, topLeftCol, bottomRightRow, bottomRightCol, color);
       var command = AgentStep.Command.CreateStep.of(sessionId, message, viewport);
 
       componentClient.forEventSourcedEntity(command.id())
           .method(AgentStepEntity::createStep)
           .invoke(command);
     }
+
+    return JsonSupport.encodeToString(shape);
   }
 }

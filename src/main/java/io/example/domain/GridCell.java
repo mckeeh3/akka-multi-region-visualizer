@@ -1029,19 +1029,41 @@ public interface GridCell {
 
     @TypeName("shape-triangle")
     public record Triangle(int row1, int col1, int row2, int col2, int row3, int col3) implements Shape {
+      private static final double epsilon = 1e-9;
+      private static final int subGranularityFactor = 10;
+
+      // Precise barycentric test for double coordinates
+      private boolean isInsidePrecise(double r, double c) {
+        var denom = ((double) col2 - col3) * (row1 - row3) + ((double) row3 - row2) * (col1 - col3);
+        if (Math.abs(denom) < epsilon)
+          return false; // Degenerate triangle (or very close to it)
+
+        var alpha = (((double) col2 - col3) * (r - row3) + ((double) row3 - row2) * (c - col3)) / denom;
+        var beta = (((double) col3 - col1) * (r - row3) + ((double) row1 - row3) * (c - col3)) / denom;
+        var gamma = 1.0 - alpha - beta;
+
+        // Use epsilon for comparisons to handle floating-point inaccuracies
+        return alpha >= -epsilon && beta >= -epsilon && gamma >= -epsilon;
+      }
+
       @Override
       public boolean isInside(int row, int col) {
-        // Barycentric coordinate system check
-        // Calculate barycentric coordinates
-        double denom = ((col2 - col3) * (row1 - row3) + (row3 - row2) * (col1 - col3));
-        if (denom == 0)
-          return false; // Degenerate triangle
+        // First, check the center of the coarse-grained cell
+        if (isInsidePrecise(row + 0.5, col + 0.5)) {
+          return true;
+        }
 
-        double alpha = ((col2 - col3) * (row - row3) + (row3 - row2) * (col - col3)) / denom;
-        double beta = ((col3 - col1) * (row - row3) + (row1 - row3) * (col - col3)) / denom;
-        double gamma = 1.0 - alpha - beta;
-
-        return alpha >= 0 && beta >= 0 && gamma >= 0;
+        // If the center is not inside, check sub-cell corners for overlap
+        for (int i = 0; i <= subGranularityFactor; i++) {
+          for (int j = 0; j <= subGranularityFactor; j++) {
+            var subRow = row + (double) i / subGranularityFactor;
+            var subCol = col + (double) j / subGranularityFactor;
+            if (isInsidePrecise(subRow, subCol)) {
+              return true;
+            }
+          }
+        }
+        return false;
       }
     }
 

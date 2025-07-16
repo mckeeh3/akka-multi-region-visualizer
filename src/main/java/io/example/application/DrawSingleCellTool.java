@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import akka.javasdk.annotations.Description;
 import akka.javasdk.annotations.FunctionTool;
 import akka.javasdk.client.ComponentClient;
+import akka.javasdk.JsonSupport;
 import io.example.domain.AgentStep;
 import io.example.domain.GridCell;
 
@@ -22,45 +23,54 @@ public class DrawSingleCellTool {
   }
 
   @FunctionTool(description = """
-      Draws a single cell on the grid with the specified status. This tool sets the color or status of
+      Draws a single cell on the grid with the specified color. This tool sets the color of
       one individual cell at the given coordinates. It's the most basic drawing operation and is useful for creating
       detailed patterns, making small adjustments, or placing individual elements on the grid.
+      Returns the single cell shape as a JSON formatted string.
       """)
-  public void drawSingleCell(
+  public String drawSingleCell(
       @Description("The user session id") String sessionId,
       @Description("The viewport") AgentStep.ViewPort viewport,
       @Description("The row coordinate of the cell to draw") int row,
       @Description("The column coordinate of the cell to draw") int col,
-      @Description("The status/color to apply to the cell. Valid values: 'red', 'green', 'blue', 'orange'") String status) {
+      @Description("The color to apply to the cell. Use hex #RRGGBB or #RRGGBBAA colors") String color) {
 
-    log.info("Region: {}, Drawing single cell at row: {} and col: {} with status: {}", region, row, col, status);
+    log.info("Region: {}, Drawing single cell at row: {} and col: {} with color: {}", region, row, col, color);
 
     var cellId = String.format("%dx%d", row, col);
-    var cellStatus = GridCell.Status.valueOf(status.toLowerCase());
-    var command = new GridCell.Command.UpdateCell(
-        cellId,
-        cellStatus,
-        Instant.now(),
-        Instant.now(),
-        region);
+    var status = GridCell.Status.custom;
+    var shape = GridCell.Shape.ofSingleCell();
+    {
+      var command = new GridCell.Command.DrawShape(
+          cellId,
+          status,
+          GridCell.Color.of(color),
+          Instant.now(),
+          Instant.now(),
+          shape,
+          region);
 
-    componentClient.forEventSourcedEntity(cellId)
-        .method(GridCellEntity::updateStatus)
-        .invoke(command);
+      componentClient.forEventSourcedEntity(cellId)
+          .method(GridCellEntity::drawShape)
+          .invoke(command);
+    }
 
     {
       var message = """
           {
             "action": "draw_single_cell",
             "row": %d,
-            "col": %d
+            "col": %d,
+            "color": "%s"
           }
-          """.formatted(row, col);
-      var stepCommand = AgentStep.Command.CreateStep.of(sessionId, message, viewport);
+          """.formatted(row, col, color);
+      var command = AgentStep.Command.CreateStep.of(sessionId, message, viewport);
 
-      componentClient.forEventSourcedEntity(stepCommand.id())
+      componentClient.forEventSourcedEntity(command.id())
           .method(AgentStepEntity::createStep)
-          .invoke(stepCommand);
+          .invoke(command);
     }
+
+    return JsonSupport.encodeToString(shape);
   }
 }

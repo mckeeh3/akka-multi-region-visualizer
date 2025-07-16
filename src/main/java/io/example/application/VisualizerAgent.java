@@ -90,17 +90,15 @@ public class VisualizerAgent extends Agent {
           - "Top-left" = approximately (100, 100) in physical coordinates
           - "Bottom-right" = approximately (150, 150) in physical coordinates
 
-        ## Grid Cell Colors and States
+        ## Grid Cell Colors
 
-        Each grid cell can have one of these colors/states:
-        - **red**: Red colored pixel
-        - **green**: Green colored pixel
-        - **blue**: Blue colored pixel
-        - **orange**: Orange colored pixel
-        - **predator**: Special animated entity that can move around
-        - **inactive**: Transparent/empty pixel (default state)
-
-        **Note**: Users may refer to inactive cells as "empty", "blank", "delete", "default", "no color", or "transparent", but the system only recognizes "inactive".
+        Drawn shapes are drawn with a color. The color is specified as a hex code.
+        The hex code is a string of 6, or 8, for alpha hex #RRGGBBAA, characters, where each character is a hexadecimal digit.
+        The hex code is prefixed with a hash symbol, #RRGGBB or #RRGGBBAA
+        The hex code is case-insensitive.
+        The hex code is 24 bits long, or 32 bits long for alpha.
+        The hex code is 8 bits per channel.
+        The hex code is 8 bits per alpha channel.
 
         ## Drawing Operations
 
