@@ -88,7 +88,7 @@ public class GridCellView extends View {
       return new GridCellRow(
           event.id(),
           event.status().toString(),
-          event.color().toRgba(),
+          event.color().toHex(),
           Integer.parseInt(rc[1]),
           Integer.parseInt(rc[0]),
           event.clientAt(),
