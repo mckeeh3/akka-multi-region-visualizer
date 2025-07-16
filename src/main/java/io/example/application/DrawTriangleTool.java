@@ -44,16 +44,17 @@ public class DrawTriangleTool {
     var cellId = String.format("%dx%d", row1, col1);
     var shape = GridCell.Shape.ofTriangle(row1, col1, row2, col2, row3, col3);
     {
-      var command = new GridCell.Command.CreateShape(
+      var command = new GridCell.Command.DrawShape(
           cellId,
           GridCell.Status.valueOf(status.toLowerCase()),
+          GridCell.Color.of(status),
           Instant.now(),
           Instant.now(),
           shape,
           region);
 
       componentClient.forEventSourcedEntity(cellId)
-          .method(GridCellEntity::createShape)
+          .method(GridCellEntity::drawShape)
           .invoke(command);
     }
 

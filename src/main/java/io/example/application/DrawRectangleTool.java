@@ -40,16 +40,17 @@ public class DrawRectangleTool {
     var cellId = String.format("%dx%d", topLeftRow, topLeftCol);
     var shape = GridCell.Shape.ofRectangle(topLeftRow, topLeftCol, bottomRightRow, bottomRightCol);
     {
-      var command = new GridCell.Command.CreateShape(
+      var command = new GridCell.Command.DrawShape(
           cellId,
           GridCell.Status.valueOf(status.toLowerCase()),
+          GridCell.Color.of(status),
           Instant.now(),
           Instant.now(),
           shape,
           region);
 
       componentClient.forEventSourcedEntity(cellId)
-          .method(GridCellEntity::createShape)
+          .method(GridCellEntity::drawShape)
           .invoke(command);
     }
 

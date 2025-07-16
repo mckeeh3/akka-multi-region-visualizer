@@ -222,10 +222,11 @@ public class PredatorTest {
     return gridCells.stream().flatMap(List::stream).toList();
   }
 
-  GridCellView.GridCellRow createGridCell(int x, int y, String color) {
+  GridCellView.GridCellRow createGridCell(int x, int y, String status) {
     return new GridCellView.GridCellRow(
         "" + y + "x" + x, // RxC, YxX
-        color,
+        status,
+        GridCell.Color.of(status).toRgba(),
         x,
         y,
         Instant.now(),

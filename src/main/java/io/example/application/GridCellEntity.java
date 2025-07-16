@@ -83,6 +83,26 @@ public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.
         .thenReply(newState -> done());
   }
 
+  public Effect<Done> drawShape(GridCell.Command.DrawShape command) {
+    var inside = GridCell.State.insideShape(command.id(), command.shape());
+    log.debug("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
+    log.debug("Inside: {}", inside);
+
+    return effects()
+        .persistAll(currentState().onCommand(command.withRegion(selfRegion)).stream().toList())
+        .thenReply(newState -> done());
+  }
+
+  public Effect<Done> drawCells(GridCell.Command.DrawCells command) {
+    var inside = GridCell.State.insideShape(command.id(), command.shape());
+    log.debug("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
+    log.debug("Inside: {}", inside);
+
+    return effects()
+        .persistAll(currentState().onCommand(command.withRegion(selfRegion)).stream().toList())
+        .thenReply(newState -> done());
+  }
+
   public Effect<Done> updateClearStatus(GridCell.Command.ClearCells command) {
     log.debug("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
 
@@ -118,6 +138,7 @@ public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.
       case GridCell.Event.PredatorUpdated e -> currentState().onEvent(e);
       case GridCell.Event.SpanToNeighbor e -> currentState().onEvent(e);
       case GridCell.Event.FillToNeighbor e -> currentState().onEvent(e);
+      case GridCell.Event.DrawToNeighbor e -> currentState().onEvent(e);
       case GridCell.Event.ClearToNeighbor e -> currentState().onEvent(e);
       case GridCell.Event.EraseToNeighbor e -> currentState().onEvent(e);
     };

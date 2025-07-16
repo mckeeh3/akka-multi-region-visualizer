@@ -88,6 +88,7 @@ public class GridCellView extends View {
       return new GridCellRow(
           event.id(),
           event.status().toString(),
+          event.color().toRgba(),
           Integer.parseInt(rc[1]),
           Integer.parseInt(rc[0]),
           event.clientAt(),
@@ -110,6 +111,7 @@ public class GridCellView extends View {
   public record GridCellRow(
       String id,
       String status,
+      String color,
       int x,
       int y,
       Instant clientAt,

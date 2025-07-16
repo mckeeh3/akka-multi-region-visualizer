@@ -12,6 +12,89 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 import akka.javasdk.annotations.TypeName;
 
+/**
+ * Represents a cell in a multi-region grid visualization system with event-driven drawing capabilities.
+ * 
+ * <p>
+ * This interface defines the core domain model for grid cells that participate in an organic, event-driven drawing
+ * process. When drawing operations are performed, individual cells are modified which triggers events that propagate to
+ * neighboring cells, creating a cascading effect until the requested operation is completed.
+ * </p>
+ * 
+ * <h3>Event-Driven Drawing Process</h3>
+ * <p>
+ * The drawing system operates through a command-event pattern where:
+ * </p>
+ * <ul>
+ * <li><strong>Commands</strong> represent user actions (draw, fill, span, clear, erase)</li>
+ * <li><strong>Events</strong> are generated when cells change state and propagate to neighbors</li>
+ * <li><strong>Organic Propagation</strong> occurs as events trigger reactions in neighboring cells, creating a ripple
+ * effect that continues until the operation completes</li>
+ * </ul>
+ * 
+ * <h3>Drawing Operation Types</h3>
+ * <ul>
+ * <li><strong>Draw</strong> ({@link Command.DrawShape}): Changes cell color within a shape boundary. Only affects cells
+ * that are inside the specified shape and propagates to neighbors.</li>
+ * 
+ * <li><strong>Fill</strong> ({@link Command.FillCells}): Fills only inactive (empty) cells within a shape. Used when
+ * starting with inactive cells to populate empty areas.</li>
+ * 
+ * <li><strong>Span</strong> ({@link Command.SpanCells}): Spreads color to active cells within a shape. Used when
+ * starting with active cells to expand existing colored areas.</li>
+ * 
+ * <li><strong>Clear</strong> ({@link Command.ClearCells}): Removes cells of a specific color. Only affects cells
+ * matching the target status and propagates to neighbors of the same color.</li>
+ * 
+ * <li><strong>Erase</strong> ({@link Command.EraseCells}): Removes all active cells regardless of color. Clears any
+ * colored cell and propagates to all neighboring active cells.</li>
+ * </ul>
+ * 
+ * <h3>Cell States</h3>
+ * <p>
+ * Cells can be in various states represented by the {@link Status} enum:
+ * </p>
+ * <ul>
+ * <li><code>inactive</code> - Empty cell with no color</li>
+ * <li><code>red</code>, <code>green</code>, <code>blue</code>, <code>orange</code> - Colored cells</li>
+ * <li><code>predator</code> - Special state for predator entities (see {@link Predator} class)</li>
+ * </ul>
+ * 
+ * <h3>Shape Support</h3>
+ * <p>
+ * The system supports multiple geometric shapes for drawing operations:
+ * </p>
+ * <ul>
+ * <li><strong>Circle</strong> - Circular areas with radius-based containment</li>
+ * <li><strong>Rectangle</strong> - Rectangular areas with width/height boundaries</li>
+ * <li><strong>Triangle</strong> - Triangular areas using barycentric coordinate calculations</li>
+ * <li><strong>Single Cell</strong> - Individual cell operations</li>
+ * </ul>
+ * 
+ * <h3>Predator System</h3>
+ * <p>
+ * The system includes a complex predator entity system where predators can move between cells, maintain tails, spawn
+ * children, and interact with the grid. Predator behavior is fully described in the {@link Predator} class and related
+ * predator commands/events.
+ * </p>
+ * 
+ * <h3>Multi-Region Support</h3>
+ * <p>
+ * The system supports multi-region operations where cells can be associated with different regions, enabling
+ * distributed visualization across multiple areas.
+ * </p>
+ * 
+ * <h3>Rate Limiting</h3>
+ * <p>
+ * Cells implement a 3-second rate limiting mechanism to prevent excessive state changes and ensure stable visualization
+ * behavior.
+ * </p>
+ * 
+ * @see Command for available operations
+ * @see Event for state change notifications
+ * @see Shape for geometric definitions
+ * @see Predator for predator entity behavior
+ */
 public interface GridCell {
 
   public enum Status {
@@ -20,7 +103,62 @@ public interface GridCell {
     green,
     blue,
     orange,
-    predator
+    predator,
+    custom
+  }
+
+  public record Color(int r, int g, int b, double a) {
+    public Color(int r, int g, int b) {
+      this(r, g, b, 1.0);
+    }
+
+    public static Color of(String hexOrNamedColor) {
+      return switch (hexOrNamedColor.toLowerCase()) {
+        case String s when s.matches("^#[0-9A-Fa-f]{3}$") -> new Color( // matches #RGB
+            Integer.parseInt(s.substring(1, 2), 16),
+            Integer.parseInt(s.substring(2, 3), 16),
+            Integer.parseInt(s.substring(3, 4), 16));
+        case String s when s.matches("^#[0-9A-Fa-f]{6}$") -> new Color( // matches #RRGGBB
+            Integer.parseInt(s.substring(1, 3), 16),
+            Integer.parseInt(s.substring(3, 5), 16),
+            Integer.parseInt(s.substring(5, 7), 16));
+        case String s when s.matches("^[0-9A-Fa-f]{6}$") -> new Color( // matches RRGGBB
+            Integer.parseInt(s.substring(0, 2), 16),
+            Integer.parseInt(s.substring(2, 4), 16),
+            Integer.parseInt(s.substring(4, 6), 16));
+        case "red" -> new Color(138, 15, 48, 1.0); // rgba(138, 15, 48, 1)
+        case "green" -> new Color(6, 74, 62, 1.0); // rgba(6, 74, 62, 1)
+        case "blue" -> new Color(6, 48, 78, 1.0); // rgba(6, 48, 78, 1)
+        case "orange" -> new Color(255, 125, 0, 0.5); // rgba(255, 125, 0, 0.5)
+        case "predator" -> new Color(115, 1, 146, 0.5); // rgba(115, 1, 146, 0.5)
+        default -> throw new IllegalArgumentException("Invalid color format: " + hexOrNamedColor);
+      };
+    }
+
+    public static Color of(Status status) {
+      return switch (status) {
+        case red -> new Color(138, 15, 48, 1.0);
+        case green -> new Color(6, 74, 62, 1.0);
+        case blue -> new Color(6, 48, 78, 1.0);
+        case orange -> new Color(255, 125, 0, 0.5);
+        case predator -> new Color(115, 1, 146, 0.5);
+        default -> new Color(0, 0, 0, 1.0);
+      };
+    }
+
+    public String toHex() {
+      if (a == 1.0) {
+        return String.format("#%02x%02x%02x", r, g, b);
+      } else {
+        // Convert alpha from 0.0-1.0 to 0-255 and format as 8-digit hex
+        int alpha = (int) Math.round(a * 255);
+        return String.format("#%02x%02x%02x%02x", r, g, b, alpha);
+      }
+    }
+
+    public String toRgba() {
+      return String.format("rgba(%d, %d, %d, %.1f)", r, g, b, a);
+    }
   }
 
   // ============================================================
@@ -29,6 +167,7 @@ public interface GridCell {
   public record State(
       String id,
       Status status,
+      Color color,
       Instant createdAt,
       Instant updatedAt,
       Instant clientAt,
@@ -37,7 +176,7 @@ public interface GridCell {
       String updated) {
 
     public static State empty() {
-      return new State("", Status.inactive, Instant.EPOCH, Instant.EPOCH, Instant.EPOCH, Instant.EPOCH, "", "");
+      return new State("", Status.inactive, Color.of("#000000"), Instant.EPOCH, Instant.EPOCH, Instant.EPOCH, Instant.EPOCH, "", "");
     }
 
     public boolean isEmpty() {
@@ -56,6 +195,7 @@ public interface GridCell {
         return List.of(new Event.StatusUpdated(
             command.id,
             command.status,
+            Color.of(command.status),
             newCreatedAt,
             newUpdatedAt,
             command.clientAt,
@@ -102,6 +242,7 @@ public interface GridCell {
       return Optional.of(new Event.StatusUpdated(
           command.id,
           command.status,
+          Color.of(command.status),
           newCreatedAt,
           newUpdatedAt,
           command.clientAt,
@@ -135,6 +276,7 @@ public interface GridCell {
         return List.of(new Event.StatusUpdated(
             command.id,
             Status.inactive,
+            Color.of(Status.inactive),
             newCreatedAt,
             newUpdatedAt,
             command.clientAt,
@@ -151,6 +293,7 @@ public interface GridCell {
           new Event.StatusUpdated(
               command.id,
               Status.predator,
+              Color.of(Status.predator),
               newCreatedAt,
               newUpdatedAt,
               command.clientAt,
@@ -203,6 +346,7 @@ public interface GridCell {
             Stream.<Event>of(new Event.StatusUpdated(
                 command.id,
                 Status.inactive,
+                Color.of(Status.inactive),
                 newCreatedAt,
                 newUpdatedAt,
                 command.clientAt,
@@ -225,6 +369,7 @@ public interface GridCell {
           Optional.<Event>of(new Event.StatusUpdated(
               command.id,
               Status.predator,
+              Color.of(Status.predator),
               newCreatedAt,
               newUpdatedAt,
               command.clientAt,
@@ -289,6 +434,7 @@ public interface GridCell {
       var updateStatusEvent = new Event.StatusUpdated(
           command.id,
           command.status,
+          Color.of(command.status),
           createdAt,
           newUpdatedAt,
           command.clientAt,
@@ -322,6 +468,7 @@ public interface GridCell {
       var statusUpdatedEvent = new Event.StatusUpdated(
           command.id,
           command.status,
+          Color.of(command.status),
           newCreatedAt,
           newUpdatedAt,
           command.clientAt,
@@ -366,6 +513,7 @@ public interface GridCell {
       var updateStatusEvent = new Event.StatusUpdated(
           command.id,
           command.status,
+          Color.of(command.status),
           newCreatedAt,
           newUpdatedAt,
           command.clientAt,
@@ -388,6 +536,94 @@ public interface GridCell {
     }
 
     // ============================================================
+    // Command.DrawShape
+    // ============================================================
+    public List<Event> onCommand(Command.DrawShape command) {
+      if (status.equals(command.status)) {
+        return List.of();
+      }
+      if (!insideShape(command.id, command.shape)) {
+        return List.of();
+      }
+      if (isTooSoonToChange(updatedAt)) {
+        return List.of();
+      }
+
+      var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
+      var newUpdatedAt = Instant.now();
+      var newCreated = isEmpty() ? command.region : created;
+
+      var updateStatusEvent = new Event.StatusUpdated(
+          command.id,
+          command.status,
+          command.color,
+          newCreatedAt,
+          newUpdatedAt,
+          command.clientAt,
+          command.endpointAt,
+          newCreated,
+          command.region);
+
+      var neighborDrawEvents = neighborIds(command.id).stream()
+          .map(id -> new Event.DrawToNeighbor(
+              id,
+              command.status,
+              command.color,
+              command.clientAt,
+              command.endpointAt,
+              command.shape,
+              newCreated,
+              command.region))
+          .toList();
+
+      return Stream.<Event>concat(Stream.of(updateStatusEvent), neighborDrawEvents.stream()).toList();
+    }
+
+    // ============================================================
+    // Command.DrawCells
+    // ============================================================
+    public List<Event> onCommand(Command.DrawCells command) {
+      if (status.equals(command.status)) {
+        return List.of();
+      }
+      if (!insideShape(command.id, command.shape)) {
+        return List.of();
+      }
+      if (isTooSoonToChange(updatedAt)) {
+        return List.of();
+      }
+
+      var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
+      var newUpdatedAt = Instant.now();
+      var newCreated = isEmpty() ? command.region : created;
+
+      var updateStatusEvent = new Event.StatusUpdated(
+          command.id,
+          command.status,
+          command.color,
+          newCreatedAt,
+          newUpdatedAt,
+          command.clientAt,
+          command.endpointAt,
+          newCreated,
+          command.region);
+
+      var neighborDrawEvents = neighborIds(command.id).stream()
+          .map(id -> new Event.DrawToNeighbor(
+              id,
+              command.status,
+              command.color,
+              command.clientAt,
+              command.endpointAt,
+              command.shape,
+              newCreated,
+              command.region))
+          .toList();
+
+      return Stream.<Event>concat(Stream.of(updateStatusEvent), neighborDrawEvents.stream()).toList();
+    }
+
+    // ============================================================
     // Command.ClearStatus
     // ============================================================
     public List<Event> onCommand(Command.ClearCells command) {
@@ -402,6 +638,7 @@ public interface GridCell {
       var updateStatusEvent = new Event.StatusUpdated(
           command.id,
           Status.inactive,
+          Color.of(Status.inactive),
           createdAt,
           newUpdatedAt,
           clientAt,
@@ -428,6 +665,7 @@ public interface GridCell {
       var updateStatusEvent = new Event.StatusUpdated(
           command.id,
           Status.inactive,
+          Color.of(Status.inactive),
           createdAt,
           newUpdatedAt,
           clientAt,
@@ -449,6 +687,7 @@ public interface GridCell {
       return new State(
           event.id,
           event.status,
+          event.color,
           event.createdAt,
           event.updatedAt,
           event.clientAt,
@@ -473,6 +712,10 @@ public interface GridCell {
       return this;
     }
 
+    public State onEvent(Event.DrawToNeighbor event) {
+      return this;
+    }
+
     public State onEvent(Event.ClearToNeighbor event) {
       return this;
     }
@@ -486,7 +729,7 @@ public interface GridCell {
       return now.isBefore(lastUpdatedAt.plusSeconds(3));
     }
 
-    static boolean insideShape(String id, Shape shape) {
+    public static boolean insideShape(String id, Shape shape) {
       var rc = id.split("x"); // RxC / YxX
       var row = Integer.parseInt(rc[0]);
       var col = Integer.parseInt(rc[1]);
@@ -524,6 +767,20 @@ public interface GridCell {
 
       public CreateShape withRegion(String newRegion) {
         return new CreateShape(id, status, clientAt, endpointAt, shape, newRegion);
+      }
+    }
+
+    public record DrawShape(
+        String id,
+        Status status,
+        Color color,
+        Instant clientAt,
+        Instant endpointAt,
+        Shape shape,
+        String region) implements Command {
+
+      public DrawShape withRegion(String newRegion) {
+        return new DrawShape(id, status, color, clientAt, endpointAt, shape, newRegion);
       }
     }
 
@@ -609,6 +866,20 @@ public interface GridCell {
       }
     }
 
+    public record DrawCells(
+        String id,
+        Status status,
+        Color color,
+        Instant clientAt,
+        Instant endpointAt,
+        Shape shape,
+        String region) implements Command {
+
+      public DrawCells withRegion(String newRegion) {
+        return new DrawCells(id, status, color, clientAt, endpointAt, shape, newRegion);
+      }
+    }
+
     public record ClearCells(
         String id,
         Status status) implements Command {
@@ -635,6 +906,7 @@ public interface GridCell {
     public record StatusUpdated(
         String id,
         Status status,
+        Color color,
         Instant createdAt,
         Instant updatedAt,
         Instant clientAt,
@@ -681,6 +953,18 @@ public interface GridCell {
     public record FillToNeighbor(
         String id,
         Status status,
+        Instant clientAt,
+        Instant endpointAt,
+        Shape shape,
+        String created,
+        String updated) implements Event {}
+
+    @TypeName("draw-to-neighbor")
+
+    public record DrawToNeighbor(
+        String id,
+        Status status,
+        Color color,
         Instant clientAt,
         Instant endpointAt,
         Shape shape,

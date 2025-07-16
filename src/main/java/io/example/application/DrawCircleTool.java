@@ -38,16 +38,17 @@ public class DrawCircleTool {
 
     var cellId = String.format("%dx%d", row, col);
     var shape = GridCell.Shape.ofCircle(row, col, radius);
-    var command = new GridCell.Command.CreateShape(
+    var command = new GridCell.Command.DrawShape(
         cellId,
         GridCell.Status.valueOf(status.toLowerCase()),
+        GridCell.Color.of(status),
         Instant.now(),
         Instant.now(),
         shape,
         region);
 
     componentClient.forEventSourcedEntity(cellId)
-        .method(GridCellEntity::createShape)
+        .method(GridCellEntity::drawShape)
         .invoke(command);
 
     {

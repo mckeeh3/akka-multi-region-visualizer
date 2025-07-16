@@ -41,6 +41,7 @@ public class GridCellToGridCellConsumer extends Consumer {
       case GridCell.Event.PredatorUpdated e -> onEvent(e);
       case GridCell.Event.SpanToNeighbor e -> onEvent(e);
       case GridCell.Event.FillToNeighbor e -> onEvent(e);
+      case GridCell.Event.DrawToNeighbor e -> onEvent(e);
       case GridCell.Event.ClearToNeighbor e -> onEvent(e);
       case GridCell.Event.EraseToNeighbor e -> onEvent(e);
       default -> effects().ignore();
@@ -116,6 +117,24 @@ public class GridCellToGridCellConsumer extends Consumer {
         region());
     componentClient.forEventSourcedEntity(event.id())
         .method(GridCellEntity::updateFillStatus)
+        .invoke(command);
+
+    return effects().done();
+  }
+
+  Effect onEvent(GridCell.Event.DrawToNeighbor event) {
+    log.debug("Region: {}, Event: {}", region(), event);
+
+    var command = new GridCell.Command.DrawCells(
+        event.id(),
+        event.status(),
+        event.color(),
+        event.clientAt(),
+        event.endpointAt(),
+        event.shape(),
+        region());
+    componentClient.forEventSourcedEntity(event.id())
+        .method(GridCellEntity::drawCells)
         .invoke(command);
 
     return effects().done();
