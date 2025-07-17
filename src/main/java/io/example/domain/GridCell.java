@@ -539,9 +539,6 @@ public interface GridCell {
     // Command.DrawShape
     // ============================================================
     public List<Event> onCommand(Command.DrawShape command) {
-      if (status.equals(command.status)) {
-        return List.of();
-      }
       if (!insideShape(command.id, command.shape)) {
         return List.of();
       }

@@ -3,6 +3,8 @@ package io.example.api;
 import java.io.ByteArrayInputStream;
 import java.time.Duration;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,10 +80,19 @@ public class AgentEndpoint extends AbstractHttpEndpoint {
                       new VisualizerAgent.Location(viewport.mouse().row(), viewport.mouse().col()));
                   var prompt = new VisualizerAgent.Prompt(sessionId, audioToText, agentViewPort);
 
-                  componentClient.forAgent()
-                      .inSession(sessionId)
-                      .method(VisualizerAgent::chat)
-                      .invoke(prompt);
+                  // Process agent call in virtual thread without blocking the response
+                  CompletableFuture.runAsync(() -> {
+                    try {
+                      String agentResponse = componentClient.forAgent()
+                          .inSession(sessionId)
+                          .method(VisualizerAgent::chat)
+                          .invoke(prompt);
+                      log.info("Voice command: Agent response: {}", agentResponse);
+                    } catch (Exception e) {
+                      log.error("Voice command: Agent call failed", e);
+                    }
+                  }, Executors.newVirtualThreadPerTaskExecutor());
+
                   return audioToText;
                 });
           } catch (GridAgentAudioToText.GridAgentAudioToTextException e) {
