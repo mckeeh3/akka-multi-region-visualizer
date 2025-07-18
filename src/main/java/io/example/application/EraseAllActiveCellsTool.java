@@ -8,6 +8,7 @@ import akka.javasdk.annotations.FunctionTool;
 import akka.javasdk.client.ComponentClient;
 import io.example.domain.AgentStep;
 import io.example.domain.GridCell;
+import io.example.domain.ViewPort;
 
 public class EraseAllActiveCellsTool {
   static final Logger log = LoggerFactory.getLogger(EraseAllActiveCellsTool.class);
@@ -27,7 +28,7 @@ public class EraseAllActiveCellsTool {
       """)
   public void eraseAllActiveCells(
       @Description("The user session id") String sessionId,
-      @Description("The viewport") AgentStep.ViewPort viewport,
+      @Description("The viewport information containing top-left, bottom-right, and mouse coordinates") ViewPort viewport,
       @Description("The row coordinate where the erasing should start") int row,
       @Description("The column coordinate where the erasing should start") int col) {
 

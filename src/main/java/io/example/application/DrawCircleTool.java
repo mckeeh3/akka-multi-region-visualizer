@@ -5,12 +5,13 @@ import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import akka.javasdk.JsonSupport;
 import akka.javasdk.annotations.Description;
 import akka.javasdk.annotations.FunctionTool;
 import akka.javasdk.client.ComponentClient;
-import akka.javasdk.JsonSupport;
 import io.example.domain.AgentStep;
 import io.example.domain.GridCell;
+import io.example.domain.ViewPort;
 
 public class DrawCircleTool {
   static final Logger log = LoggerFactory.getLogger(DrawCircleTool.class);
@@ -30,7 +31,7 @@ public class DrawCircleTool {
       """)
   public String drawCircle(
       @Description("The user session id") String sessionId,
-      @Description("The viewport") AgentStep.ViewPort viewport,
+      @Description("The viewport information containing top-left, bottom-right, and mouse coordinates") ViewPort viewport,
       @Description("The row coordinate of the center of the circle") int row,
       @Description("The column coordinate of the center of the circle") int col,
       @Description("The radius of the circle in grid cells. Maximum effective radius is 30 cells for performance reasons") int radius,

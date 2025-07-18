@@ -5,12 +5,13 @@ import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import akka.javasdk.JsonSupport;
 import akka.javasdk.annotations.Description;
 import akka.javasdk.annotations.FunctionTool;
 import akka.javasdk.client.ComponentClient;
-import akka.javasdk.JsonSupport;
 import io.example.domain.AgentStep;
 import io.example.domain.GridCell;
+import io.example.domain.ViewPort;
 
 public class DrawRectangleTool {
   static final Logger log = LoggerFactory.getLogger(DrawRectangleTool.class);
@@ -30,7 +31,7 @@ public class DrawRectangleTool {
       """)
   public String drawRectangle(
       @Description("The user session id") String sessionId,
-      @Description("The viewport") AgentStep.ViewPort viewport,
+      @Description("The viewport information containing top-left, bottom-right, and mouse coordinates") ViewPort viewport,
       @Description("The row coordinate of the top-left corner of the rectangle") int topLeftRow,
       @Description("The column coordinate of the top-left corner of the rectangle") int topLeftCol,
       @Description("The row coordinate of the bottom-right corner of the rectangle") int bottomRightRow,

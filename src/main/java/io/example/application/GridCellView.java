@@ -79,7 +79,7 @@ public class GridCellView extends View {
     }
 
     GridCellRow onEvent(GridCell.Event.StatusUpdated event) {
-      log.info("Region: {}, Event: {}\n_State: {}", region(updateContext()), event, rowState());
+      log.debug("Region: {}, Event: {}\n_State: {}", region(updateContext()), event, rowState());
 
       var rc = event.id().split("x"); // RxC / YxX
       var viewAt = Instant.now();

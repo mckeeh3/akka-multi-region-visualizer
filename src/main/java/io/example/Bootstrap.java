@@ -9,11 +9,11 @@ import org.slf4j.LoggerFactory;
 import com.typesafe.config.Config;
 
 @Setup
-public class MyServiceSetup implements ServiceSetup {
-  private final Logger log = LoggerFactory.getLogger(MyServiceSetup.class);
+public class Bootstrap implements ServiceSetup {
+  private final Logger log = LoggerFactory.getLogger(Bootstrap.class);
   private final Config config;
 
-  public MyServiceSetup(Config config) {
+  public Bootstrap(Config config) {
     this.config = config;
   }
 

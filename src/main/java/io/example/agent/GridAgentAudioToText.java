@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import akka.javasdk.client.ComponentClient;
-import io.example.domain.AgentStep;
+import io.example.domain.ViewPort;
 
 /**
  * The GridAgentAudioToText class serves as the entry point for voice command processing in the Akka Multi-Region
@@ -71,7 +71,7 @@ import io.example.domain.AgentStep;
 public class GridAgentAudioToText {
   final static Logger log = LoggerFactory.getLogger(GridAgentAudioToText.class);
   final ComponentClient componentClient;
-  final AgentStep.ViewPort viewport;
+  final ViewPort viewport;
 
   final String openaiApiKey;
   final HttpClient client;
@@ -93,7 +93,7 @@ public class GridAgentAudioToText {
    * @param componentClient The Akka component client for interacting with the entity system
    * @param viewport        The current viewport information containing grid position context
    */
-  public GridAgentAudioToText(ComponentClient componentClient, AgentStep.ViewPort viewport) {
+  public GridAgentAudioToText(ComponentClient componentClient, ViewPort viewport) {
     this.componentClient = componentClient;
     this.viewport = viewport;
 
@@ -207,7 +207,7 @@ public class GridAgentAudioToText {
    */
   public static CompletionStage<String> convertAudioToText(
       ComponentClient componentClient,
-      AgentStep.ViewPort viewport,
+      ViewPort viewport,
       String contentType,
       InputStream audioInput,
       String userSessionId) {

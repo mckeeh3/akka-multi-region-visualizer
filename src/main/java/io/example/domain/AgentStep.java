@@ -84,13 +84,7 @@ public interface AgentStep {
           event.status);
     }
 
-    public static String randomSequenceId() {
-      return new Random().ints(5, 0, 36)
-          .mapToObj(i -> i < 10 ? String.valueOf(i) : String.valueOf((char) ('a' + i - 10)))
-          .collect(Collectors.joining());
-    }
-
-    public static String randomStepId() {
+    static String randomStepId() {
       return new Random().ints(6, 0, 36)
           .mapToObj(i -> i < 10 ? String.valueOf(i) : String.valueOf((char) ('a' + i - 10)))
           .collect(Collectors.joining());
@@ -145,17 +139,4 @@ public interface AgentStep {
   }
 
   public record Location(int row, int col) {}
-
-  public record ViewPort(
-      Location topLeft,
-      Location bottomRight,
-      Location mouse) {
-
-    public static ViewPort of(int topLeftRow, int topLeftCol, int bottomRightRow, int bottomRightCol, int mouseRow, int mouseCol) {
-      return new ViewPort(
-          new Location(topLeftRow, topLeftCol),
-          new Location(bottomRightRow, bottomRightCol),
-          new Location(mouseRow, mouseCol));
-    }
-  }
 }

@@ -12,7 +12,7 @@ import akka.javasdk.annotations.Query;
 import akka.javasdk.view.TableUpdater;
 import akka.javasdk.view.View;
 import io.example.domain.AgentStep;
-import io.example.domain.AgentStep.ViewPort;
+import io.example.domain.ViewPort;
 
 @ComponentId("agent-step-view")
 public class AgentStepView extends View {
@@ -42,7 +42,7 @@ public class AgentStepView extends View {
   public static class AgentStepBySequence extends TableUpdater<AgentStepRow> {
 
     public Effect<AgentStepRow> onEvent(AgentStep.Event event) {
-      log.info("Event: {}", event);
+      log.debug("Event: {}", event);
 
       return switch (event) {
         case AgentStep.Event.StepCreated e -> effects().updateRow(onEvent(e));

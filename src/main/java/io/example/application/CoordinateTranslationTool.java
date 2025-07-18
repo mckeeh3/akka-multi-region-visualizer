@@ -1,12 +1,11 @@
 package io.example.application;
 
-import akka.javasdk.annotations.FunctionTool;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import akka.javasdk.annotations.Description;
-import io.example.domain.AgentStep.ViewPort;
+import akka.javasdk.annotations.FunctionTool;
+import io.example.domain.ViewPort;
 
 public class CoordinateTranslationTool {
   static final Logger log = LoggerFactory.getLogger(CoordinateTranslationTool.class);
@@ -27,7 +26,7 @@ public class CoordinateTranslationTool {
   public TranslationResult translateViewportToAbsolute(
       @Description("The viewport-relative row coordinate to translate") int viewportRow,
       @Description("The viewport-relative column coordinate to translate") int viewportCol,
-      @Description("The current viewport information containing top-left and bottom-right coordinates") ViewPort viewport) {
+      @Description("The viewport information containing top-left, bottom-right, and mouse coordinates") ViewPort viewport) {
 
     log.info("Translating viewport position: {} with viewport: {}", viewportRow, viewportCol, viewport);
 

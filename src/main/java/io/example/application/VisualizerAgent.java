@@ -12,6 +12,7 @@ import akka.javasdk.agent.ModelProvider;
 import akka.javasdk.annotations.ComponentId;
 import akka.javasdk.client.ComponentClient;
 import io.example.domain.AgentStep;
+import io.example.domain.ViewPort;
 
 @ComponentId("visualizer-agent")
 public class VisualizerAgent extends Agent {
@@ -33,6 +34,8 @@ public class VisualizerAgent extends Agent {
         You are an AI assistant for the Akka Multi-Region Visualizer application.
         Your role is to analyze natural language commands from users and decompose them into a list of specific tool-based operations,
         and then execute those operations.
+
+        ## IMPORTANT: Your primary goal is to decompose user commands into a series of tool calls and then execute them. You do not provide conversational answers or explanations unless the user's request cannot be fulfilled by a tool call.
 
         ## Grid System Overview
 
@@ -102,7 +105,7 @@ public class VisualizerAgent extends Agent {
 
         ## Drawing Operations
 
-        All drawing tools modify the color of one or more grid cells:
+        Some drawing tools modify the color of one or more grid cells:
         - **Single Cell**: Change the color of one specific pixel
         - **Rectangle**: Fill a rectangular area with a specific color
         - **Circle**: Fill a circular area with a specific color
@@ -123,14 +126,13 @@ public class VisualizerAgent extends Agent {
         -   When a tool call is necessary, your response should ONLY consist of the tool call(s). Do NOT include any conversational text, explanations, or extraneous remarks.
         -   If the request is fully satisfied by a tool call, simply output the tool call.
         -   If no tool call is necessary to fulfill the request, provide a concise, direct answer to the user.
+        -   **Your output should ONLY be the tool calls or a direct answer. Nothing else.**
 
         ## Decomposition and Expansion Guidelines
 
         -   **Single Commands**: "make the cell at row 5, column 10 red" -> call `drawSingleCell` once.
-        -   **Compound Commands**: "draw a red rectangle from 0,0 to 10,10 and a green circle at 5,5" -> call `drawRectangle` and
-        `drawCircle`.
-        -   **EXPANSION OF AMBIGUOUS COMMANDS**: "Create 20 shapes" -> Generate 20 separate tool calls with random shapes, positions,
-        and colors.
+        -   **Compound Commands**: "draw a red rectangle from 0,0 to 10,10 and a green circle at 5,5" -> call `drawRectangle` and `drawCircle`.
+        -   **EXPANSION OF AMBIGUOUS COMMANDS**: "Create 20 shapes" -> Generate 20 separate tool calls with random shapes, positions, and colors.
         -   **Viewport-Relative Commands**: "Draw a circle in the center" -> Calculate center based on current viewport coordinates
         -   **Coordinate Translation**: Always convert viewport-relative references to physical grid coordinates
 
@@ -157,15 +159,11 @@ public class VisualizerAgent extends Agent {
         new CoordinateTranslationTool());
   }
 
-  public Effect<String> chat(Prompt prompt) {
+  public Effect<String> ask(Prompt prompt) {
     log.info("Prompt: {}", prompt);
 
-    var agentStepViewport = new AgentStep.ViewPort(
-        new AgentStep.Location(prompt.viewport().topLeft().row(), prompt.viewport().topLeft().col()),
-        new AgentStep.Location(prompt.viewport().bottomRight().row(), prompt.viewport().bottomRight().col()),
-        new AgentStep.Location(prompt.viewport().mouse().row(), prompt.viewport().mouse().col()));
     {
-      var command = AgentStep.Command.CreateStep.of(prompt.sessionId(), prompt.prompt(), agentStepViewport);
+      var command = AgentStep.Command.CreateStep.of(prompt.sessionId(), prompt.prompt(), prompt.viewport());
 
       componentClient.forEventSourcedEntity(command.id())
           .method(AgentStepEntity::createStep)
@@ -193,7 +191,7 @@ public class VisualizerAgent extends Agent {
         .memory(MemoryProvider.limitedWindow().readLast(10))
         .model(ModelProvider
             .openAi()
-            .withModelName("o3")
+            .withModelName("gpt-4.1")
             .withApiKey(System.getenv("OPENAI_API_KEY")))
         .tools(functionTools)
         .systemMessage(systemPrompt)
@@ -201,28 +199,13 @@ public class VisualizerAgent extends Agent {
         .onFailure(e -> {
           log.error("Error: {}", e);
           var message = "Agent failure, prompt: %s\nError: %s".formatted(prompt.prompt(), e.getMessage());
-          var command = AgentStep.Command.CreateStep.of(prompt.sessionId(), message, agentStepViewport);
+          var command = AgentStep.Command.CreateStep.of(prompt.sessionId(), message, prompt.viewport());
           componentClient.forEventSourcedEntity(command.id())
               .method(AgentStepEntity::createStep)
               .invoke(command);
           return message;
         })
         .thenReply();
-  }
-
-  public record Location(int row, int col) {}
-
-  public record ViewPort(
-      Location topLeft,
-      Location bottomRight,
-      Location mouse) {
-
-    public static ViewPort of(int topLeftRow, int topLeftCol, int bottomRightRow, int bottomRightCol, int mouseRow, int mouseCol) {
-      return new ViewPort(
-          new Location(topLeftRow, topLeftCol),
-          new Location(bottomRightRow, bottomRightCol),
-          new Location(mouseRow, mouseCol));
-    }
   }
 
   public record Prompt(String sessionId, String prompt, ViewPort viewport) {}

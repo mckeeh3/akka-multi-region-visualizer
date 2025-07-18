@@ -1,10 +1,10 @@
 package io.example.api;
 
-import java.io.ByteArrayInputStream;
 import java.time.Duration;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Collectors;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,11 +22,11 @@ import akka.javasdk.http.AbstractHttpEndpoint;
 import akka.javasdk.http.HttpException;
 import akka.javasdk.http.HttpResponses;
 import akka.stream.Materializer;
-import io.example.agent.GridAgentAudioToText;
 import io.example.application.AgentStepEntity;
 import io.example.application.AgentStepView;
-import io.example.application.VisualizerAgent;
+import io.example.application.VisualizerWorkflow;
 import io.example.domain.AgentStep;
+import io.example.domain.ViewPort;
 
 @Acl(allow = @Acl.Matcher(principal = Acl.Principal.INTERNET))
 @HttpEndpoint("/agent")
@@ -62,43 +62,14 @@ public class AgentEndpoint extends AbstractHttpEndpoint {
         .thenCompose(strict -> {
           log.info("Voice command: Audio request size: {}", strict.getData().size());
           var bytes = strict.getData().toArray();
-          var input = new ByteArrayInputStream(bytes);
+          var workflowRequest = new VisualizerWorkflow.VoiceCommandRequest(sessionId, contentType, bytes, viewport);
+          var workflowId = randomWorkflowId();
 
-          try {
-            return GridAgentAudioToText.convertAudioToText(
-                componentClient,
-                viewport,
-                contentType,
-                input,
-                sessionId)
-                .thenApply(audioToText -> {
-                  log.info("Voice command: Audio to text: {}", audioToText);
+          componentClient.forWorkflow(workflowId)
+              .method(VisualizerWorkflow::start)
+              .invoke(workflowRequest);
 
-                  var agentViewPort = new VisualizerAgent.ViewPort(
-                      new VisualizerAgent.Location(viewport.topLeft().row(), viewport.topLeft().col()),
-                      new VisualizerAgent.Location(viewport.bottomRight().row(), viewport.bottomRight().col()),
-                      new VisualizerAgent.Location(viewport.mouse().row(), viewport.mouse().col()));
-                  var prompt = new VisualizerAgent.Prompt(sessionId, audioToText, agentViewPort);
-
-                  // Process agent call in virtual thread without blocking the response
-                  CompletableFuture.runAsync(() -> {
-                    try {
-                      String agentResponse = componentClient.forAgent()
-                          .inSession(sessionId)
-                          .method(VisualizerAgent::chat)
-                          .invoke(prompt);
-                      log.info("Voice command: Agent response: {}", agentResponse);
-                    } catch (Exception e) {
-                      log.error("Voice command: Agent call failed", e);
-                    }
-                  }, Executors.newVirtualThreadPerTaskExecutor());
-
-                  return audioToText;
-                });
-          } catch (GridAgentAudioToText.GridAgentAudioToTextException e) {
-            log.error("Voice command: LLM agent error", e);
-            throw HttpException.badRequest(e.getMessage());
-          }
+          return CompletableFuture.completedFuture("Processing audio command, workflow ID: " + workflowId);
         });
   }
 
@@ -126,7 +97,7 @@ public class AgentEndpoint extends AbstractHttpEndpoint {
         .invoke(sequenceId);
   }
 
-  static AgentStep.ViewPort viewportFromHttpHeaders(HttpRequest request) {
+  static ViewPort viewportFromHttpHeaders(HttpRequest request) {
     var viewportTopLeftRow = request.getHeader("X-Viewport-Top-Left-Row").map(header -> Integer.parseInt(header.value())).orElse(0);
     var viewportTopLeftCol = request.getHeader("X-Viewport-Top-Left-Col").map(header -> Integer.parseInt(header.value())).orElse(0);
     var viewportBottomRightRow = request.getHeader("X-Viewport-Bottom-Right-Row").map(header -> Integer.parseInt(header.value())).orElse(0);
@@ -134,10 +105,16 @@ public class AgentEndpoint extends AbstractHttpEndpoint {
     var mouseRow = request.getHeader("X-Mouse-Row").map(header -> Integer.parseInt(header.value())).orElse(0);
     var mouseCol = request.getHeader("X-Mouse-Col").map(header -> Integer.parseInt(header.value())).orElse(0);
 
-    var topLeft = new AgentStep.Location(viewportTopLeftRow, viewportTopLeftCol);
-    var bottomRight = new AgentStep.Location(viewportBottomRightRow, viewportBottomRightCol);
-    var mouse = new AgentStep.Location(mouseRow, mouseCol);
+    var topLeft = new ViewPort.Location(viewportTopLeftRow, viewportTopLeftCol);
+    var bottomRight = new ViewPort.Location(viewportBottomRightRow, viewportBottomRightCol);
+    var mouse = new ViewPort.Location(mouseRow, mouseCol);
 
-    return new AgentStep.ViewPort(topLeft, bottomRight, mouse);
+    return new ViewPort(topLeft, bottomRight, mouse);
+  }
+
+  static String randomWorkflowId() {
+    return new Random().ints(6, 0, 36)
+        .mapToObj(i -> i < 10 ? String.valueOf(i) : String.valueOf((char) ('a' + i - 10)))
+        .collect(Collectors.joining());
   }
 }

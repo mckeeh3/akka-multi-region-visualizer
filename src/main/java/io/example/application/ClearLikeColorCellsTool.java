@@ -1,12 +1,14 @@
 package io.example.application;
 
-import akka.javasdk.annotations.FunctionTool;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import akka.javasdk.annotations.Description;
+import akka.javasdk.annotations.FunctionTool;
 import akka.javasdk.client.ComponentClient;
 import io.example.domain.AgentStep;
 import io.example.domain.GridCell;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.example.domain.ViewPort;
 
 public class ClearLikeColorCellsTool {
   static final Logger log = LoggerFactory.getLogger(ClearLikeColorCellsTool.class);
@@ -26,7 +28,7 @@ public class ClearLikeColorCellsTool {
       """)
   public void clearLikeColorCells(
       @Description("The user session id") String sessionId,
-      @Description("The viewport") AgentStep.ViewPort viewport,
+      @Description("The viewport information containing top-left, bottom-right, and mouse coordinates") ViewPort viewport,
       @Description("The row coordinate where the clearing should start") int row,
       @Description("The column coordinate where the clearing should start") int col,
       @Description("The status/color of cells to clear. Valid values: 'red', 'green', 'blue', 'orange'") String status) {

@@ -1,5 +1,10 @@
 package io.example.application;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,11 +15,7 @@ import io.example.application.GridCellView.GridCellRow;
 import io.example.domain.AgentStep;
 import io.example.domain.GridCell;
 import io.example.domain.Predator;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.function.Supplier;
-import java.util.stream.Stream;
+import io.example.domain.ViewPort;
 
 public class CreatePredatorTool {
   static final Logger log = LoggerFactory.getLogger(CreatePredatorTool.class);
@@ -34,7 +35,7 @@ public class CreatePredatorTool {
       """)
   public void createPredator(
       @Description("The user session id") String sessionId,
-      @Description("The viewport") AgentStep.ViewPort viewport,
+      @Description("The viewport information containing top-left, bottom-right, and mouse coordinates") ViewPort viewport,
       @Description("The row coordinate where the predator should be created") int row,
       @Description("The column coordinate where the predator should be created") int col,
       @Description("The sensing range of the predator in grid cells. The predator will scan this area around itself for active cells") int range) {

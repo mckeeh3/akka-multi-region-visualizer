@@ -26,7 +26,7 @@ public class AgentStepEntity extends EventSourcedEntity<AgentStep.State, AgentSt
   }
 
   public Effect<Done> createStep(AgentStep.Command.CreateStep command) {
-    log.info("EntityId: {}\n_State: {}\n_Command: {}", entityId, currentState(), command);
+    log.debug("EntityId: {}\n_State: {}\n_Command: {}", entityId, currentState(), command);
 
     return effects()
         .persistAll(currentState().onCommand(command).stream().toList())
@@ -34,7 +34,7 @@ public class AgentStepEntity extends EventSourcedEntity<AgentStep.State, AgentSt
   }
 
   public Effect<Done> consumeStep(AgentStep.Command.ConsumedStep command) {
-    log.info("EntityId: {}\n_State: {}\n_Command: {}", entityId, currentState(), command);
+    log.debug("EntityId: {}\n_State: {}\n_Command: {}", entityId, currentState(), command);
 
     return effects()
         .persistAll(currentState().onCommand(command).stream().toList())
@@ -43,7 +43,7 @@ public class AgentStepEntity extends EventSourcedEntity<AgentStep.State, AgentSt
 
   @Override
   public AgentStep.State applyEvent(AgentStep.Event event) {
-    log.info("EntityId: {}\n_State: {}\n_Event: {}", entityId, currentState(), event);
+    log.debug("EntityId: {}\n_State: {}\n_Event: {}", entityId, currentState(), event);
 
     return switch (event) {
       case AgentStep.Event.StepCreated e -> currentState().onEvent(e);

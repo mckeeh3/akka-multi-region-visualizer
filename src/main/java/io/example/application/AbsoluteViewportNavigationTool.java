@@ -7,7 +7,7 @@ import akka.javasdk.annotations.FunctionTool;
 import akka.javasdk.annotations.Description;
 import akka.javasdk.client.ComponentClient;
 import io.example.domain.AgentStep;
-import io.example.domain.AgentStep.ViewPort;
+import io.example.domain.ViewPort;
 
 public class AbsoluteViewportNavigationTool {
     static final Logger log = LoggerFactory.getLogger(AbsoluteViewportNavigationTool.class);

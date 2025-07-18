@@ -5,12 +5,13 @@ import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import akka.javasdk.JsonSupport;
 import akka.javasdk.annotations.Description;
 import akka.javasdk.annotations.FunctionTool;
 import akka.javasdk.client.ComponentClient;
-import akka.javasdk.JsonSupport;
 import io.example.domain.AgentStep;
 import io.example.domain.GridCell;
+import io.example.domain.ViewPort;
 
 public class DrawTriangleTool {
   static final Logger log = LoggerFactory.getLogger(DrawTriangleTool.class);
@@ -30,7 +31,7 @@ public class DrawTriangleTool {
       """)
   public String drawTriangle(
       @Description("The user session id") String sessionId,
-      @Description("The viewport") AgentStep.ViewPort viewport,
+      @Description("The viewport information containing top-left, bottom-right, and mouse coordinates") ViewPort viewport,
       @Description("The row coordinate of the first vertex of the triangle") int row1,
       @Description("The column coordinate of the first vertex of the triangle") int col1,
       @Description("The row coordinate of the second vertex of the triangle") int row2,
