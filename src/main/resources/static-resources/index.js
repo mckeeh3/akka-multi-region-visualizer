@@ -2587,7 +2587,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Format JSON nicely with 2-space indentation
     try {
-      // Create a deep copy of the message to modify
+      if (message.message && typeof message.message === 'string') {
+        try {
+          message.message = JSON.parse(message.message);
+        } catch (e) {
+          // ignore, cannot change message.message
+        }
+      }
       const formattedMessage = JSON.parse(JSON.stringify(message));
 
       // Check if llmResponse exists and might contain JSON

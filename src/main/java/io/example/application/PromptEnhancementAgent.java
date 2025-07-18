@@ -152,7 +152,7 @@ public class PromptEnhancementAgent extends Agent {
         .systemMessage(systemPrompt)
         .userMessage(userMessage)
         .onFailure(e -> {
-          log.error("Error: {}", e);
+          log.error("Failure", e);
           var message = "{} failed, prompt: %s\nError: %s".formatted(getClass().getSimpleName(), request.originalPrompt(), e.getMessage());
           var command = AgentStep.Command.CreateStep.of(request.sessionId(), message, request.viewport());
 

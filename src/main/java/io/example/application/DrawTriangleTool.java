@@ -63,13 +63,13 @@ public class DrawTriangleTool {
     {
       var message = """
           {
-            "action": "draw_triangle",
+            "tool": "%s",
             "row1": %d, "col1": %d,
             "row2": %d, "col2": %d,
             "row3": %d, "col3": %d,
             "color": "%s"
           }
-          """.formatted(row1, col1, row2, col2, row3, col3, color);
+          """.formatted(getClass().getSimpleName(), row1, col1, row2, col2, row3, col3, color);
       var command = AgentStep.Command.CreateStep.of(sessionId, message, viewport);
 
       componentClient.forEventSourcedEntity(command.id())

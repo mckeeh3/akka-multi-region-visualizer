@@ -45,12 +45,12 @@ public class ClearLikeColorCellsTool {
     {
       var message = """
           {
-            "action": "clear_like_color_cells",
+            "tool": "%s",
             "row": %d,
             "col": %d,
             "color": "%s"
           }
-          """.formatted(row, col, color);
+          """.formatted(getClass().getSimpleName(), row, col, color);
       var stepCommand = AgentStep.Command.CreateStep.of(sessionId, message, viewport);
 
       componentClient.forEventSourcedEntity(stepCommand.id())

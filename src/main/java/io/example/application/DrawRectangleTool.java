@@ -61,14 +61,14 @@ public class DrawRectangleTool {
     {
       var message = """
           {
-            "action": "draw_rectangle",
+            "tool": "%s",
             "topLeftRow": %d,
             "topLeftCol": %d,
             "bottomRightRow": %d,
             "bottomRightCol": %d,
             "color": "%s"
           }
-          """.formatted(topLeftRow, topLeftCol, bottomRightRow, bottomRightCol, color);
+          """.formatted(getClass().getSimpleName(), topLeftRow, topLeftCol, bottomRightRow, bottomRightCol, color);
       var command = AgentStep.Command.CreateStep.of(sessionId, message, viewport);
 
       componentClient.forEventSourcedEntity(command.id())

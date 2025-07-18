@@ -58,13 +58,13 @@ public class DrawCircleTool {
     {
       var message = """
           {
-            "action": "draw_circle",
+            "tool": "%s",
             "row": %d,
             "col": %d,
             "radius": %d,
             "color": "%s"
           }
-          """.formatted(row, col, radius, color);
+          """.formatted(getClass().getSimpleName(), row, col, radius, color);
       var stepCommand = AgentStep.Command.CreateStep.of(sessionId, message, viewport);
 
       componentClient.forEventSourcedEntity(stepCommand.id())

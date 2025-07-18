@@ -71,12 +71,12 @@ public class CreatePredatorTool {
     {
       var message = """
           {
-            "action": "create_predator",
+            "tool": "%s",
             "row": %d,
             "col": %d,
             "range": %d
           }
-          """.formatted(row, col, range);
+          """.formatted(getClass().getSimpleName(), row, col, range);
       var stepCommand = AgentStep.Command.CreateStep.of(sessionId, message, viewport);
 
       componentClient.forEventSourcedEntity(stepCommand.id())

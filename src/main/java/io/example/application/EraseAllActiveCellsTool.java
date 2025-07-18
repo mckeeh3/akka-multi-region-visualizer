@@ -44,23 +44,12 @@ public class EraseAllActiveCellsTool {
     {
       var message = """
           {
-            "action": "erase_all_active_cells",
-            "parameters": {
-              "sessionId": "%s",
-              "viewport": {
-                "topLeft": {"row": %d, "col": %d},
-                "bottomRight": {"row": %d, "col": %d},
-                "mouse": {"row": %d, "col": %d}
-              },
-              "row": %d,
-              "col": %d
+            "tool": "%s",
+            "row": %d,
+            "col": %d
             }
           }
-          """.formatted(sessionId,
-          viewport.topLeft().row(), viewport.topLeft().col(),
-          viewport.bottomRight().row(), viewport.bottomRight().col(),
-          viewport.mouse().row(), viewport.mouse().col(),
-          row, col);
+          """.formatted(getClass().getSimpleName(), row, col);
       var stepCommand = AgentStep.Command.CreateStep.of(sessionId, message, viewport);
 
       componentClient.forEventSourcedEntity(stepCommand.id())

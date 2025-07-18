@@ -198,7 +198,7 @@ public class VisualizerAgent extends Agent {
         .systemMessage(systemPrompt)
         .userMessage(userMessage)
         .onFailure(e -> {
-          log.error("Error: {}", e);
+          log.error("Failure", e);
           var message = "{} failed, prompt: %s\nError: %s".formatted(getClass().getSimpleName(), prompt.prompt(), e.getMessage());
           var command = AgentStep.Command.CreateStep.of(prompt.sessionId(), message, prompt.viewport());
 

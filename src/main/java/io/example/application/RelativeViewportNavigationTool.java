@@ -56,11 +56,11 @@ public class RelativeViewportNavigationTool {
     {
       var message = """
           {
-            "action": "relative_viewport_navigation",
+            "tool": "%s",
             "direction": "%s",
             "amount": %d
           }
-          """.formatted(direction, amount);
+          """.formatted(getClass().getSimpleName(), direction, amount);
       var command = AgentStep.Command.CreateStep.of(sessionId, message, viewport);
 
       componentClient.forEventSourcedEntity(command.id())

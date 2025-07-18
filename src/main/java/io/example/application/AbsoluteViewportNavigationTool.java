@@ -46,11 +46,11 @@ public class AbsoluteViewportNavigationTool {
     {
       var message = """
           {
-            "action": "absolute_viewport_navigation",
+            "tool": "%s",
             "row": %d,
             "col": %d
           }
-          """.formatted(row, col);
+          """.formatted(getClass().getSimpleName(), row, col);
       var command = AgentStep.Command.CreateStep.of(sessionId, message, viewport);
 
       componentClient.forEventSourcedEntity(command.id())

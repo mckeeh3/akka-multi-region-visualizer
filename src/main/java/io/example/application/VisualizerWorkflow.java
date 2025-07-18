@@ -190,12 +190,9 @@ public class VisualizerWorkflow extends Workflow<VisualizerWorkflow.State> {
   private Step recordPromptEnhancementStep() {
     return step(Steps.recordPromptEnhancementAgent.name())
         .call(String.class, enhancedPrompt -> {
-          log.info("Recording prompt enhancement: {}", enhancedPrompt);
-
-          // Create an AgentStep to record the prompt enhancement
           var command = AgentStep.Command.CreateStep.of(
               currentState().sessionId(),
-              "PromptEnhancementAgent: " + enhancedPrompt,
+              "{ \"PromptEnhancementAgent\": { \"%s\" } }".formatted(enhancedPrompt),
               currentState().viewport());
 
           componentClient.forEventSourcedEntity(command.id())
@@ -237,12 +234,9 @@ public class VisualizerWorkflow extends Workflow<VisualizerWorkflow.State> {
   private Step recordVisualizerStep() {
     return step(Steps.recordVisualizer.name())
         .call(String.class, response -> {
-          log.info("Recording visualizer response: {}", response);
-
-          // Create an AgentStep to record the visualizer response
           var command = AgentStep.Command.CreateStep.of(
               currentState().sessionId(),
-              "VisualizerAgent: " + response,
+              response,
               currentState().viewport());
 
           componentClient.forEventSourcedEntity(command.id())

@@ -59,12 +59,12 @@ public class DrawSingleCellTool {
     {
       var message = """
           {
-            "action": "draw_single_cell",
+            "tool": "%s",
             "row": %d,
             "col": %d,
             "color": "%s"
           }
-          """.formatted(row, col, color);
+          """.formatted(getClass().getSimpleName(), row, col, color);
       var command = AgentStep.Command.CreateStep.of(sessionId, message, viewport);
 
       componentClient.forEventSourcedEntity(command.id())
