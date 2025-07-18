@@ -163,7 +163,8 @@ public class VisualizerAgent extends Agent {
     log.info("Prompt: {}", prompt);
 
     {
-      var command = AgentStep.Command.CreateStep.of(prompt.sessionId(), prompt.prompt(), prompt.viewport());
+      var message = "%s: input: %s".formatted(getClass().getSimpleName(), prompt.prompt());
+      var command = AgentStep.Command.CreateStep.of(prompt.sessionId(), message, prompt.viewport());
 
       componentClient.forEventSourcedEntity(command.id())
           .method(AgentStepEntity::createStep)
