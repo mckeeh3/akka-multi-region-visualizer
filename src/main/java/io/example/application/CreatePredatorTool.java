@@ -72,23 +72,11 @@ public class CreatePredatorTool {
       var message = """
           {
             "action": "create_predator",
-            "parameters": {
-              "userSessionId": "%s",
-              "viewport": {
-                "topLeft": {"row": %d, "col": %d},
-                "bottomRight": {"row": %d, "col": %d},
-                "mouse": {"row": %d, "col": %d}
-              },
-              "row": %d,
-              "col": %d,
-              "range": %d
-            }
+            "row": %d,
+            "col": %d,
+            "range": %d
           }
-          """.formatted(sessionId,
-          viewport.topLeft().row(), viewport.topLeft().col(),
-          viewport.bottomRight().row(), viewport.bottomRight().col(),
-          viewport.mouse().row(), viewport.mouse().col(),
-          row, col, range);
+          """.formatted(row, col, range);
       var stepCommand = AgentStep.Command.CreateStep.of(sessionId, message, viewport);
 
       componentClient.forEventSourcedEntity(stepCommand.id())

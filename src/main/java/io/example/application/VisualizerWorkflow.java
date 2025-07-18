@@ -62,8 +62,9 @@ public class VisualizerWorkflow extends Workflow<VisualizerWorkflow.State> {
   enum Steps {
     audioToText,
     promptEnhancement,
-    visualizer,
-    recordResponse,
+    recordPromptEnhancementAgent,
+    visualizerAgent,
+    recordVisualizer,
     error
   }
 
@@ -123,8 +124,9 @@ public class VisualizerWorkflow extends Workflow<VisualizerWorkflow.State> {
     return workflow()
         .addStep(audioToTextStep())
         .addStep(promptEnhancementStep())
+        .addStep(recordPromptEnhancementStep())
         .addStep(visualizerStep())
-        .addStep(recordResponseStep())
+        .addStep(recordVisualizerStep())
         .addStep(errorStep())
         .defaultStepRecoverStrategy(maxRetries(3).failoverTo(Steps.error.name()))
         .defaultStepTimeout(Duration.ofMinutes(5));
@@ -138,7 +140,6 @@ public class VisualizerWorkflow extends Workflow<VisualizerWorkflow.State> {
           try {
             var audioInput = new ByteArrayInputStream(request.audioData());
             var audioToText = GridAgentAudioToText.convertAudioToText(
-                componentClient,
                 request.viewport(),
                 request.contentType(),
                 audioInput,
@@ -181,15 +182,39 @@ public class VisualizerWorkflow extends Workflow<VisualizerWorkflow.State> {
 
           return effects()
               .updateState(currentState().withEnhancedPrompt(enhancedPrompt))
-              .transitionTo(Steps.visualizer.name(), enhancedPrompt);
+              .transitionTo(Steps.recordPromptEnhancementAgent.name(), enhancedPrompt);
         })
         .timeout(Duration.ofMinutes(5));
   }
 
-  private Step visualizerStep() {
-    return step(Steps.visualizer.name())
+  private Step recordPromptEnhancementStep() {
+    return step(Steps.recordPromptEnhancementAgent.name())
         .call(String.class, enhancedPrompt -> {
-          log.info("Workflow step: {}\n_state: {}", Steps.visualizer.name(), currentState());
+          log.info("Recording prompt enhancement: {}", enhancedPrompt);
+
+          // Create an AgentStep to record the prompt enhancement
+          var command = AgentStep.Command.CreateStep.of(
+              currentState().sessionId(),
+              "PromptEnhancementAgent: " + enhancedPrompt,
+              currentState().viewport());
+
+          componentClient.forEventSourcedEntity(command.id())
+              .method(AgentStepEntity::createStep)
+              .invoke(command);
+
+          return enhancedPrompt;
+        })
+        .andThen(String.class, enhancedPrompt -> {
+          return effects()
+              .transitionTo(Steps.visualizerAgent.name(), enhancedPrompt);
+        })
+        .timeout(Duration.ofMinutes(1));
+  }
+
+  private Step visualizerStep() {
+    return step(Steps.visualizerAgent.name())
+        .call(String.class, enhancedPrompt -> {
+          log.info("Workflow step: {}\n_state: {}", Steps.visualizerAgent.name(), currentState());
 
           var prompt = new VisualizerAgent.Prompt(currentState().sessionId(), enhancedPrompt, currentState().viewport());
 
@@ -204,20 +229,20 @@ public class VisualizerWorkflow extends Workflow<VisualizerWorkflow.State> {
 
           return effects()
               .updateState(currentState().withVisualizerResponse(response))
-              .transitionTo(Steps.recordResponse.name(), response);
+              .transitionTo(Steps.recordVisualizer.name(), response);
         })
         .timeout(Duration.ofMinutes(5));
   }
 
-  private Step recordResponseStep() {
-    return step(Steps.recordResponse.name())
+  private Step recordVisualizerStep() {
+    return step(Steps.recordVisualizer.name())
         .call(String.class, response -> {
           log.info("Recording visualizer response: {}", response);
 
           // Create an AgentStep to record the visualizer response
           var command = AgentStep.Command.CreateStep.of(
               currentState().sessionId(),
-              "Visualizer Response: " + response,
+              "VisualizerAgent: " + response,
               currentState().viewport());
 
           componentClient.forEventSourcedEntity(command.id())
@@ -227,8 +252,6 @@ public class VisualizerWorkflow extends Workflow<VisualizerWorkflow.State> {
           return response;
         })
         .andThen(String.class, response -> {
-          log.info("Response recorded successfully");
-
           return effects()
               .end();
         })

@@ -56,19 +56,11 @@ public class RelativeViewportNavigationTool {
     {
       var message = """
           {
-              "action": "relative_viewport_navigation",
-              "parameters": {
-                  "sessionId": "%s",
-                  "direction": "%s",
-                  "amount": %d,
-                  "viewport": {
-                      "topLeft": {"row": %d, "col": %d},
-                      "bottomRight": {"row": %d, "col": %d},
-                      "mouse": {"row": %d, "col": %d}
-                  }
-              }
+            "action": "relative_viewport_navigation",
+            "direction": "%s",
+            "amount": %d
           }
-          """.formatted(sessionId, direction, amount, viewport.topLeft().row(), viewport.topLeft().col(), viewport.bottomRight().row(), viewport.bottomRight().col(), viewport.mouse().row(), viewport.mouse().col());
+          """.formatted(direction, amount);
       var command = AgentStep.Command.CreateStep.of(sessionId, message, viewport);
 
       componentClient.forEventSourcedEntity(command.id())

@@ -18,7 +18,6 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import akka.javasdk.client.ComponentClient;
 import io.example.domain.ViewPort;
 
 /**
@@ -70,7 +69,6 @@ import io.example.domain.ViewPort;
  */
 public class GridAgentAudioToText {
   final static Logger log = LoggerFactory.getLogger(GridAgentAudioToText.class);
-  final ComponentClient componentClient;
   final ViewPort viewport;
 
   final String openaiApiKey;
@@ -93,8 +91,7 @@ public class GridAgentAudioToText {
    * @param componentClient The Akka component client for interacting with the entity system
    * @param viewport        The current viewport information containing grid position context
    */
-  public GridAgentAudioToText(ComponentClient componentClient, ViewPort viewport) {
-    this.componentClient = componentClient;
+  public GridAgentAudioToText(ViewPort viewport) {
     this.viewport = viewport;
 
     this.openaiApiKey = System.getenv("OPENAI_API_KEY");
@@ -102,7 +99,7 @@ public class GridAgentAudioToText {
       throw new IllegalStateException("OPENAI_API_KEY environment variable is not set");
     }
 
-    this.client = java.net.http.HttpClient.newHttpClient();
+    this.client = HttpClient.newHttpClient();
     this.objectMapper = new ObjectMapper();
   }
 
@@ -206,7 +203,6 @@ public class GridAgentAudioToText {
    * @return A CompletionStage that completes with the the transcribed text
    */
   public static CompletionStage<String> convertAudioToText(
-      ComponentClient componentClient,
       ViewPort viewport,
       String contentType,
       InputStream audioInput,
@@ -217,7 +213,7 @@ public class GridAgentAudioToText {
     try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
       executor.submit(() -> {
         try {
-          var agent = new GridAgentAudioToText(componentClient, viewport);
+          var agent = new GridAgentAudioToText(viewport);
           var audioToText = agent.transcribeAudio(contentType, audioInput, userSessionId);
           future.complete(audioToText);
         } catch (Exception e) {

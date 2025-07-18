@@ -115,7 +115,8 @@ public class PromptEnhancementAgent extends Agent {
     log.info("Enhancement request: {}", request);
 
     {
-      var command = AgentStep.Command.CreateStep.of(request.sessionId(), request.originalPrompt(), request.viewport());
+      var message = "%s: input: %s".formatted(getClass().getSimpleName(), request.originalPrompt());
+      var command = AgentStep.Command.CreateStep.of(request.sessionId(), message, request.viewport());
 
       componentClient.forEventSourcedEntity(command.id())
           .method(AgentStepEntity::createStep)
@@ -150,6 +151,16 @@ public class PromptEnhancementAgent extends Agent {
             .withApiKey(System.getenv("OPENAI_API_KEY")))
         .systemMessage(systemPrompt)
         .userMessage(userMessage)
+        .onFailure(e -> {
+          log.error("Error: {}", e);
+          var message = "{} failed, prompt: %s\nError: %s".formatted(getClass().getSimpleName(), request.originalPrompt(), e.getMessage());
+          var command = AgentStep.Command.CreateStep.of(request.sessionId(), message, request.viewport());
+
+          componentClient.forEventSourcedEntity(command.id())
+              .method(AgentStepEntity::createStep)
+              .invoke(command);
+          return message;
+        })
         .thenReply();
   }
 

@@ -198,8 +198,9 @@ public class VisualizerAgent extends Agent {
         .userMessage(userMessage)
         .onFailure(e -> {
           log.error("Error: {}", e);
-          var message = "Agent failure, prompt: %s\nError: %s".formatted(prompt.prompt(), e.getMessage());
+          var message = "{} failed, prompt: %s\nError: %s".formatted(getClass().getSimpleName(), prompt.prompt(), e.getMessage());
           var command = AgentStep.Command.CreateStep.of(prompt.sessionId(), message, prompt.viewport());
+
           componentClient.forEventSourcedEntity(command.id())
               .method(AgentStepEntity::createStep)
               .invoke(command);

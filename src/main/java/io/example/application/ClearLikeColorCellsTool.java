@@ -31,12 +31,12 @@ public class ClearLikeColorCellsTool {
       @Description("The viewport information containing top-left, bottom-right, and mouse coordinates") ViewPort viewport,
       @Description("The row coordinate where the clearing should start") int row,
       @Description("The column coordinate where the clearing should start") int col,
-      @Description("The status/color of cells to clear. Valid values: 'red', 'green', 'blue', 'orange'") String status) {
+      @Description("The color of cells to clear") String color) {
 
-    log.info("Region: {}, Clearing cells: row: {}, col: {}, status: {}", region, row, col, status);
+    log.info("Region: {}, Clearing cells: row: {}, col: {}, color: {}", region, row, col, color);
 
     var cellId = String.format("%dx%d", row, col);
-    var command = new GridCell.Command.ClearCells(cellId, GridCell.Status.valueOf(status.toLowerCase()));
+    var command = new GridCell.Command.ClearCells(cellId, GridCell.Status.valueOf(color.toLowerCase()));
 
     componentClient.forEventSourcedEntity(cellId)
         .method(GridCellEntity::updateClearStatus)
@@ -46,23 +46,11 @@ public class ClearLikeColorCellsTool {
       var message = """
           {
             "action": "clear_like_color_cells",
-            "parameters": {
-              "sessionId": "%s",
-              "viewport": {
-                "topLeft": {"row": %d, "col": %d},
-                "bottomRight": {"row": %d, "col": %d},
-                "mouse": {"row": %d, "col": %d}
-              },
-              "row": %d,
-              "col": %d,
-              "status": "%s"
-            }
+            "row": %d,
+            "col": %d,
+            "color": "%s"
           }
-          """.formatted(sessionId,
-          viewport.topLeft().row(), viewport.topLeft().col(),
-          viewport.bottomRight().row(), viewport.bottomRight().col(),
-          viewport.mouse().row(), viewport.mouse().col(),
-          row, col, status);
+          """.formatted(row, col, color);
       var stepCommand = AgentStep.Command.CreateStep.of(sessionId, message, viewport);
 
       componentClient.forEventSourcedEntity(stepCommand.id())
