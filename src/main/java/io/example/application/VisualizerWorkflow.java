@@ -2,6 +2,7 @@ package io.example.application;
 
 import java.io.ByteArrayInputStream;
 import java.time.Duration;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -147,8 +148,6 @@ public class VisualizerWorkflow extends Workflow<VisualizerWorkflow.State> {
                 .toCompletableFuture()
                 .get(); // Wait for completion
 
-            var newState = currentState().withViewport(request.viewport()).withAudioToText(audioToText);
-            log.info("Workflow step: {}\n_state: {}", Steps.audioToText.name(), newState);
             return currentState().withViewport(request.viewport()).withAudioToText(audioToText);
           } catch (Exception e) {
             log.error("Error processing audio to text", e);
@@ -173,7 +172,7 @@ public class VisualizerWorkflow extends Workflow<VisualizerWorkflow.State> {
           var request = new PromptEnhancementAgent.EnhancementRequest(currentState().sessionId(), audioToText, currentState().viewport());
 
           return componentClient.forAgent()
-              .inSession(currentState().sessionId())
+              .inSession(UUID.randomUUID().toString()) // do not include this agent in the session
               .method(PromptEnhancementAgent::enhancePrompt)
               .invoke(request);
         })
@@ -190,9 +189,17 @@ public class VisualizerWorkflow extends Workflow<VisualizerWorkflow.State> {
   private Step recordPromptEnhancementStep() {
     return step(Steps.recordPromptEnhancementAgent.name())
         .call(String.class, enhancedPrompt -> {
+          log.info("Workflow step: {}\n_state: {}", Steps.recordPromptEnhancementAgent.name(), currentState());
+
+          var message = """
+              {
+                "tool": "PromptEnhancementAgent",
+                "enhancedPrompt": "%s"
+              }
+              """.formatted(enhancedPrompt);
           var command = AgentStep.Command.CreateStep.of(
               currentState().sessionId(),
-              "{ \"PromptEnhancementAgent\": { \"%s\" } }".formatted(enhancedPrompt),
+              message,
               currentState().viewport());
 
           componentClient.forEventSourcedEntity(command.id())
@@ -234,6 +241,8 @@ public class VisualizerWorkflow extends Workflow<VisualizerWorkflow.State> {
   private Step recordVisualizerStep() {
     return step(Steps.recordVisualizer.name())
         .call(String.class, response -> {
+          log.info("Workflow step: {}\n_state: {}", Steps.recordVisualizer.name(), currentState());
+
           var command = AgentStep.Command.CreateStep.of(
               currentState().sessionId(),
               response,

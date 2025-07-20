@@ -44,6 +44,13 @@ public class PromptEnhancementAgent extends Agent {
         - Rectangles (filled rectangular areas)
         - Circles (filled circular areas)
         - Triangles (filled triangular areas)
+        - Lines (angled lines with specified length and width)
+
+        **Coordinate System and Angles:**
+        - Grid orientation: Row increases downward, column increases rightward
+        - Angles are measured counter-clockwise from the positive column-axis (0° = right)
+        - 0° = right (3 o'clock), 90° = up (12 o'clock), 180° = left (9 o'clock), 270° = down (6 o'clock)
+        - Examples: 30° = up-right (2 o'clock), 60° = up-right (1 o'clock), 360° = right (3 o'clock)
 
         **Color Usage:**
         - Any color can be used (full RGB spectrum)
@@ -115,7 +122,12 @@ public class PromptEnhancementAgent extends Agent {
     log.info("Enhancement request: {}", request);
 
     {
-      var message = "%s: input: %s".formatted(getClass().getSimpleName(), request.originalPrompt());
+      var message = """
+          {
+            "tool": "%s",
+            "prompt": "%s"
+          }
+          """.formatted(getClass().getSimpleName(), request.originalPrompt());
       var command = AgentStep.Command.CreateStep.of(request.sessionId(), message, request.viewport());
 
       componentClient.forEventSourcedEntity(command.id())
@@ -153,7 +165,7 @@ public class PromptEnhancementAgent extends Agent {
         .userMessage(userMessage)
         .onFailure(e -> {
           log.error("Failure", e);
-          var message = "{} failed, prompt: %s\nError: %s".formatted(getClass().getSimpleName(), request.originalPrompt(), e.getMessage());
+          var message = "Failure, prompt: %s\nError: %s".formatted(getClass().getSimpleName(), request.originalPrompt(), e.getMessage());
           var command = AgentStep.Command.CreateStep.of(request.sessionId(), message, request.viewport());
 
           componentClient.forEventSourcedEntity(command.id())

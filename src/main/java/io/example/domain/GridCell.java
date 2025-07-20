@@ -980,7 +980,8 @@ public interface GridCell {
       @JsonSubTypes.Type(value = Shape.Circle.class, name = "circle"),
       @JsonSubTypes.Type(value = Shape.Rectangle.class, name = "rectangle"),
       @JsonSubTypes.Type(value = Shape.Triangle.class, name = "triangle"),
-      @JsonSubTypes.Type(value = Shape.SingleCell.class, name = "single-cell")
+      @JsonSubTypes.Type(value = Shape.SingleCell.class, name = "single-cell"),
+      @JsonSubTypes.Type(value = Shape.Line.class, name = "line")
   })
   public sealed interface Shape {
     boolean isInside(int row, int col);
@@ -1061,6 +1062,56 @@ public interface GridCell {
       }
     }
 
+    @TypeName("shape-line")
+    public record Line(int startRow, int startCol, int endRow, int endCol, int width) implements Shape {
+      @Override
+      public boolean isInside(int row, int col) {
+        // Calculate the distance from point (row, col) to the line segment
+        // The line is represented as a rectangle with the given width
+
+        // Vector from start to end
+        // Note: In grid coordinates, row increases downward (like screen Y)
+        // So we need to flip the Y component for standard math calculations
+        double dx = endCol - startCol;
+        double dy = -(endRow - startRow); // Flip Y to match standard math coordinates
+        double lineLength = Math.sqrt(dx * dx + dy * dy);
+
+        if (lineLength == 0) {
+          // Degenerate line (start and end are the same point)
+          // Check if the point is within the width/2 radius of the start point
+          double distance = Math.sqrt(Math.pow(col - startCol, 2) + Math.pow(row - startRow, 2));
+          return distance <= width / 2.0;
+        }
+
+        // Normalize the direction vector
+        double unitDx = dx / lineLength;
+        double unitDy = dy / lineLength;
+
+        // Vector from start to the test point
+        // Note: Need to flip Y component to match the flipped line vector
+        double px = col - startCol;
+        double py = -(row - startRow); // Flip Y to match standard math coordinates
+
+        // Project the test point onto the line
+        double projection = px * unitDx + py * unitDy;
+
+        // Clamp the projection to the line segment
+        double clampedProjection = Math.max(0, Math.min(lineLength, projection));
+
+        // Find the closest point on the line segment
+        // Note: Need to flip back to grid coordinates
+        double closestCol = startCol + clampedProjection * unitDx;
+        double closestRow = startRow - clampedProjection * unitDy; // Flip back to grid coordinates
+
+        // Calculate distance from test point to the closest point on the line
+        double distance = Math.sqrt(Math.pow(col - closestCol, 2) + Math.pow(row - closestRow, 2));
+
+        // Check if the distance is within half the width
+        boolean result = distance <= width / 2.0;
+        return result;
+      }
+    }
+
     public static Shape ofCircle(int centerRow, int centerCol, int radius) {
       return new Circle(centerRow, centerCol, radius);
     }
@@ -1077,6 +1128,38 @@ public interface GridCell {
 
     public static Shape ofTriangle(int row1, int col1, int row2, int col2, int row3, int col3) {
       return new Triangle(row1, col1, row2, col2, row3, col3);
+    }
+
+    public static Shape ofLine(int startRow, int startCol, int endRow, int endCol, int width) {
+      return new Line(startRow, startCol, endRow, endCol, width);
+    }
+
+    // 0 degrees is right
+    // 90 degrees is up
+    // 180 degrees is left
+    // 270 degrees is down
+    // Angle examples: 0° = right, 3 o'clock
+    // 30° = up-right, 2 o'clock
+    // 60° = up-right, 1 o'clock
+    // 90° = up, 12 o'clock
+    // 180° = left, 9 o'clock
+    // 270° = down, 6 o'clock
+    // 360° = right, 3 o'clock
+    public static Shape ofLine(int startRow, int startCol, double angleDegrees, int length, int width) {
+      // Convert angle from degrees to radians
+      double angleRadians = Math.toRadians(angleDegrees);
+
+      // Calculate end point based on angle and length
+      // Using standard mathematical coordinate system:
+      // 0° = right (positive col direction)
+      // 90° = up (negative row direction)
+      double deltaRow = -length * Math.sin(angleRadians); // Negative because 90° is up
+      double deltaCol = length * Math.cos(angleRadians); // Positive because 0° is right
+
+      int endRow = startRow + (int) Math.round(deltaRow);
+      int endCol = startCol + (int) Math.round(deltaCol);
+
+      return new Line(startRow, startCol, endRow, endCol, width);
     }
   }
 }
