@@ -128,7 +128,6 @@ public class GridCellToGridCellConsumer extends Consumer {
     var command = new GridCell.Command.DrawCells(
         event.id(),
         event.status(),
-        event.color(),
         event.clientAt(),
         event.endpointAt(),
         event.shape(),

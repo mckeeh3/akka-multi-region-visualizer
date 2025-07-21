@@ -131,6 +131,7 @@ public interface GridCell {
         case "blue" -> new Color(6, 48, 78, 1.0); // rgba(6, 48, 78, 1)
         case "orange" -> new Color(255, 125, 0, 0.5); // rgba(255, 125, 0, 0.5)
         case "predator" -> new Color(115, 1, 146, 0.5); // rgba(115, 1, 146, 0.5)
+        case "inactive" -> new Color(0, 0, 0, 0.0); // rgba(0, 0, 0, 0.0)
         default -> throw new IllegalArgumentException("Invalid color format: " + hexOrNamedColor);
       };
     }
@@ -542,7 +543,7 @@ public interface GridCell {
       if (!isInsideShape(command.id, command.shape)) {
         return List.of();
       }
-      if (cellAlreadyChangedByThisShape(this, command.color)) {
+      if (cellAlreadyChangedByThisShape(this, command.shape.color())) {
         return List.of();
       }
 
@@ -554,7 +555,7 @@ public interface GridCell {
       var updateStatusEvent = new Event.StatusUpdated(
           command.id,
           command.status,
-          command.color,
+          command.shape.color(),
           newCreatedAt,
           newUpdatedAt,
           command.clientAt,
@@ -566,7 +567,6 @@ public interface GridCell {
           .map(id -> new Event.DrawToNeighbor(
               id,
               command.status,
-              command.color,
               command.clientAt,
               command.endpointAt,
               command.shape,
@@ -589,7 +589,7 @@ public interface GridCell {
       if (!isInsideShape(command.id, command.shape)) {
         return List.of();
       }
-      if (cellAlreadyChangedByThisShape(this, command.color)) {
+      if (cellAlreadyChangedByThisShape(this, command.shape.color())) {
         return List.of();
       }
 
@@ -601,7 +601,7 @@ public interface GridCell {
       var updateStatusEvent = new Event.StatusUpdated(
           command.id,
           command.status,
-          command.color,
+          command.shape.color(),
           newCreatedAt,
           newUpdatedAt,
           command.clientAt,
@@ -613,7 +613,6 @@ public interface GridCell {
           .map(id -> new Event.DrawToNeighbor(
               id,
               command.status,
-              command.color,
               command.clientAt,
               command.endpointAt,
               command.shape,
@@ -783,14 +782,13 @@ public interface GridCell {
     public record DrawShape(
         String id,
         Status status,
-        Color color,
         Instant clientAt,
         Instant endpointAt,
         Shape shape,
         String region) implements Command {
 
       public DrawShape withRegion(String newRegion) {
-        return new DrawShape(id, status, color, clientAt, endpointAt, shape, newRegion);
+        return new DrawShape(id, status, clientAt, endpointAt, shape, newRegion);
       }
     }
 
@@ -879,14 +877,13 @@ public interface GridCell {
     public record DrawCells(
         String id,
         Status status,
-        Color color,
         Instant clientAt,
         Instant endpointAt,
         Shape shape,
         String region) implements Command {
 
       public DrawCells withRegion(String newRegion) {
-        return new DrawCells(id, status, color, clientAt, endpointAt, shape, newRegion);
+        return new DrawCells(id, status, clientAt, endpointAt, shape, newRegion);
       }
     }
 
@@ -974,7 +971,6 @@ public interface GridCell {
     public record DrawToNeighbor(
         String id,
         Status status,
-        Color color,
         Instant clientAt,
         Instant endpointAt,
         Shape shape,
@@ -1006,12 +1002,14 @@ public interface GridCell {
 
     Instant createdAt();
 
+    Color color();
+
     default boolean isSingleCell() {
       return false;
     }
 
     @TypeName("shape-circle")
-    public record Circle(int centerRow, int centerCol, int radius, Instant createdAt) implements Shape {
+    public record Circle(int centerRow, int centerCol, int radius, Instant createdAt, Color color) implements Shape {
       @Override
       public boolean isNewerThan(Instant updatedAt) {
         return createdAt.isAfter(updatedAt);
@@ -1025,7 +1023,7 @@ public interface GridCell {
     }
 
     @TypeName("shape-rectangle")
-    public record Rectangle(int topLeftRow, int topLeftCol, int width, int height, Instant createdAt) implements Shape {
+    public record Rectangle(int topLeftRow, int topLeftCol, int width, int height, Instant createdAt, Color color) implements Shape {
       @Override
       public boolean isNewerThan(Instant updatedAt) {
         return createdAt.isAfter(updatedAt);
@@ -1040,7 +1038,7 @@ public interface GridCell {
     }
 
     @TypeName("shape-single-cell")
-    public record SingleCell(Instant createdAt) implements Shape {
+    public record SingleCell(Instant createdAt, Color color) implements Shape {
       @Override
       public boolean isNewerThan(Instant updatedAt) {
         return createdAt.isAfter(updatedAt);
@@ -1058,7 +1056,7 @@ public interface GridCell {
     }
 
     @TypeName("shape-triangle")
-    public record Triangle(int row1, int col1, int row2, int col2, int row3, int col3, Instant createdAt) implements Shape {
+    public record Triangle(int row1, int col1, int row2, int col2, int row3, int col3, Instant createdAt, Color color) implements Shape {
       @Override
       public boolean isNewerThan(Instant updatedAt) {
         return createdAt.isAfter(updatedAt);
@@ -1103,7 +1101,7 @@ public interface GridCell {
     }
 
     @TypeName("shape-line")
-    public record Line(int startRow, int startCol, int endRow, int endCol, int width, Instant createdAt) implements Shape {
+    public record Line(int startRow, int startCol, int endRow, int endCol, int width, Instant createdAt, Color color) implements Shape {
       @Override
       public boolean isNewerThan(Instant updatedAt) {
         return createdAt.isAfter(updatedAt);
@@ -1157,26 +1155,26 @@ public interface GridCell {
       }
     }
 
-    public static Shape ofCircle(int centerRow, int centerCol, int radius) {
-      return new Circle(centerRow, centerCol, radius, Instant.now());
+    public static Shape ofCircle(int centerRow, int centerCol, int radius, Color color) {
+      return new Circle(centerRow, centerCol, radius, Instant.now(), color);
     }
 
-    public static Shape ofRectangle(int topLeftRow, int topLeftCol, int bottomRightRow, int bottomRightCol) {
+    public static Shape ofRectangle(int topLeftRow, int topLeftCol, int bottomRightRow, int bottomRightCol, Color color) {
       var width = Math.abs(bottomRightCol - topLeftCol) + 1;
       var height = Math.abs(bottomRightRow - topLeftRow) + 1;
-      return new Rectangle(topLeftRow, topLeftCol, width, height, Instant.now());
+      return new Rectangle(topLeftRow, topLeftCol, width, height, Instant.now(), color);
     }
 
-    public static Shape ofSingleCell() {
-      return new SingleCell(Instant.now());
+    public static Shape ofSingleCell(Color color) {
+      return new SingleCell(Instant.now(), color);
     }
 
-    public static Shape ofTriangle(int row1, int col1, int row2, int col2, int row3, int col3) {
-      return new Triangle(row1, col1, row2, col2, row3, col3, Instant.now());
+    public static Shape ofTriangle(int row1, int col1, int row2, int col2, int row3, int col3, Color color) {
+      return new Triangle(row1, col1, row2, col2, row3, col3, Instant.now(), color);
     }
 
-    public static Shape ofLine(int startRow, int startCol, int endRow, int endCol, int width) {
-      return new Line(startRow, startCol, endRow, endCol, width, Instant.now());
+    public static Shape ofLine(int startRow, int startCol, int endRow, int endCol, int width, Color color) {
+      return new Line(startRow, startCol, endRow, endCol, width, Instant.now(), color);
     }
 
     // 0 degrees is right
@@ -1190,7 +1188,7 @@ public interface GridCell {
     // 180° = left, 9 o'clock
     // 270° = down, 6 o'clock
     // 360° = right, 3 o'clock
-    public static Shape ofLine(int startRow, int startCol, double angleDegrees, int length, int width) {
+    public static Shape ofLine(int startRow, int startCol, double angleDegrees, int length, int width, Color color) {
       // Convert angle from degrees to radians
       double angleRadians = Math.toRadians(angleDegrees);
 
@@ -1204,7 +1202,7 @@ public interface GridCell {
       int endRow = startRow + (int) Math.round(deltaRow);
       int endCol = startCol + (int) Math.round(deltaCol);
 
-      return Shape.ofLine(startRow, startCol, endRow, endCol, width);
+      return Shape.ofLine(startRow, startCol, endRow, endCol, width, color);
     }
   }
 }

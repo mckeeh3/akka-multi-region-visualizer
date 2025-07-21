@@ -22,7 +22,8 @@ public class GridCellEntityTest {
     var status = GridCell.Status.green;
     var now = Instant.now();
     var region = "test";
-    var shape = GridCell.Shape.ofSingleCell();
+    var color = GridCell.Color.of("#000000");
+    var shape = GridCell.Shape.ofSingleCell(color);
     var command = new GridCell.Command.CreateShape(id, status, now, now, shape, region);
     var result = testKit.method(GridCellEntity::createShape).invoke(command);
 
@@ -46,7 +47,8 @@ public class GridCellEntityTest {
     var status = GridCell.Status.red;
     var now = Instant.now();
     var region = "test";
-    var shape = GridCell.Shape.ofRectangle(10, 10, 20, 20);
+    var color = GridCell.Color.of("#000000");
+    var shape = GridCell.Shape.ofRectangle(10, 10, 20, 20, color);
     var command = new GridCell.Command.CreateShape(id, status, now, now, shape, region);
     var result = testKit.method(GridCellEntity::createShape).invoke(command);
 
@@ -72,7 +74,8 @@ public class GridCellEntityTest {
     var status = GridCell.Status.red;
     var now = Instant.now();
     var region = "test";
-    var shape = GridCell.Shape.ofTriangle(22, 37, 22, 56, 12, 47);
+    var color = GridCell.Color.of("#000000");
+    var shape = GridCell.Shape.ofTriangle(22, 37, 22, 56, 12, 47, color);
     var command = new GridCell.Command.CreateShape(id, status, now, now, shape, region);
     var result = testKit.method(GridCellEntity::createShape).invoke(command);
 
@@ -101,7 +104,8 @@ public class GridCellEntityTest {
     var status = GridCell.Status.green;
     var now = Instant.now();
     var region = "test";
-    var shape = GridCell.Shape.ofCircle(centerX, centerY, radius);
+    var color = GridCell.Color.of("#000000");
+    var shape = GridCell.Shape.ofCircle(centerX, centerY, radius, color);
     var command = new GridCell.Command.CreateShape(id, status, now, now, shape, region);
     var result = testKit.method(GridCellEntity::createShape).invoke(command);
 
@@ -163,7 +167,8 @@ public class GridCellEntityTest {
       var clientAt = Instant.now();
       var endpointAt = Instant.now();
       var region = "test";
-      var shape = GridCell.Shape.ofCircle(centerX, centerY, radius);
+      var color = GridCell.Color.of("#000000");
+      var shape = GridCell.Shape.ofCircle(centerX, centerY, radius, color);
       var command = new GridCell.Command.SpanCells(id, status, clientAt, endpointAt, shape, region);
       var result = testKit.method(GridCellEntity::updateSpanStatus).invoke(command);
 
@@ -208,7 +213,8 @@ public class GridCellEntityTest {
     }
 
     { // then, attempt to span with the same status
-      var shape = GridCell.Shape.ofCircle(2, 3, 5);
+      var color = GridCell.Color.of("#000000");
+      var shape = GridCell.Shape.ofCircle(2, 3, 5, color);
       var command = new GridCell.Command.SpanCells(id, status, now, now, shape, region);
       var result = testKit.method(GridCellEntity::updateSpanStatus).invoke(command);
 
@@ -241,7 +247,8 @@ public class GridCellEntityTest {
       var radius = 2;
       var clientAt = Instant.now();
       var endpointAt = Instant.now();
-      var shape = GridCell.Shape.ofCircle(centerX, centerY, radius);
+      var color = GridCell.Color.of("#000000");
+      var shape = GridCell.Shape.ofCircle(centerX, centerY, radius, color);
       var command = new GridCell.Command.FillCells(id, status, clientAt, endpointAt, shape, region);
       var result = testKit.method(GridCellEntity::updateFillStatus).invoke(command);
 
@@ -281,7 +288,8 @@ public class GridCellEntityTest {
       var radius = 2;
       var clientAt = Instant.now();
       var endpointAt = Instant.now();
-      var shape = GridCell.Shape.ofCircle(centerX, centerY, radius);
+      var color = GridCell.Color.of("#000000");
+      var shape = GridCell.Shape.ofCircle(centerX, centerY, radius, color);
       var command = new GridCell.Command.FillCells(id, status, clientAt, endpointAt, shape, region);
       var result = testKit.method(GridCellEntity::updateFillStatus).invoke(command);
 
@@ -445,7 +453,8 @@ public class GridCellEntityTest {
 
   @Test
   void testTriangleShape() {
-    var shape = GridCell.Shape.ofTriangle(1, 1, 3, 1, 2, 3);
+    var color = GridCell.Color.of("#000000");
+    var shape = GridCell.Shape.ofTriangle(1, 1, 3, 1, 2, 3, color);
     assertTrue(shape.isInside(1, 1));
     assertTrue(shape.isInside(3, 1));
     assertTrue(shape.isInside(2, 3));
@@ -457,7 +466,8 @@ public class GridCellEntityTest {
 
   @Test
   void testTriangleVertices() {
-    var shape = GridCell.Shape.ofTriangle(22, 37, 22, 56, 12, 47);
+    var color = GridCell.Color.of("#000000");
+    var shape = GridCell.Shape.ofTriangle(22, 37, 22, 56, 12, 47, color);
     assertTrue(shape.isInside(22, 37)); // Vertex 1
     assertTrue(shape.isInside(22, 56)); // Vertex 2
     assertTrue(shape.isInside(12, 47)); // Vertex 3
@@ -469,7 +479,8 @@ public class GridCellEntityTest {
   // test that all cells outside the shape are not inside the shape
   @Test
   void testRectangleShape() {
-    var shape = GridCell.Shape.ofRectangle(10, 10, 20, 15);
+    var color = GridCell.Color.of("#000000");
+    var shape = GridCell.Shape.ofRectangle(10, 10, 20, 15, color);
     assertTrue(shape.isInside(10, 10));
     assertTrue(shape.isInside(20, 15));
     assertTrue(shape.isInside(10, 15));

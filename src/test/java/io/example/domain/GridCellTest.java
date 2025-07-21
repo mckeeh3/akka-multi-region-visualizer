@@ -11,7 +11,8 @@ public class GridCellTest {
 
   @Test
   public void testLineShape() {
-    var line = GridCell.Shape.ofLine(0, 0, 0, 10, 1);
+    var color = GridCell.Color.of("#000000");
+    var line = GridCell.Shape.ofLine(0, 0, 0, 10, 1, color);
     assertTrue(line.isInside(0, 0));
     assertTrue(line.isInside(0, 10));
     assertFalse(line.isInside(1, 0));
@@ -23,7 +24,8 @@ public class GridCellTest {
     var angles = List.of(0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0);
     for (var angle : angles) {
       var length = 10;
-      var line = (GridCell.Shape.Line) GridCell.Shape.ofLine(0, 0, angle, length, 1);
+      var color = GridCell.Color.of("#000000");
+      var line = (GridCell.Shape.Line) GridCell.Shape.ofLine(0, 0, angle, length, 1, color);
       // do the math to get the expected end row and col
       // Using standard mathematical coordinate system:
       // 0° = right (positive col direction)
@@ -40,7 +42,8 @@ public class GridCellTest {
 
   @Test
   public void testLineShapeAt90Degrees() {
-    var line = (GridCell.Shape.Line) GridCell.Shape.ofLine(0, 0, 90.0, 10, 1);
+    var color = GridCell.Color.of("#000000");
+    var line = (GridCell.Shape.Line) GridCell.Shape.ofLine(0, 0, 90.0, 10, 1, color);
     System.out.println("Line from (0,0) to (" + line.endRow() + "," + line.endCol() + ")");
 
     // For 90 degrees, we expect:

@@ -43,13 +43,12 @@ public class DrawTriangleTool {
     log.info("Region: {}, Drawing triangle with points ({},{}) ({},{}) ({},{}) with color: {}", region, row1, col1, row2, col2, row3, col3, color);
 
     var cellId = String.format("%dx%d", row1, col1);
-    var shape = GridCell.Shape.ofTriangle(row1, col1, row2, col2, row3, col3);
+    var shape = GridCell.Shape.ofTriangle(row1, col1, row2, col2, row3, col3, GridCell.Color.of(color));
     {
       var status = GridCell.Status.custom;
       var command = new GridCell.Command.DrawShape(
           cellId,
           status,
-          GridCell.Color.of(color),
           Instant.now(),
           Instant.now(),
           shape,

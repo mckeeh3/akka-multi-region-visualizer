@@ -41,13 +41,12 @@ public class DrawRectangleTool {
     log.info("Region: {}, Drawing rectangle at top left row: {} and col: {} to bottom right row: {} and col: {}, color: {}", region, topLeftRow, topLeftCol, bottomRightRow, bottomRightCol, color);
 
     var cellId = String.format("%dx%d", topLeftRow, topLeftCol);
-    var shape = GridCell.Shape.ofRectangle(topLeftRow, topLeftCol, bottomRightRow, bottomRightCol);
+    var shape = GridCell.Shape.ofRectangle(topLeftRow, topLeftCol, bottomRightRow, bottomRightCol, GridCell.Color.of(color));
     {
       var status = GridCell.Status.custom;
       var command = new GridCell.Command.DrawShape(
           cellId,
           status,
-          GridCell.Color.of(color),
           Instant.now(),
           Instant.now(),
           shape,

@@ -43,11 +43,10 @@ public class DrawLineTool {
 
     var cellId = String.format("%dx%d", startRow, startCol);
     var status = GridCell.Status.custom;
-    var shape = GridCell.Shape.ofLine(startRow, startCol, angleDegrees, length, width);
+    var shape = GridCell.Shape.ofLine(startRow, startCol, angleDegrees, length, width, GridCell.Color.of(color));
     var command = new GridCell.Command.DrawShape(
         cellId,
         status,
-        GridCell.Color.of(color),
         Instant.now(),
         Instant.now(),
         shape,

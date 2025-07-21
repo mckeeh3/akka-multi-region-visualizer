@@ -41,11 +41,10 @@ public class DrawCircleTool {
 
     var cellId = String.format("%dx%d", row, col);
     var status = GridCell.Status.custom;
-    var shape = GridCell.Shape.ofCircle(row, col, radius);
+    var shape = GridCell.Shape.ofCircle(row, col, radius, GridCell.Color.of(color));
     var command = new GridCell.Command.DrawShape(
         cellId,
         status,
-        GridCell.Color.of(color),
         Instant.now(),
         Instant.now(),
         shape,

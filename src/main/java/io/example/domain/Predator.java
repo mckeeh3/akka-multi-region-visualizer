@@ -18,20 +18,21 @@ import io.example.application.GridCellView.GridCellRow;
  * <h2>Core Functionality</h2>
  * <ol>
  * <li><b>Target Selection</b>: Identifies the most attractive prey cells based on their intensity and proximity</li>
- * <li><b>Path Finding</b>: Determines the optimal next move toward selected prey using short and long-range strategies</li>
- * <li><b>Movement Logic</b>: Implements both deterministic and non-deterministic movement patterns to create
- * realistic hunting behavior</li>
+ * <li><b>Path Finding</b>: Determines the optimal next move toward selected prey using short and long-range
+ * strategies</li>
+ * <li><b>Movement Logic</b>: Implements both deterministic and non-deterministic movement patterns to create realistic
+ * hunting behavior</li>
  * <li><b>Range-Based Hunting</b>: Adapts hunting strategies based on the predator's detection range</li>
  * </ol>
  *
  * <h2>Hunting Strategies</h2>
  * <ul>
- * <li><b>Short Range</b>: When prey is nearby, predators move directly toward the highest-intensity prey,
- * with preference for immediate neighbors</li>
- * <li><b>Long Range</b>: When no prey is in short range, predators use a more sophisticated algorithm that
- * considers the collective influence of all prey cells in range</li>
- * <li><b>Random Selection</b>: To avoid deterministic behavior, predators may randomly select among equally
- * attractive prey cells</li>
+ * <li><b>Short Range</b>: When prey is nearby, predators move directly toward the highest-intensity prey, with
+ * preference for immediate neighbors</li>
+ * <li><b>Long Range</b>: When no prey is in short range, predators use a more sophisticated algorithm that considers
+ * the collective influence of all prey cells in range</li>
+ * <li><b>Random Selection</b>: To avoid deterministic behavior, predators may randomly select among equally attractive
+ * prey cells</li>
  * </ul>
  *
  * <h2>Technical Details</h2>
@@ -49,8 +50,8 @@ import io.example.application.GridCellView.GridCellRow;
  * <li>Integrates with the grid visualization system to display predator movement</li>
  * </ul>
  *
- * This class is central to the emergent behavior observed in the grid visualization, creating dynamic
- * patterns as predators chase and consume prey cells across the multi-region environment.
+ * This class is central to the emergent behavior observed in the grid visualization, creating dynamic patterns as
+ * predators chase and consume prey cells across the multi-region environment.
  */
 public class Predator {
   static final Logger log = LoggerFactory.getLogger(Predator.class);
@@ -208,6 +209,7 @@ public class Predator {
             case "orange" -> 2;
             case "green" -> 3;
             case "blue" -> 4;
+            case "custom" -> 5;
             default -> 0;
           };
           return new PreyGridCell(cell.id(), cell.x(), cell.y(), maxIntensity);
