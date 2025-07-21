@@ -84,9 +84,7 @@ public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.
   }
 
   public Effect<Done> drawShape(GridCell.Command.DrawShape command) {
-    var inside = GridCell.State.insideShape(command.id(), command.shape());
     log.debug("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
-    log.debug("Inside: {}", inside);
 
     return effects()
         .persistAll(currentState().onCommand(command.withRegion(selfRegion)).stream().toList())
@@ -94,9 +92,7 @@ public class GridCellEntity extends EventSourcedEntity<GridCell.State, GridCell.
   }
 
   public Effect<Done> drawCells(GridCell.Command.DrawCells command) {
-    var inside = GridCell.State.insideShape(command.id(), command.shape());
     log.debug("Region: {}, EntityId: {}\n_State: {}\n_Command: {}", selfRegion, entityId, currentState(), command);
-    log.debug("Inside: {}", inside);
 
     return effects()
         .persistAll(currentState().onCommand(command.withRegion(selfRegion)).stream().toList())

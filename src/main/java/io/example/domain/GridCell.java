@@ -455,7 +455,7 @@ public interface GridCell {
       if (status.equals(command.status())) {
         return List.of();
       }
-      if (!insideShape(command.id, command.shape)) {
+      if (!isInsideShape(command.id, command.shape)) {
         return List.of();
       }
       if (isTooSoonToChange(updatedAt)) {
@@ -500,7 +500,7 @@ public interface GridCell {
       if (status.equals(command.status)) {
         return List.of();
       }
-      if (!insideShape(command.id, command.shape)) {
+      if (!isInsideShape(command.id, command.shape)) {
         return List.of();
       }
       if (isTooSoonToChange(updatedAt)) {
@@ -539,15 +539,16 @@ public interface GridCell {
     // Command.DrawShape
     // ============================================================
     public List<Event> onCommand(Command.DrawShape command) {
-      if (!insideShape(command.id, command.shape)) {
+      if (!isInsideShape(command.id, command.shape)) {
         return List.of();
       }
-      if (isTooSoonToChange(updatedAt)) {
+      if (cellAlreadyChangedByThisShape(this, command.color)) {
         return List.of();
       }
 
       var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
-      var newUpdatedAt = Instant.now();
+      // var newUpdatedAt = Instant.now();
+      var newUpdatedAt = command.shape.createdAt();
       var newCreated = isEmpty() ? command.region : created;
 
       var updateStatusEvent = new Event.StatusUpdated(
@@ -571,24 +572,30 @@ public interface GridCell {
               command.shape,
               newCreated,
               command.region))
+          .filter(e -> isInsideShape(e.id, e.shape))
           .toList();
 
-      return Stream.<Event>concat(Stream.of(updateStatusEvent), neighborDrawEvents.stream()).toList();
+      // When command shape is newer than last command.shape than updated this cell, update cell and notify neighbors
+      // Newer shapes are intended to overlay older shapes
+      return command.shape.isNewerThan(updatedAt)
+          ? Stream.<Event>concat(Stream.of(updateStatusEvent), neighborDrawEvents.stream()).toList()
+          : neighborDrawEvents.stream().map(e -> (Event) e).toList();
     }
 
     // ============================================================
     // Command.DrawCells
     // ============================================================
     public List<Event> onCommand(Command.DrawCells command) {
-      if (!insideShape(command.id, command.shape)) {
+      if (!isInsideShape(command.id, command.shape)) {
         return List.of();
       }
-      if (isTooSoonToChange(updatedAt)) {
+      if (cellAlreadyChangedByThisShape(this, command.color)) {
         return List.of();
       }
 
       var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
-      var newUpdatedAt = Instant.now();
+      // var newUpdatedAt = Instant.now();
+      var newUpdatedAt = command.shape.createdAt();
       var newCreated = isEmpty() ? command.region : created;
 
       var updateStatusEvent = new Event.StatusUpdated(
@@ -612,9 +619,14 @@ public interface GridCell {
               command.shape,
               newCreated,
               command.region))
+          .filter(e -> isInsideShape(e.id, e.shape))
           .toList();
 
-      return Stream.<Event>concat(Stream.of(updateStatusEvent), neighborDrawEvents.stream()).toList();
+      // When command shape is newer than last command.shape than updated this cell, update cell and notify neighbors
+      // Newer shapes are intended to overlay older shapes
+      return command.shape.isNewerThan(updatedAt)
+          ? Stream.<Event>concat(Stream.of(updateStatusEvent), neighborDrawEvents.stream()).toList()
+          : neighborDrawEvents.stream().map(e -> (Event) e).toList();
     }
 
     // ============================================================
@@ -723,11 +735,15 @@ public interface GridCell {
       return now.isBefore(lastUpdatedAt.plusSeconds(3));
     }
 
-    public static boolean insideShape(String id, Shape shape) {
+    static boolean isInsideShape(String id, Shape shape) {
       var rc = id.split("x"); // RxC / YxX
       var row = Integer.parseInt(rc[0]);
       var col = Integer.parseInt(rc[1]);
       return shape.isInside(row, col);
+    }
+
+    boolean cellAlreadyChangedByThisShape(State state, Color commandColor) {
+      return state.updatedAt().equals(updatedAt) && state.color.equals(commandColor);
     }
 
     static List<String> neighborIds(String centerId) {
@@ -986,12 +1002,21 @@ public interface GridCell {
   public sealed interface Shape {
     boolean isInside(int row, int col);
 
+    boolean isNewerThan(Instant updatedAt);
+
+    Instant createdAt();
+
     default boolean isSingleCell() {
       return false;
     }
 
     @TypeName("shape-circle")
-    public record Circle(int centerRow, int centerCol, int radius) implements Shape {
+    public record Circle(int centerRow, int centerCol, int radius, Instant createdAt) implements Shape {
+      @Override
+      public boolean isNewerThan(Instant updatedAt) {
+        return createdAt.isAfter(updatedAt);
+      }
+
       @Override
       public boolean isInside(int row, int col) {
         var maxRadius = Math.min(30, radius);
@@ -1000,7 +1025,12 @@ public interface GridCell {
     }
 
     @TypeName("shape-rectangle")
-    public record Rectangle(int topLeftRow, int topLeftCol, int width, int height) implements Shape {
+    public record Rectangle(int topLeftRow, int topLeftCol, int width, int height, Instant createdAt) implements Shape {
+      @Override
+      public boolean isNewerThan(Instant updatedAt) {
+        return createdAt.isAfter(updatedAt);
+      }
+
       @Override
       public boolean isInside(int row, int col) {
         var maxWidth = Math.min(60, width);
@@ -1010,7 +1040,12 @@ public interface GridCell {
     }
 
     @TypeName("shape-single-cell")
-    public record SingleCell() implements Shape {
+    public record SingleCell(Instant createdAt) implements Shape {
+      @Override
+      public boolean isNewerThan(Instant updatedAt) {
+        return createdAt.isAfter(updatedAt);
+      }
+
       @Override
       public boolean isInside(int row, int col) {
         return true;
@@ -1023,7 +1058,12 @@ public interface GridCell {
     }
 
     @TypeName("shape-triangle")
-    public record Triangle(int row1, int col1, int row2, int col2, int row3, int col3) implements Shape {
+    public record Triangle(int row1, int col1, int row2, int col2, int row3, int col3, Instant createdAt) implements Shape {
+      @Override
+      public boolean isNewerThan(Instant updatedAt) {
+        return createdAt.isAfter(updatedAt);
+      }
+
       private static final double epsilon = 1e-9;
       private static final int subGranularityFactor = 10;
 
@@ -1063,7 +1103,12 @@ public interface GridCell {
     }
 
     @TypeName("shape-line")
-    public record Line(int startRow, int startCol, int endRow, int endCol, int width) implements Shape {
+    public record Line(int startRow, int startCol, int endRow, int endCol, int width, Instant createdAt) implements Shape {
+      @Override
+      public boolean isNewerThan(Instant updatedAt) {
+        return createdAt.isAfter(updatedAt);
+      }
+
       @Override
       public boolean isInside(int row, int col) {
         // Calculate the distance from point (row, col) to the line segment
@@ -1113,25 +1158,25 @@ public interface GridCell {
     }
 
     public static Shape ofCircle(int centerRow, int centerCol, int radius) {
-      return new Circle(centerRow, centerCol, radius);
+      return new Circle(centerRow, centerCol, radius, Instant.now());
     }
 
     public static Shape ofRectangle(int topLeftRow, int topLeftCol, int bottomRightRow, int bottomRightCol) {
       var width = Math.abs(bottomRightCol - topLeftCol) + 1;
       var height = Math.abs(bottomRightRow - topLeftRow) + 1;
-      return new Rectangle(topLeftRow, topLeftCol, width, height);
+      return new Rectangle(topLeftRow, topLeftCol, width, height, Instant.now());
     }
 
     public static Shape ofSingleCell() {
-      return new SingleCell();
+      return new SingleCell(Instant.now());
     }
 
     public static Shape ofTriangle(int row1, int col1, int row2, int col2, int row3, int col3) {
-      return new Triangle(row1, col1, row2, col2, row3, col3);
+      return new Triangle(row1, col1, row2, col2, row3, col3, Instant.now());
     }
 
     public static Shape ofLine(int startRow, int startCol, int endRow, int endCol, int width) {
-      return new Line(startRow, startCol, endRow, endCol, width);
+      return new Line(startRow, startCol, endRow, endCol, width, Instant.now());
     }
 
     // 0 degrees is right
@@ -1159,7 +1204,7 @@ public interface GridCell {
       int endRow = startRow + (int) Math.round(deltaRow);
       int endCol = startCol + (int) Math.round(deltaCol);
 
-      return new Line(startRow, startCol, endRow, endCol, width);
+      return Shape.ofLine(startRow, startCol, endRow, endCol, width);
     }
   }
 }
