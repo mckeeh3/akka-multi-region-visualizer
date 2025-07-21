@@ -1,11 +1,16 @@
 package io.example.domain;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.stream.Stream;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -174,10 +179,11 @@ public interface GridCell {
       Instant clientAt,
       Instant endpointAt,
       String created,
-      String updated) {
+      String updated,
+      List<Shape> shapes) {
 
     public static State empty() {
-      return new State("", Status.inactive, Color.of("#000000"), Instant.EPOCH, Instant.EPOCH, Instant.EPOCH, Instant.EPOCH, "", "");
+      return new State("", Status.inactive, Color.of("#000000"), Instant.EPOCH, Instant.EPOCH, Instant.EPOCH, Instant.EPOCH, "", "", List.of());
     }
 
     public boolean isEmpty() {
@@ -202,7 +208,8 @@ public interface GridCell {
             command.clientAt,
             command.endpointAt,
             newCreated,
-            command.region));
+            command.region,
+            List.of(command.shape)));
       }
 
       // If first cell is inactive, fill the shape, which fills only empty (no color) cells
@@ -249,7 +256,8 @@ public interface GridCell {
           command.clientAt,
           command.endpointAt,
           newCreated,
-          command.region));
+          command.region,
+          List.of()));
     }
 
     // ============================================================
@@ -283,7 +291,8 @@ public interface GridCell {
             command.clientAt,
             command.endpointAt,
             newCreated,
-            command.region));
+            command.region,
+            List.of()));
       }
 
       var movedToCellId = command.nextCellId;
@@ -300,7 +309,8 @@ public interface GridCell {
               command.clientAt,
               command.endpointAt,
               newCreated,
-              command.region),
+              command.region,
+              List.of()),
           new Event.PredatorMoved(
               movedToCellId,
               command.predatorId,
@@ -353,7 +363,8 @@ public interface GridCell {
                 command.clientAt,
                 command.endpointAt,
                 newCreated,
-                command.region)),
+                command.region,
+                List.of())),
             tailEvents.stream()).toList();
       }
 
@@ -376,7 +387,8 @@ public interface GridCell {
               command.clientAt,
               command.endpointAt,
               newCreated,
-              command.region)),
+              command.region,
+              List.of())),
           Optional.<Event>of(new Event.PredatorMoved(
               movedToCellId,
               command.predatorId,
@@ -441,7 +453,8 @@ public interface GridCell {
           command.clientAt,
           command.endpointAt,
           created,
-          command.region);
+          command.region,
+          List.of());
 
       return Optional.of(updateStatusEvent);
     }
@@ -475,7 +488,8 @@ public interface GridCell {
           command.clientAt,
           command.endpointAt,
           newCreated,
-          command.region);
+          command.region,
+          List.of(command.shape));
 
       var neighborSpanStatusUpdatedEvents = neighborIds(command.id).stream()
           .map(id -> new Event.SpanToNeighbor(
@@ -520,7 +534,8 @@ public interface GridCell {
           command.clientAt,
           command.endpointAt,
           newCreated,
-          command.region);
+          command.region,
+          List.of(command.shape));
 
       var neighborFillEvents = neighborIds(command.id).stream()
           .map(id -> new Event.FillToNeighbor(
@@ -543,25 +558,42 @@ public interface GridCell {
       if (!isInsideShape(command.id, command.shape)) {
         return List.of();
       }
-      if (cellAlreadyChangedByThisShape(this, command.shape.color())) {
+      if (shapes.contains(command.shape)) {
         return List.of();
       }
 
       var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
-      // var newUpdatedAt = Instant.now();
-      var newUpdatedAt = command.shape.createdAt();
+      var newUpdatedAt = Instant.now();
       var newCreated = isEmpty() ? command.region : created;
+      var newShapes = new ArrayList<>(shapes);
 
-      var updateStatusEvent = new Event.StatusUpdated(
-          command.id,
-          command.status,
-          command.shape.color(),
-          newCreatedAt,
-          newUpdatedAt,
-          command.clientAt,
-          command.endpointAt,
-          newCreated,
-          command.region);
+      newShapes.add(command.shape);
+      var tenMinutesAgo = Instant.now().minus(10, ChronoUnit.MINUTES);
+      newShapes.removeIf(shape -> shape.createdAt().isBefore(tenMinutesAgo));
+
+      var updateStatusEvent = command.shape.isNewestShape(newShapes)
+          ? new Event.StatusUpdated(
+              command.id,
+              command.status,
+              command.shape.color(),
+              newCreatedAt,
+              newUpdatedAt,
+              command.clientAt,
+              command.endpointAt,
+              newCreated,
+              command.region,
+              newShapes)
+          : new Event.StatusUpdated(
+              id,
+              status,
+              color,
+              createdAt,
+              newUpdatedAt,
+              clientAt,
+              endpointAt,
+              created,
+              updated,
+              newShapes); // add the lower priority overlapping shape, no changes to other state variables
 
       var neighborDrawEvents = neighborIds(command.id).stream()
           .map(id -> new Event.DrawToNeighbor(
@@ -575,11 +607,7 @@ public interface GridCell {
           .filter(e -> isInsideShape(e.id, e.shape))
           .toList();
 
-      // When command shape is newer than last command.shape than updated this cell, update cell and notify neighbors
-      // Newer shapes are intended to overlay older shapes
-      return command.shape.isNewerThan(updatedAt)
-          ? Stream.<Event>concat(Stream.of(updateStatusEvent), neighborDrawEvents.stream()).toList()
-          : neighborDrawEvents.stream().map(e -> (Event) e).toList();
+      return Stream.<Event>concat(Stream.of(updateStatusEvent), neighborDrawEvents.stream()).toList();
     }
 
     // ============================================================
@@ -589,25 +617,42 @@ public interface GridCell {
       if (!isInsideShape(command.id, command.shape)) {
         return List.of();
       }
-      if (cellAlreadyChangedByThisShape(this, command.shape.color())) {
+      if (shapes.contains(command.shape)) {
         return List.of();
       }
 
       var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
-      // var newUpdatedAt = Instant.now();
-      var newUpdatedAt = command.shape.createdAt();
+      var newUpdatedAt = Instant.now();
       var newCreated = isEmpty() ? command.region : created;
+      var newShapes = new ArrayList<>(shapes);
 
-      var updateStatusEvent = new Event.StatusUpdated(
-          command.id,
-          command.status,
-          command.shape.color(),
-          newCreatedAt,
-          newUpdatedAt,
-          command.clientAt,
-          command.endpointAt,
-          newCreated,
-          command.region);
+      newShapes.add(command.shape);
+      var tenMinutesAgo = Instant.now().minus(10, ChronoUnit.MINUTES);
+      newShapes.removeIf(shape -> shape.createdAt().isBefore(tenMinutesAgo));
+
+      var updateStatusEvent = command.shape.isNewestShape(newShapes)
+          ? new Event.StatusUpdated(
+              command.id,
+              command.status,
+              command.shape.color(),
+              newCreatedAt,
+              newUpdatedAt,
+              command.clientAt,
+              command.endpointAt,
+              newCreated,
+              command.region,
+              newShapes)
+          : new Event.StatusUpdated(
+              id,
+              status,
+              color,
+              createdAt,
+              newUpdatedAt,
+              clientAt,
+              endpointAt,
+              created,
+              updated,
+              newShapes); // add the lower priority overlapping shape, no changes to other state variables
 
       var neighborDrawEvents = neighborIds(command.id).stream()
           .map(id -> new Event.DrawToNeighbor(
@@ -621,11 +666,7 @@ public interface GridCell {
           .filter(e -> isInsideShape(e.id, e.shape))
           .toList();
 
-      // When command shape is newer than last command.shape than updated this cell, update cell and notify neighbors
-      // Newer shapes are intended to overlay older shapes
-      return command.shape.isNewerThan(updatedAt)
-          ? Stream.<Event>concat(Stream.of(updateStatusEvent), neighborDrawEvents.stream()).toList()
-          : neighborDrawEvents.stream().map(e -> (Event) e).toList();
+      return Stream.<Event>concat(Stream.of(updateStatusEvent), neighborDrawEvents.stream()).toList();
     }
 
     // ============================================================
@@ -649,7 +690,8 @@ public interface GridCell {
           clientAt,
           endpointAt,
           created,
-          updated);
+          updated,
+          List.of());
 
       var neighborClearEvents = neighborIds(command.id).stream()
           .map(id -> new Event.ClearToNeighbor(id, command.status))
@@ -676,7 +718,8 @@ public interface GridCell {
           clientAt,
           endpointAt,
           created,
-          updated);
+          updated,
+          List.of());
 
       var neighborEraseEvents = neighborIds(command.id).stream()
           .map(id -> new Event.EraseToNeighbor(id))
@@ -698,7 +741,8 @@ public interface GridCell {
           event.clientAt,
           event.endpointAt,
           event.created,
-          event.updated);
+          event.updated,
+          event.shapes);
     }
 
     public State onEvent(Event.PredatorMoved event) {
@@ -739,10 +783,6 @@ public interface GridCell {
       var row = Integer.parseInt(rc[0]);
       var col = Integer.parseInt(rc[1]);
       return shape.isInside(row, col);
-    }
-
-    boolean cellAlreadyChangedByThisShape(State state, Color commandColor) {
-      return state.updatedAt().equals(updatedAt) && state.color.equals(commandColor);
     }
 
     static List<String> neighborIds(String centerId) {
@@ -919,7 +959,8 @@ public interface GridCell {
         Instant clientAt,
         Instant endpointAt,
         String created,
-        String updated) implements Event {}
+        String updated,
+        List<Shape> shapes) implements Event {}
 
     @TypeName("predator-moved")
     public record PredatorMoved(
@@ -998,7 +1039,7 @@ public interface GridCell {
   public sealed interface Shape {
     boolean isInside(int row, int col);
 
-    boolean isNewerThan(Instant updatedAt);
+    boolean isNewestShape(List<Shape> shapes);
 
     Instant createdAt();
 
@@ -1011,8 +1052,8 @@ public interface GridCell {
     @TypeName("shape-circle")
     public record Circle(int centerRow, int centerCol, int radius, Instant createdAt, Color color) implements Shape {
       @Override
-      public boolean isNewerThan(Instant updatedAt) {
-        return createdAt.isAfter(updatedAt);
+      public boolean isNewestShape(List<Shape> shapes) {
+        return shapes.stream().noneMatch(shape -> shape.createdAt().isAfter(createdAt));
       }
 
       @Override
@@ -1025,8 +1066,8 @@ public interface GridCell {
     @TypeName("shape-rectangle")
     public record Rectangle(int topLeftRow, int topLeftCol, int width, int height, Instant createdAt, Color color) implements Shape {
       @Override
-      public boolean isNewerThan(Instant updatedAt) {
-        return createdAt.isAfter(updatedAt);
+      public boolean isNewestShape(List<Shape> shapes) {
+        return shapes.stream().noneMatch(shape -> shape.createdAt().isAfter(createdAt));
       }
 
       @Override
@@ -1040,8 +1081,8 @@ public interface GridCell {
     @TypeName("shape-single-cell")
     public record SingleCell(Instant createdAt, Color color) implements Shape {
       @Override
-      public boolean isNewerThan(Instant updatedAt) {
-        return createdAt.isAfter(updatedAt);
+      public boolean isNewestShape(List<Shape> shapes) {
+        return shapes.stream().noneMatch(shape -> shape.createdAt().isAfter(createdAt));
       }
 
       @Override
@@ -1058,8 +1099,8 @@ public interface GridCell {
     @TypeName("shape-triangle")
     public record Triangle(int row1, int col1, int row2, int col2, int row3, int col3, Instant createdAt, Color color) implements Shape {
       @Override
-      public boolean isNewerThan(Instant updatedAt) {
-        return createdAt.isAfter(updatedAt);
+      public boolean isNewestShape(List<Shape> shapes) {
+        return shapes.stream().noneMatch(shape -> shape.createdAt().isAfter(createdAt));
       }
 
       private static final double epsilon = 1e-9;
@@ -1103,8 +1144,8 @@ public interface GridCell {
     @TypeName("shape-line")
     public record Line(int startRow, int startCol, int endRow, int endCol, int width, Instant createdAt, Color color) implements Shape {
       @Override
-      public boolean isNewerThan(Instant updatedAt) {
-        return createdAt.isAfter(updatedAt);
+      public boolean isNewestShape(List<Shape> shapes) {
+        return shapes.stream().noneMatch(shape -> shape.createdAt().isAfter(createdAt));
       }
 
       @Override
