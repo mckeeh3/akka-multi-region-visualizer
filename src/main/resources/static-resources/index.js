@@ -1025,11 +1025,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function queryGridCellData(region, pageToken) {
     try {
-      const x1 = region.topLeft.col + viewportX; // Current viewport X offset
-      const y1 = region.topLeft.row + viewportY; // Current viewport Y offset
-      const x2 = x1 + region.dimensions.cols; // End of viewport X offset
-      const y2 = y1 + region.dimensions.rows; // End of viewport Y offset
-      const url = `${origin}/grid-cell/paginated-list/${x1}/${y1}/${x2}/${y2}/${pageToken}`;
+      const row1 = region.topLeft.row;
+      const col1 = region.topLeft.col;
+      const row2 = region.bottomRight.row;
+      const col2 = region.bottomRight.col;
+      const url = `${origin}/grid-cell/paginated-list/${row1}/${col1}/${row2}/${col2}/${pageToken}`;
       // console.info(`Fetching grid cell data from ${url}...`);
 
       const response = await fetch(url);

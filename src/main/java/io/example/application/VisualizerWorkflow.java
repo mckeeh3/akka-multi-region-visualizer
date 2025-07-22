@@ -172,6 +172,7 @@ public class VisualizerWorkflow extends Workflow<VisualizerWorkflow.State> {
           var request = new PromptEnhancementAgent.EnhancementRequest(currentState().sessionId(), audioToText, currentState().viewport());
 
           return componentClient.forAgent()
+              // .inSession(currentState().sessionId())
               .inSession(UUID.randomUUID().toString()) // do not include this agent in the session
               .method(PromptEnhancementAgent::enhancePrompt)
               .invoke(request);
@@ -224,7 +225,8 @@ public class VisualizerWorkflow extends Workflow<VisualizerWorkflow.State> {
 
           return componentClient
               .forAgent()
-              .inSession(currentState().sessionId())
+              // .inSession(currentState().sessionId())
+              .inSession(UUID.randomUUID().toString()) // do not include this agent in the session
               .method(VisualizerAgent::ask)
               .invoke(prompt);
         })

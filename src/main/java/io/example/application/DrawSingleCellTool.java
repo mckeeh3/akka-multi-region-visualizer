@@ -40,7 +40,7 @@ public class DrawSingleCellTool {
 
     var cellId = String.format("%dx%d", row, col);
     var status = GridCell.Status.custom;
-    var shape = GridCell.Shape.ofSingleCell(GridCell.Color.of(color));
+    var shape = GridCell.Shape.ofSingleCell(row, col, GridCell.Color.of(color));
     {
       var command = new GridCell.Command.DrawShape(
           cellId,

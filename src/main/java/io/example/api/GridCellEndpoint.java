@@ -64,8 +64,10 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
       var color = GridCell.Color.of(request.status());
       shape = GridCell.Shape.ofRectangle(topLeftRow, topLeftCol, bottomRightRow, bottomRightCol, color);
     } else {
+      var row = request.locationY();
+      var col = request.locationX();
       var color = GridCell.Color.of(request.status());
-      shape = GridCell.Shape.ofSingleCell(color);
+      shape = GridCell.Shape.ofSingleCell(row, col, color);
     }
 
     var command = new GridCell.Command.CreateShape(
@@ -137,12 +139,12 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
         .invoke(id);
   }
 
-  @Get("/stream/{x1}/{y1}/{x2}/{y2}")
-  public HttpResponse getGridCellsStream(Integer x1, Integer y1, Integer x2, Integer y2) {
+  @Get("/stream/{row1}/{col1}/{row2}/{col2}")
+  public HttpResponse getGridCellsStream(Integer row1, Integer col1, Integer row2, Integer col2) {
     return HttpResponses.serverSentEvents(
         componentClient.forView()
             .stream(GridCellView::getGridCellsStream)
-            .source(new GridCellView.StreamedGridCellsRequest(x1, y1, x2, y2)));
+            .source(new GridCellView.StreamedGridCellsRequest(row1, col1, row2, col2)));
   }
 
   @Get("/list")
@@ -152,13 +154,13 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
         .invoke();
   }
 
-  @Get("/paginated-list/{x1}/{y1}/{x2}/{y2}/{pageTokenOffset}")
-  public GridCellView.PagedGridCells getGridCellsPagedList(Integer x1, Integer y1, Integer x2, Integer y2, String pageTokenOffset) {
+  @Get("/paginated-list/{row1}/{col1}/{row2}/{col2}/{pageTokenOffset}")
+  public GridCellView.PagedGridCells getGridCellsPagedList(Integer row1, Integer col1, Integer row2, Integer col2, String pageTokenOffset) {
     pageTokenOffset = pageTokenOffset.equals("start") ? "" : pageTokenOffset;
 
     return componentClient.forView()
         .method(GridCellView::queryGridCellsPagedList)
-        .invoke(new GridCellView.PagedGridCellsRequest(x1, y1, x2, y2, pageTokenOffset));
+        .invoke(new GridCellView.PagedGridCellsRequest(row1, col1, row2, col2, pageTokenOffset));
   }
 
   @Get("/region")
@@ -198,13 +200,13 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
   public Done createPredator(UpdateGridCellRequest request) {
     log.info("Region: {}, {}", region(), request);
 
-    var x1 = request.centerX() - request.radius();
-    var y1 = request.centerY() - request.radius();
-    var x2 = request.centerX() + request.radius();
-    var y2 = request.centerY() + request.radius();
+    var row1 = request.centerY() - request.radius();
+    var col1 = request.centerX() - request.radius();
+    var row2 = request.centerY() + request.radius();
+    var col2 = request.centerX() + request.radius();
     var pageTokenOffset = "";
 
-    var allGridCells = queryGridCellsInArea(x1, y1, x2, y2, pageTokenOffset);
+    var allGridCells = queryGridCellsInArea(row1, col1, row2, col2, pageTokenOffset);
     log.info("Found {} grid cells in the rectangle area", allGridCells.size());
 
     String nextGridCellId = Predator.nextGridCellId(request.id(), allGridCells, request.radius());
@@ -255,7 +257,7 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
     return requestContext().selfRegion().isEmpty() ? "local-development" : requestContext().selfRegion();
   }
 
-  List<GridCellRow> queryGridCellsInArea(int x1, int y1, int x2, int y2, String pageTokenOffset) {
+  List<GridCellRow> queryGridCellsInArea(int row1, int col1, int row2, int col2, String pageTokenOffset) {
     return Stream.generate(new Supplier<GridCellView.PagedGridCells>() {
       String currentPageToken = pageTokenOffset;
       boolean hasMore = true;
@@ -268,7 +270,7 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
 
         var pagedGridCells = componentClient.forView()
             .method(GridCellView::queryActiveGridCells)
-            .invoke(new GridCellView.PagedGridCellsRequest(x1, y1, x2, y2, currentPageToken));
+            .invoke(new GridCellView.PagedGridCellsRequest(row1, col1, row2, col2, currentPageToken));
 
         currentPageToken = pagedGridCells.nextPageToken();
         hasMore = pagedGridCells.hasMore();
@@ -286,9 +288,9 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
 
   record UpdateGridCellRequest(String id, String status, Instant clientAt, Integer centerX, Integer centerY, Integer radius) {}
 
-  record ScentCell(int x, int y, int maxIntensity) {}
+  record ScentCell(int row, int col, int maxIntensity) {}
 
-  record ScentVector(double x, double y, double intensity) {}
+  record ScentVector(double row, double col, double intensity) {}
 
-  record DirectionVector(double x, double y) {}
+  record DirectionVector(double row, double col) {}
 }

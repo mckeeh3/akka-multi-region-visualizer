@@ -22,10 +22,10 @@ public class PredatorTest {
     var color = "blue";
     var rows = 5;
     var cols = 5;
-    var predatorXy = Point.fromXy(10, 5);
+    var predatorRowCol = Point.fromRowCol(5, 10);
     var predatorRange = 50;
-    var nextGridCellId = Predator.nextGridCellId(predatorXy.id(), createGridCells(xyTopLeft, color, rows, cols), predatorRange);
-    assertEquals(Point.fromXy(predatorXy.x(), predatorXy.y() + 1).id(), nextGridCellId);
+    var nextGridCellId = Predator.nextGridCellId(predatorRowCol.id(), createGridCells(xyTopLeft, color, rows, cols), predatorRange);
+    assertEquals(Point.fromRowCol(predatorRowCol.row(), predatorRowCol.col() + 1).id(), nextGridCellId);
   }
 
   @Test
@@ -35,10 +35,10 @@ public class PredatorTest {
     var color = "blue";
     var rows = 5;
     var cols = 5;
-    var predatorXy = Point.fromXy(15, 5);
+    var predatorRowCol = Point.fromRowCol(5, 15);
     var predatorRange = 50;
-    var nextGridCellId = Predator.nextGridCellId(predatorXy.id(), createGridCells(xyTopLeft, color, rows, cols), predatorRange);
-    assertEquals(Point.fromXy(predatorXy.x() - 1, predatorXy.y() + 1).id(), nextGridCellId);
+    var nextGridCellId = Predator.nextGridCellId(predatorRowCol.id(), createGridCells(xyTopLeft, color, rows, cols), predatorRange);
+    assertEquals(Point.fromRowCol(predatorRowCol.row() - 1, predatorRowCol.col() + 1).id(), nextGridCellId);
   }
 
   @Test
@@ -48,10 +48,10 @@ public class PredatorTest {
     var color = "blue";
     var rows = 5;
     var cols = 5;
-    var predatorXy = Point.fromXy(15, 10);
+    var predatorRowCol = Point.fromRowCol(10, 15);
     var predatorRange = 50;
-    var nextGridCellId = Predator.nextGridCellId(predatorXy.id(), createGridCells(xyTopLeft, color, rows, cols), predatorRange);
-    assertEquals(Point.fromXy(predatorXy.x() - 1, predatorXy.y()).id(), nextGridCellId);
+    var nextGridCellId = Predator.nextGridCellId(predatorRowCol.id(), createGridCells(xyTopLeft, color, rows, cols), predatorRange);
+    assertEquals(Point.fromRowCol(predatorRowCol.row() - 1, predatorRowCol.col()).id(), nextGridCellId);
   }
 
   @Test
@@ -61,10 +61,10 @@ public class PredatorTest {
     var color = "blue";
     var rows = 5;
     var cols = 5;
-    var predatorXy = Point.fromXy(15, 15);
+    var predatorRowCol = Point.fromRowCol(15, 15);
     var predatorRange = 50;
-    var nextGridCellId = Predator.nextGridCellId(predatorXy.id(), createGridCells(xyTopLeft, color, rows, cols), predatorRange);
-    assertEquals(Point.fromXy(predatorXy.y() - 1, predatorXy.x() - 1).id(), nextGridCellId);
+    var nextGridCellId = Predator.nextGridCellId(predatorRowCol.id(), createGridCells(xyTopLeft, color, rows, cols), predatorRange);
+    assertEquals(Point.fromRowCol(predatorRowCol.col() - 1, predatorRowCol.row() - 1).id(), nextGridCellId);
   }
 
   @Test
@@ -74,10 +74,10 @@ public class PredatorTest {
     var color = "blue";
     var rows = 5;
     var cols = 5;
-    var predatorXy = Point.fromXy(10, 15);
+    var predatorRowCol = Point.fromRowCol(15, 10);
     var predatorRange = 50;
-    var nextGridCellId = Predator.nextGridCellId(predatorXy.id(), createGridCells(xyTopLeft, color, rows, cols), predatorRange);
-    assertEquals(Point.fromXy(predatorXy.x(), predatorXy.y() - 1).id(), nextGridCellId);
+    var nextGridCellId = Predator.nextGridCellId(predatorRowCol.id(), createGridCells(xyTopLeft, color, rows, cols), predatorRange);
+    assertEquals(Point.fromRowCol(predatorRowCol.row(), predatorRowCol.col() - 1).id(), nextGridCellId);
   }
 
   @Test
@@ -87,10 +87,10 @@ public class PredatorTest {
     var color = "blue";
     var rows = 5;
     var cols = 5;
-    var predatorXy = Point.fromXy(5, 15);
+    var predatorRowCol = Point.fromRowCol(15, 5);
     var predatorRange = 50;
-    var nextGridCellId = Predator.nextGridCellId(predatorXy.id(), createGridCells(xyTopLeft, color, rows, cols), predatorRange);
-    assertEquals(Point.fromXy(predatorXy.x() + 1, predatorXy.y() - 1).id(), nextGridCellId);
+    var nextGridCellId = Predator.nextGridCellId(predatorRowCol.id(), createGridCells(xyTopLeft, color, rows, cols), predatorRange);
+    assertEquals(Point.fromRowCol(predatorRowCol.row() + 1, predatorRowCol.col() - 1).id(), nextGridCellId);
   }
 
   @Test
@@ -100,10 +100,10 @@ public class PredatorTest {
     var color = "blue";
     var rows = 5;
     var cols = 5;
-    var predatorXy = Point.fromXy(5, 10);
+    var predatorRowCol = Point.fromRowCol(10, 5);
     var predatorRange = 50;
-    var nextGridCellId = Predator.nextGridCellId(predatorXy.id(), createGridCells(xyTopLeft, color, rows, cols), predatorRange);
-    assertEquals(Point.fromXy(predatorXy.x() + 1, predatorXy.y()).id(), nextGridCellId);
+    var nextGridCellId = Predator.nextGridCellId(predatorRowCol.id(), createGridCells(xyTopLeft, color, rows, cols), predatorRange);
+    assertEquals(Point.fromRowCol(predatorRowCol.row() + 1, predatorRowCol.col()).id(), nextGridCellId);
   }
 
   @Test
@@ -113,23 +113,23 @@ public class PredatorTest {
     var color = "blue";
     var rows = 5;
     var cols = 5;
-    var predatorXy = Point.fromXy(5, 5);
+    var predatorRowCol = Point.fromRowCol(5, 5);
     var predatorRange = 50;
-    var nextGridCellId = Predator.nextGridCellId(predatorXy.id(), createGridCells(xyTopLeft, color, rows, cols), predatorRange);
-    assertEquals(Point.fromXy(predatorXy.x() + 1, predatorXy.y() + 1).id(), nextGridCellId);
+    var nextGridCellId = Predator.nextGridCellId(predatorRowCol.id(), createGridCells(xyTopLeft, color, rows, cols), predatorRange);
+    assertEquals(Point.fromRowCol(predatorRowCol.row() + 1, predatorRowCol.col() + 1).id(), nextGridCellId);
   }
 
   @Test
   // @Disabled
   void testDetectionDistanceOfSingleCell() {
-    var preyX = 15;
-    var preyY = 5;
-    var preyCell = createGridCell(preyX, preyY, "blue");
+    var preyRow = 5;
+    var preyCol = 15;
+    var preyCell = createGridCell(preyCol, preyRow, "blue");
 
-    var predatorXy = Point.fromXy(preyX + 100, preyY);
+    var predatorRowCol = Point.fromRowCol(preyRow + 100, preyCol);
     var predatorRange = 200;
-    var nextGridCellId = Predator.nextGridCellId(predatorXy.id(), List.of(preyCell), predatorRange);
-    assertEquals(Point.fromXy(predatorXy.x() - 1, predatorXy.y()).id(), nextGridCellId);
+    var nextGridCellId = Predator.nextGridCellId(predatorRowCol.id(), List.of(preyCell), predatorRange);
+    assertEquals(Point.fromRowCol(predatorRowCol.row(), predatorRowCol.col() - 1).id(), nextGridCellId);
   }
 
   @Test
@@ -139,10 +139,10 @@ public class PredatorTest {
     var color = "blue";
     var rows = 30;
     var cols = 1;
-    var predatorXy = Point.fromXy(xyTopLeft, xyTopLeft - 2);
+    var predatorRowCol = Point.fromRowCol(xyTopLeft, xyTopLeft - 2);
     var predatorRange = 50;
-    var nextGridCellId = Predator.nextGridCellId(predatorXy.id(), createGridCells(xyTopLeft, color, rows, cols), predatorRange);
-    assertEquals(Point.fromXy(predatorXy.x(), predatorXy.y() + 1).id(), nextGridCellId);
+    var nextGridCellId = Predator.nextGridCellId(predatorRowCol.id(), createGridCells(xyTopLeft, color, rows, cols), predatorRange);
+    assertEquals(Point.fromRowCol(predatorRowCol.row() + 1, predatorRowCol.col()).id(), nextGridCellId);
   }
 
   @Test
@@ -152,36 +152,36 @@ public class PredatorTest {
     var color = "blue";
     var rows = 1;
     var cols = 30;
-    var predatorXy = Point.fromXy(xyTopLeft - 2, xyTopLeft);
+    var predatorRowCol = Point.fromRowCol(xyTopLeft - 2, xyTopLeft);
     var predatorRange = 50;
-    var nextGridCellId = Predator.nextGridCellId(predatorXy.id(), createGridCells(xyTopLeft, color, rows, cols), predatorRange);
-    assertEquals(Point.fromXy(predatorXy.x() + 1, predatorXy.y()).id(), nextGridCellId);
+    var nextGridCellId = Predator.nextGridCellId(predatorRowCol.id(), createGridCells(xyTopLeft, color, rows, cols), predatorRange);
+    assertEquals(Point.fromRowCol(predatorRowCol.row(), predatorRowCol.col() + 1).id(), nextGridCellId);
   }
 
   @Test
   // @Disabled
   void testNearbySmallClusterDistantLargeCluster() {
-    var predatorXy = Point.fromXy(100, 100);
+    var predatorRowCol = Point.fromRowCol(100, 100);
     var predatorRange = 100;
 
     var largeClusterRows = 11;
     var largeClusterCols = 11;
-    var largeClusterXTopLeft = predatorXy.x() - 50;
-    var largeClusterYTopLeft = predatorXy.y() - Math.round(largeClusterRows / 2);
+    var largeClusterXTopLeft = predatorRowCol.row() - 50;
+    var largeClusterYTopLeft = predatorRowCol.col() - Math.round(largeClusterRows / 2);
     var largeClusterColor = "blue";
     var largeClusterPreyCells = createGridCells(largeClusterXTopLeft, largeClusterYTopLeft, largeClusterColor, largeClusterRows, largeClusterCols);
 
     var smallClusterRows = 5;
     var smallClusterCols = 5;
-    var smallClusterXTopLeft = predatorXy.x() + 10;
-    var smallClusterYTopLeft = predatorXy.y() - Math.round(smallClusterCols / 2);
+    var smallClusterXTopLeft = predatorRowCol.row() + 10;
+    var smallClusterYTopLeft = predatorRowCol.col() - Math.round(smallClusterCols / 2);
     var smallClusterColor = "red";
     var smallClusterPreyCells = createGridCells(smallClusterXTopLeft, smallClusterYTopLeft, smallClusterColor, smallClusterRows, smallClusterCols);
 
     var allPreyCells = Stream.concat(largeClusterPreyCells.stream(), smallClusterPreyCells.stream()).toList();
 
-    var nextGridCellId = Predator.nextGridCellId(predatorXy.id(), allPreyCells, predatorRange);
-    assertEquals(Point.fromXy(predatorXy.x() + 1, predatorXy.y()).id(), nextGridCellId);
+    var nextGridCellId = Predator.nextGridCellId(predatorRowCol.id(), allPreyCells, predatorRange);
+    assertEquals(Point.fromRowCol(predatorRowCol.row(), predatorRowCol.col() + 1).id(), nextGridCellId);
   }
 
   @Test
@@ -246,11 +246,11 @@ public class PredatorTest {
     var directionVector = new DirectionVector(1, 0);
     assertEquals(0, directionVector.degrees());
     assertEquals(0, directionVector.radians());
-    assertEquals(1, directionVector.x());
-    assertEquals(0, directionVector.y());
+    assertEquals(1, directionVector.row());
+    assertEquals(0, directionVector.col());
     assertEquals(0, directionVector.normalized().degrees());
     assertEquals(0, directionVector.normalized().radians());
-    assertEquals(1, directionVector.normalized().x());
-    assertEquals(0, directionVector.normalized().y());
+    assertEquals(1, directionVector.normalized().row());
+    assertEquals(0, directionVector.normalized().col());
   }
 }

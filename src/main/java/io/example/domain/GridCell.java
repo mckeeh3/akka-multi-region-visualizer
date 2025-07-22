@@ -9,9 +9,6 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.stream.Stream;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
@@ -1079,7 +1076,7 @@ public interface GridCell {
     }
 
     @TypeName("shape-single-cell")
-    public record SingleCell(Instant createdAt, Color color) implements Shape {
+    public record SingleCell(int row, int col, Instant createdAt, Color color) implements Shape {
       @Override
       public boolean isNewestShape(List<Shape> shapes) {
         return shapes.stream().noneMatch(shape -> shape.createdAt().isAfter(createdAt));
@@ -1087,7 +1084,7 @@ public interface GridCell {
 
       @Override
       public boolean isInside(int row, int col) {
-        return true;
+        return this.row == row && this.col == col;
       }
 
       @Override
@@ -1206,8 +1203,8 @@ public interface GridCell {
       return new Rectangle(topLeftRow, topLeftCol, width, height, Instant.now(), color);
     }
 
-    public static Shape ofSingleCell(Color color) {
-      return new SingleCell(Instant.now(), color);
+    public static Shape ofSingleCell(int row, int col, Color color) {
+      return new SingleCell(row, col, Instant.now(), color);
     }
 
     public static Shape ofTriangle(int row1, int col1, int row2, int col2, int row3, int col3, Color color) {

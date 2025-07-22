@@ -58,40 +58,40 @@ public class Predator {
 
   // Try to find the next grid cell nearby, progressively increasing the range
   static public String nextGridCellId(String predatorGridCellId, List<GridCellView.GridCellRow> allGridCells, int predatorRange) {
-    var predatorGridCellXy = Point.fromId(predatorGridCellId);
+    var predatorGridCellRowCol = Point.fromId(predatorGridCellId);
 
-    log.info("Hunting prey: predator: {}, predatorRange: {}, predatorX: {}, predatorY: {}",
-        predatorGridCellId, predatorRange, predatorGridCellXy.x(), predatorGridCellXy.y());
+    log.info("Hunting prey: predator: {}, predatorRange: {}, predatorRow: {}, predatorCol: {}",
+        predatorGridCellId, predatorRange, predatorGridCellRowCol.row(), predatorGridCellRowCol.col());
 
     if (allGridCells.isEmpty()) {
-      log.info("Next cell: (empty), predator: {}, No prey cells in predatorRange {}", predatorGridCellXy.id(), predatorRange);
+      log.info("Next cell: (empty), predator: {}, No prey cells in predatorRange {}", predatorGridCellRowCol.id(), predatorRange);
       return "";
     }
 
     {
-      var nextGridCellId = nextGridCellIdShortRange(predatorGridCellXy, allGridCells, predatorRange);
+      var nextGridCellId = nextGridCellIdShortRange(predatorGridCellRowCol, allGridCells, predatorRange);
       if (!nextGridCellId.isEmpty()) {
-        log.info("Next cell (short range): {}, predator: {}", nextGridCellId, predatorGridCellXy.id());
+        log.info("Next cell (short range): {}, predator: {}", nextGridCellId, predatorGridCellRowCol.id());
         return nextGridCellId;
       }
     }
 
-    var nextGridCellId = nextGridCellIdLongRange(predatorGridCellXy, allGridCells, predatorRange);
-    log.info("Next cell (long range): {}, predator: {}", nextGridCellId.isEmpty() ? "(empty)" : nextGridCellId, predatorGridCellXy.id());
+    var nextGridCellId = nextGridCellIdLongRange(predatorGridCellRowCol, allGridCells, predatorRange);
+    log.info("Next cell (long range): {}, predator: {}", nextGridCellId.isEmpty() ? "(empty)" : nextGridCellId, predatorGridCellRowCol.id());
     return nextGridCellId;
   }
 
   // ==================================================
   // Short range
   // ==================================================
-  static public String nextGridCellIdShortRange(Point predatorGridCellXy, List<GridCellView.GridCellRow> allGridCells, int predatorRange) {
+  static public String nextGridCellIdShortRange(Point predatorGridCellRowCol, List<GridCellView.GridCellRow> allGridCells, int predatorRange) {
     var range = Math.min(predatorRange, 10);
-    var gridCellsInCircle = getGridCellsInCircle(allGridCells, predatorGridCellXy.x(), predatorGridCellXy.y(), range);
+    var gridCellsInCircle = getGridCellsInCircle(allGridCells, predatorGridCellRowCol.row(), predatorGridCellRowCol.col(), range);
     log.info("Found {} grid cells in the circle range {} (filtered from {} in rectangle)", gridCellsInCircle.size(), range, allGridCells.size());
 
     var preyCells = getPreyCells(gridCellsInCircle).stream()
-        .map(cell -> new PreyGridCellDistance(cell.id(), cell.x(), cell.y(), cell.maxIntensity(),
-            Math.sqrt(Math.pow(cell.x() - predatorGridCellXy.x(), 2) + Math.pow(cell.y() - predatorGridCellXy.y(), 2))))
+        .map(cell -> new PreyGridCellDistance(cell.id(), cell.row(), cell.col(), cell.maxIntensity(),
+            Math.sqrt(Math.pow(cell.row() - predatorGridCellRowCol.row(), 2) + Math.pow(cell.col() - predatorGridCellRowCol.col(), 2))))
         .filter(cell -> cell.maxIntensity() > 0) // Only prey cells have maxIntensity > 0
         .sorted(Comparator
             .comparing(PreyGridCellDistance::maxIntensity, Comparator.reverseOrder())
@@ -105,7 +105,7 @@ public class Predator {
     // Select neighbors with the same maxIntensity as the nearest prey cell
     // Randomly select one of the neighbors to move more non-deterministically
     var neighbors = preyCells.stream()
-        .filter(cell -> Point.from(cell).isNeighborOf(predatorGridCellXy))
+        .filter(cell -> Point.from(cell).isNeighborOf(predatorGridCellRowCol))
         .filter(cell -> cell.maxIntensity() == preyCells.get(0).maxIntensity())
         .toList();
     if (!neighbors.isEmpty()) {
@@ -117,11 +117,11 @@ public class Predator {
     }
 
     var nearestPoint = preyCells.get(0);
-    var directionVector = new DirectionVector(nearestPoint.x() - predatorGridCellXy.x(), nearestPoint.y() - predatorGridCellXy.y());
+    var directionVector = new DirectionVector(nearestPoint.row() - predatorGridCellRowCol.row(), nearestPoint.col() - predatorGridCellRowCol.col());
     log.info("Direction vector: {}", directionVector);
 
-    var nextGridCellId = nextGridCellId(predatorGridCellXy, directionVector);
-    log.info("Next cell: {}, predator: {}", nextGridCellId, predatorGridCellXy.id());
+    var nextGridCellId = nextGridCellId(predatorGridCellRowCol, directionVector);
+    log.info("Next cell: {}, predator: {}", nextGridCellId, predatorGridCellRowCol.id());
 
     return nextGridCellId;
   }
@@ -129,11 +129,11 @@ public class Predator {
   // ==================================================
   // Long range
   // ==================================================
-  static public String nextGridCellIdLongRange(Point predatorXy, List<GridCellView.GridCellRow> allGridCells, int predatorRange) {
+  static public String nextGridCellIdLongRange(Point predatorRowCol, List<GridCellView.GridCellRow> allGridCells, int predatorRange) {
     // Large sigma means more influence from distant cells
     var sigma = 20.0;
 
-    var gridCellsInCircle = getGridCellsInCircle(allGridCells, predatorXy.x(), predatorXy.y(), predatorRange);
+    var gridCellsInCircle = getGridCellsInCircle(allGridCells, predatorRowCol.row(), predatorRowCol.col(), predatorRange);
     log.info("Found {} grid cells in the circle range {} (filtered from {} in rectangle)", gridCellsInCircle.size(), predatorRange, allGridCells.size());
 
     var preyCells = getPreyCells(gridCellsInCircle);
@@ -141,23 +141,23 @@ public class Predator {
     log.info("Found {} prey cells in range {}", preyCells.size(), predatorRange);
 
     if (preyCells.isEmpty()) {
-      log.info("Next cell: (empty), predator: {}, No prey cells in range {}", predatorXy.id(), predatorRange);
+      log.info("Next cell: (empty), predator: {}, No prey cells in range {}", predatorRowCol.id(), predatorRange);
       return "";
     }
 
-    var preyVectors = getPreyVectors(sigma, predatorXy, predatorRange, preyCells);
+    var preyVectors = getPreyVectors(sigma, predatorRowCol, predatorRange, preyCells);
     preyVectors.forEach(vector -> log.debug("Vector: {}", vector));
     log.info("Computed Gaussian decay vectors (sigma: {}) for {} prey cells", sigma, preyVectors.size());
 
     if (preyVectors.isEmpty()) {
-      log.info("Next cell: (empty), predator: {}, No prey vectors in predatorRange {}", predatorXy.id(), predatorRange);
+      log.info("Next cell: (empty), predator: {}, No prey vectors in predatorRange {}", predatorRowCol.id(), predatorRange);
       return "";
     }
 
     // Calculate the sum of all vectors
-    var sumX = preyVectors.stream().mapToDouble(PreyVector::x).sum();
-    var sumY = preyVectors.stream().mapToDouble(PreyVector::y).sum();
-    var directionVector = new DirectionVector(sumX, sumY);
+    var sumRow = preyVectors.stream().mapToDouble(PreyVector::row).sum();
+    var sumCol = preyVectors.stream().mapToDouble(PreyVector::col).sum();
+    var directionVector = new DirectionVector(sumRow, sumCol);
     log.info("Direction vector: {}", directionVector);
 
     var totalIntensity = preyVectors.stream().mapToDouble(PreyVector::intensity).sum();
@@ -167,25 +167,25 @@ public class Predator {
     log.info("Direction vector radians: {}", directionVector.normalized().radians());
     log.info("Direction vector degrees: {}", directionVector.normalized().degrees());
 
-    var nextGridCell = nextGridCellId(predatorXy, directionVector);
+    var nextGridCell = nextGridCellId(predatorRowCol, directionVector);
 
     return nextGridCell;
   }
 
   // Create vectors with intensity that decreases with distance using Gaussian decay
-  static List<PreyVector> getPreyVectors(double sigma, Point predatorXy, int predatorRange, List<PreyGridCell> preyCells) {
+  static List<PreyVector> getPreyVectors(double sigma, Point predatorRowCol, int predatorRange, List<PreyGridCell> preyCells) {
     return preyCells.stream()
         .map(cell -> {
           // Calculate the vector from center to the cell
-          var dx = cell.x() - predatorXy.x();
-          var dy = cell.y() - predatorXy.y();
+          var dRow = cell.row() - predatorRowCol.row();
+          var dCol = cell.col() - predatorRowCol.col();
 
           // Calculate distance from center
-          var distance = Math.sqrt(dx * dx + dy * dy);
+          var distance = Math.sqrt(dRow * dRow + dCol * dCol);
 
           // Calculate unit vector components (normalized direction)
-          var unitX = (distance > 0) ? dx / distance : 0;
-          var unitY = (distance > 0) ? dy / distance : 0;
+          var unitRow = (distance > 0) ? dRow / distance : 0;
+          var unitCol = (distance > 0) ? dCol / distance : 0;
 
           // Apply Gaussian decay to the intensity based on distance
           // Using formula: intensity = maxIntensity * exp(-distance²/(2*sigma²))
@@ -195,7 +195,7 @@ public class Predator {
 
           // Create a vector with the unit direction and then scale by intensity
           // This gives a vector whose direction is normalized and magnitude adjusted by the intensity
-          return new PreyVector(unitX * intensity, unitY * intensity, distance, intensity);
+          return new PreyVector(unitRow * intensity, unitCol * intensity, distance, intensity);
         })
         .filter(vector -> vector.intensity() > 0.000001) // Filter out vectors with very low intensity
         .toList();
@@ -212,20 +212,20 @@ public class Predator {
             case "custom" -> 5;
             default -> 0;
           };
-          return new PreyGridCell(cell.id(), cell.x(), cell.y(), maxIntensity);
+          return new PreyGridCell(cell.id(), cell.cellRow(), cell.cellCol(), maxIntensity);
         })
         .filter(cell -> cell.maxIntensity() > 0)
         .toList();
   }
 
   // Filter grid cells that are inside the circle
-  static List<GridCellRow> getGridCellsInCircle(List<GridCellView.GridCellRow> allGridCells, int predatorX, int predatorY, int predatorRange) {
+  static List<GridCellRow> getGridCellsInCircle(List<GridCellView.GridCellRow> allGridCells, int predatorRow, int predatorCol, int predatorRange) {
     return allGridCells.stream()
         .filter(cell -> {
           // Calculate the distance from the cell to the center of the circle
           var distance = Math.sqrt(
-              Math.pow(cell.x() - predatorX, 2) +
-                  Math.pow(cell.y() - predatorY, 2));
+              Math.pow(cell.cellRow() - predatorRow, 2) +
+                  Math.pow(cell.cellCol() - predatorCol, 2));
 
           // Keep only cells that are inside the circle (distance <= predatorRange)
           return distance <= predatorRange;
@@ -233,7 +233,7 @@ public class Predator {
         .toList();
   }
 
-  static String nextGridCellId(Point predatorXy, DirectionVector directionVector) {
+  static String nextGridCellId(Point predatorRowCol, DirectionVector directionVector) {
     // Get the normalized direction vector and its angle
     var normalizedVector = directionVector.normalized();
     var degrees = normalizedVector.degrees();
@@ -245,37 +245,38 @@ public class Predator {
       direction += 8; // Handle negative angles
 
     // Calculate the next row and column based on the direction
-    var nextRow = predatorXy.row();
-    var nextCol = predatorXy.col();
+    var nextRow = predatorRowCol.row();
+    var nextCol = predatorRowCol.col();
 
+    log.info("Direction: degrees {} case: {}", degrees, direction);
     switch (direction) {
-      case 0: // East (0 degrees)
+      case 0: // South (0 degrees)
+        nextRow++;
+        break;
+      case 1: // Southeast (45 degrees)
+        nextRow++; // Inverted: in grid coordinates, positive row is down
         nextCol++;
         break;
-      case 1: // Northeast (45 degrees)
-        nextRow++; // Inverted: in grid coordinates, positive y is down
+      case 2: // East (90 degrees)
+        nextCol++; // Inverted: in grid coordinates, positive row is down
+        break;
+      case 3: // Northeast (135 degrees)
+        nextRow--; // Inverted: in grid coordinates, positive row is down
         nextCol++;
         break;
-      case 2: // North (90 degrees)
-        nextRow++; // Inverted: in grid coordinates, positive y is down
+      case 4: // North (180 degrees)
+        nextRow--;
         break;
-      case 3: // Northwest (135 degrees)
-        nextRow++; // Inverted: in grid coordinates, positive y is down
+      case 5: // Northwest (225 degrees)
+        nextRow--; // Inverted: in grid coordinates, positive row is down
         nextCol--;
         break;
-      case 4: // West (180 degrees)
+      case 6: // West (270 degrees)
+        nextCol--; // Inverted: in grid coordinates, positive row is down
+        break;
+      case 7: // Southwest (315 degrees)
+        nextRow++; // Inverted: in grid coordinates, positive row is down
         nextCol--;
-        break;
-      case 5: // Southwest (225 degrees)
-        nextRow--; // Inverted: in grid coordinates, positive y is down
-        nextCol--;
-        break;
-      case 6: // South (270 degrees)
-        nextRow--; // Inverted: in grid coordinates, positive y is down
-        break;
-      case 7: // Southeast (315 degrees)
-        nextRow--; // Inverted: in grid coordinates, positive y is down
-        nextCol++;
         break;
     }
 
@@ -294,55 +295,51 @@ public class Predator {
   }
 }
 
-record PreyGridCellDistance(String id, int x, int y, int maxIntensity, double distance) {}
+record PreyGridCellDistance(String id, int row, int col, int maxIntensity, double distance) {}
 
-record PreyGridCell(String id, int x, int y, int maxIntensity) {}
+record PreyGridCell(String id, int row, int col, int maxIntensity) {}
 
-record PreyVector(double x, double y, double distance, double intensity) {}
+record PreyVector(double row, double col, double distance, double intensity) {}
 
-record Point(int x, int y) {
+record Point(int row, int col) {
   public static Point fromId(String id) {
     var rc = id.split("x"); // RxC, YxX
-    return new Point(Integer.parseInt(rc[1]), Integer.parseInt(rc[0]));
+    return new Point(Integer.parseInt(rc[0]), Integer.parseInt(rc[1]));
   }
 
-  public static Point fromRowCol(int rowY, int colX) {
-    return new Point(colX, rowY); // RxC, YxX
-  }
-
-  public static Point fromXy(int x, int y) {
-    return new Point(x, y);
+  public static Point fromRowCol(int row, int col) {
+    return new Point(row, col); // RxC, YxX
   }
 
   public static Point from(PreyGridCellDistance cell) {
-    return new Point(cell.x(), cell.y());
+    return new Point(cell.row(), cell.col());
   }
 
   public String id() {
-    return "%dx%d".formatted(y, x);
+    return "%dx%d".formatted(row, col);
   }
 
   public int row() {
-    return y;
+    return row;
   }
 
   public int col() {
-    return x;
+    return col;
   }
 
   public boolean isNeighborOf(Point other) {
-    return !this.equals(other) && Math.abs(x - other.x) <= 1 && Math.abs(y - other.y) <= 1;
+    return !this.equals(other) && Math.abs(row - other.row) <= 1 && Math.abs(col - other.col) <= 1;
   }
 }
 
-record DirectionVector(double x, double y) {
+record DirectionVector(double row, double col) {
   DirectionVector normalized() {
-    double length = Math.sqrt(x * x + y * y);
-    return length > 0 ? new DirectionVector(x / length, y / length) : this;
+    double length = Math.sqrt(row * row + col * col);
+    return length > 0 ? new DirectionVector(row / length, col / length) : this;
   }
 
   double radians() {
-    return Math.atan2(y, x);
+    return Math.atan2(col, row);
   }
 
   double degrees() {

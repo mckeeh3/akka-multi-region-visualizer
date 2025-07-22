@@ -23,7 +23,7 @@ public class GridCellEntityTest {
     var now = Instant.now();
     var region = "test";
     var color = GridCell.Color.of("#000000");
-    var shape = GridCell.Shape.ofSingleCell(color);
+    var shape = GridCell.Shape.ofSingleCell(10, 10, color);
     var command = new GridCell.Command.CreateShape(id, status, now, now, shape, region);
     var result = testKit.method(GridCellEntity::createShape).invoke(command);
 
@@ -65,6 +65,43 @@ public class GridCellEntityTest {
     var state = testKit.getState();
     assertEquals(id, state.id());
     assertEquals(status, state.status());
+  }
+
+  @Test
+  void testCreateRectangleWithMovedViewport() {
+    var testKit = EventSourcedTestKit.of(GridCellEntity::new);
+    var id = "21x153";
+    var status = GridCell.Status.orange;
+    var clientAt = Instant.parse("2025-07-21T16:45:18.539Z");
+    var endpointAt = Instant.parse("2025-07-21T16:45:18.540225458Z");
+    var createdAt = Instant.parse("2025-07-21T16:45:18.540220168Z");
+    var region = "local-development";
+    var color = new GridCell.Color(255, 125, 0, 0.5); // orange color
+    var shape = new GridCell.Shape.Rectangle(21, 153, 10, 15, createdAt, color);
+    var command = new GridCell.Command.CreateShape(id, status, clientAt, endpointAt, shape, region);
+    var result = testKit.method(GridCellEntity::createShape).invoke(command);
+
+    assertTrue(result.isReply());
+    assertEquals(done(), result.getReply());
+
+    var events = result.getAllEvents();
+    // Rectangle should create multiple events for the shape area
+    assertTrue(events.size() > 1);
+
+    var event = result.getNextEventOfType(GridCell.Event.StatusUpdated.class);
+    assertEquals(id, event.id());
+    assertEquals(status, event.status());
+
+    var state = testKit.getState();
+    assertEquals(id, state.id());
+    assertEquals(status, state.status());
+    assertEquals(color, state.color());
+    assertEquals(region, state.created());
+    assertEquals(region, state.updated());
+    assertEquals(clientAt, state.clientAt());
+    assertEquals(endpointAt, state.endpointAt());
+    assertTrue(state.createdAt().isAfter(Instant.EPOCH));
+    assertTrue(state.updatedAt().isAfter(Instant.EPOCH));
   }
 
   @Test

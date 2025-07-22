@@ -170,17 +170,17 @@ public class GridCellToGridCellConsumer extends Consumer {
 
   List<GridCellRow> queryGridCellsInRange(String id, int range) {
     var s = id.split("x"); // RxC, YxX
-    var x = Integer.parseInt(s[1]);
-    var y = Integer.parseInt(s[0]);
+    var row = Integer.parseInt(s[0]);
+    var col = Integer.parseInt(s[1]);
 
     // Try a short range query first for nearby grid cells
     if (range > 32) {
       var shortRange = 24;
-      var x1 = x - shortRange;
-      var y1 = y - shortRange;
-      var x2 = x + shortRange;
-      var y2 = y + shortRange;
-      var gridCellsInRange = queryGridCellsInRange(x1, y1, x2, y2, "").stream()
+      var row1 = row - shortRange;
+      var col1 = col - shortRange;
+      var row2 = row + shortRange;
+      var col2 = col + shortRange;
+      var gridCellsInRange = queryGridCellsInRange(row1, col1, row2, col2, "").stream()
           .filter(cell -> !cell.status().equals("predator"))
           .toList();
 
@@ -189,18 +189,18 @@ public class GridCellToGridCellConsumer extends Consumer {
       }
     }
 
-    var x1 = x - range;
-    var y1 = y - range;
-    var x2 = x + range;
-    var y2 = y + range;
-    var gridCellsInRange = queryGridCellsInRange(x1, y1, x2, y2, "").stream()
+    var row1 = row - range;
+    var col1 = col - range;
+    var row2 = row + range;
+    var col2 = col + range;
+    var gridCellsInRange = queryGridCellsInRange(row1, col1, row2, col2, "").stream()
         .filter(cell -> !cell.status().equals("predator"))
         .toList();
 
     return gridCellsInRange;
   }
 
-  List<GridCellRow> queryGridCellsInRange(int x1, int y1, int x2, int y2, String pageTokenOffset) {
+  List<GridCellRow> queryGridCellsInRange(int row1, int col1, int row2, int col2, String pageTokenOffset) {
     return Stream.generate(new Supplier<GridCellView.PagedGridCells>() {
       String currentPageToken = pageTokenOffset;
       boolean hasMore = true;
@@ -213,7 +213,7 @@ public class GridCellToGridCellConsumer extends Consumer {
 
         var pagedGridCells = componentClient.forView()
             .method(GridCellView::queryActiveGridCells)
-            .invoke(new GridCellView.PagedGridCellsRequest(x1, y1, x2, y2, currentPageToken));
+            .invoke(new GridCellView.PagedGridCellsRequest(row1, col1, row2, col2, currentPageToken));
 
         currentPageToken = pagedGridCells.nextPageToken();
         hasMore = pagedGridCells.hasMore();

@@ -30,7 +30,7 @@ public class GridCellView extends View {
   @Query(value = """
       SELECT *
         FROM grid_cell_view
-        WHERE x >= :x1 AND x <= :x2 AND y >= :y1 AND y <= :y2
+        WHERE cellRow >= :row1 AND cellRow <= :row2 AND cellCol >= :col1 AND cellCol <= :col2
           """, streamUpdates = true)
   public QueryStreamEffect<GridCellRow> getGridCellsStream(StreamedGridCellsRequest request) {
     return queryStreamResult();
@@ -48,7 +48,7 @@ public class GridCellView extends View {
   @Query("""
       SELECT * as gridCells, next_page_token() AS nextPageToken, has_more() AS hasMore
         FROM grid_cell_view
-        WHERE x >= :x1 AND x <= :x2 AND y >= :y1 AND y <= :y2
+        WHERE cellRow >= :row1 AND cellRow <= :row2 AND cellCol >= :col1 AND cellCol <= :col2
         LIMIT 1000
         OFFSET page_token_offset(:pageTokenOffset)
           """)
@@ -59,7 +59,7 @@ public class GridCellView extends View {
   @Query("""
       SELECT * as gridCells, next_page_token() AS nextPageToken, has_more() AS hasMore
         FROM grid_cell_view
-        WHERE x >= :x1 AND x <= :x2 AND y >= :y1 AND y <= :y2
+        WHERE cellRow >= :row1 AND cellRow <= :row2 AND cellCol >= :col1 AND cellCol <= :col2
         AND status != 'inactive'
         LIMIT 1000
         OFFSET page_token_offset(:pageTokenOffset)
@@ -89,8 +89,8 @@ public class GridCellView extends View {
           event.id(),
           event.status().toString(),
           event.color().toHex(),
-          Integer.parseInt(rc[1]),
-          Integer.parseInt(rc[0]),
+          Integer.parseInt(rc[0]), // row
+          Integer.parseInt(rc[1]), // col
           event.clientAt(),
           event.endpointAt(),
           event.createdAt(),
@@ -112,8 +112,8 @@ public class GridCellView extends View {
       String id,
       String status,
       String color,
-      int x,
-      int y,
+      int cellRow,
+      int cellCol,
       Instant clientAt,
       Instant endpointAt,
       Instant createdAt,
@@ -126,9 +126,9 @@ public class GridCellView extends View {
 
   public record GridCells(List<GridCellRow> gridCells) {}
 
-  public record StreamedGridCellsRequest(Integer x1, Integer y1, Integer x2, Integer y2) {}
+  public record StreamedGridCellsRequest(Integer row1, Integer col1, Integer row2, Integer col2) {}
 
-  public record PagedGridCellsRequest(Integer x1, Integer y1, Integer x2, Integer y2, String pageTokenOffset) {}
+  public record PagedGridCellsRequest(Integer row1, Integer col1, Integer row2, Integer col2, String pageTokenOffset) {}
 
   public record PagedGridCells(List<GridCellRow> gridCells, String nextPageToken, boolean hasMore) {}
 }
