@@ -274,6 +274,7 @@ public interface GridCell {
         case orange -> command.range + 2;
         case green -> command.range + 3;
         case blue -> command.range + 4;
+        case custom -> command.range + 5;
         default -> command.range - 1;
       };
 
@@ -335,6 +336,7 @@ public interface GridCell {
         case orange -> command.range + 2;
         case green -> command.range + 3;
         case blue -> command.range + 4;
+        case custom -> command.range + 5;
         default -> command.range - 1;
       };
 

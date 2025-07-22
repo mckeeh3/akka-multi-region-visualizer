@@ -84,13 +84,15 @@ public class GridCellView extends View {
       var rc = event.id().split("x"); // RxC / YxX
       var viewAt = Instant.now();
       var elapsedMs = (int) (viewAt.toEpochMilli() - event.updatedAt().toEpochMilli());
+      var row = Integer.parseInt(rc[0]);
+      var col = Integer.parseInt(rc[1]);
 
       return new GridCellRow(
           event.id(),
           event.status().toString(),
           event.color().toHex(),
-          Integer.parseInt(rc[0]), // row
-          Integer.parseInt(rc[1]), // col
+          row,
+          col,
           event.clientAt(),
           event.endpointAt(),
           event.createdAt(),

@@ -52,20 +52,20 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
 
     GridCell.Shape shape;
     if (request.radius() > 0) {
-      var row = request.locationY();
-      var col = request.locationX();
+      var row = request.locationRow();
+      var col = request.locationCol();
       var color = GridCell.Color.of(request.status());
       shape = GridCell.Shape.ofCircle(row, col, request.radius(), color);
     } else if (request.width() > 0 && request.height() > 0) {
-      var topLeftRow = request.locationY();
-      var topLeftCol = request.locationX();
+      var topLeftRow = request.locationRow();
+      var topLeftCol = request.locationCol();
       var bottomRightRow = topLeftRow + request.height() - 1;
       var bottomRightCol = topLeftCol + request.width() - 1;
       var color = GridCell.Color.of(request.status());
       shape = GridCell.Shape.ofRectangle(topLeftRow, topLeftCol, bottomRightRow, bottomRightCol, color);
     } else {
-      var row = request.locationY();
-      var col = request.locationX();
+      var row = request.locationRow();
+      var col = request.locationCol();
       var color = GridCell.Color.of(request.status());
       shape = GridCell.Shape.ofSingleCell(row, col, color);
     }
@@ -200,10 +200,10 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
   public Done createPredator(UpdateGridCellRequest request) {
     log.info("Region: {}, {}", region(), request);
 
-    var row1 = request.centerY() - request.radius();
-    var col1 = request.centerX() - request.radius();
-    var row2 = request.centerY() + request.radius();
-    var col2 = request.centerX() + request.radius();
+    var row1 = request.centerRow() - request.radius();
+    var col1 = request.centerCol() - request.radius();
+    var row2 = request.centerRow() + request.radius();
+    var col2 = request.centerCol() + request.radius();
     var pageTokenOffset = "";
 
     var allGridCells = queryGridCellsInArea(row1, col1, row2, col2, pageTokenOffset);
@@ -283,10 +283,10 @@ public class GridCellEndpoint extends AbstractHttpEndpoint {
         .toList();
   }
 
-  record CreateShapeRequest(String id, String status, Instant clientAt, int locationX, int locationY, int radius, int width, int height,
+  record CreateShapeRequest(String id, String status, Instant clientAt, int locationRow, int locationCol, int radius, int width, int height,
       int row1, int col1, int row2, int col2, int row3, int col3) {}
 
-  record UpdateGridCellRequest(String id, String status, Instant clientAt, Integer centerX, Integer centerY, Integer radius) {}
+  record UpdateGridCellRequest(String id, String status, Instant clientAt, Integer centerRow, Integer centerCol, Integer radius) {}
 
   record ScentCell(int row, int col, int maxIntensity) {}
 

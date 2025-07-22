@@ -67,6 +67,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         o: 'orange',
         p: 'predator',
         d: 'inactive',
+        c: 'custom',
       },
     },
 
@@ -163,6 +164,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   function parseCoordinatesFromId(id) {
     const parts = id.split('x');
     return {
+      row: parseInt(parts[0]),
+      col: parseInt(parts[1]),
       x: parseInt(parts[1]),
       y: parseInt(parts[0]),
     };
@@ -205,7 +208,7 @@ document.addEventListener('DOMContentLoaded', async () => {
    */
   function getCellColorCharFromElement(cellElement) {
     if (cellElement.style.backgroundColor) {
-      return ''; // Custom colors don't have a single char
+      return 'c'; // Custom colors
     }
     const statusClass = getCellStatusClass(cellElement);
     if (!statusClass) return '';
@@ -883,7 +886,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const serverFormatId = id;
     const apiUrl = `${origin}/grid-cell/${commandPath}`;
     const status = config.colors.statusMap[colorChar];
-    const { x: centerX, y: centerY } = parseCoordinatesFromId(id);
+    const { row: centerRow, col: centerCol } = parseCoordinatesFromId(id);
     const maxRetries = config.retry.maxAttempts;
     const retryDelay = config.retry.delay; // ms
     let attempt = 0;
@@ -894,9 +897,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       const clientAt = new Date().toISOString();
       attempt++;
       if (attempt > 1) {
-        console.warn(`${new Date().toISOString()} `, `Retrying PUT to ${apiUrl} with id: ${serverFormatId}, status: ${status}, clientAt: ${clientAt}, cx: ${centerX}, cy: ${centerY}, r: ${radius}`);
+        console.warn(
+          `${new Date().toISOString()} `,
+          `Retrying PUT to ${apiUrl} with id: ${serverFormatId}, status: ${status}, clientAt: ${clientAt}, cRow: ${centerRow}, cCol: ${centerCol}, r: ${radius}`
+        );
       } else {
-        console.info(`${new Date().toISOString()} `, `Sending PUT to ${apiUrl} with id: ${serverFormatId}, status: ${status}, clientAt: ${clientAt}, cx: ${centerX}, cy: ${centerY}, r: ${radius}`);
+        console.info(
+          `${new Date().toISOString()} `,
+          `Sending PUT to ${apiUrl} with id: ${serverFormatId}, status: ${status}, clientAt: ${clientAt}, cRow: ${centerRow}, cCol: ${centerCol}, r: ${radius}`
+        );
       }
       try {
         const response = await fetch(apiUrl, {
@@ -910,8 +919,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                   id: serverFormatId,
                   status: status,
                   clientAt: clientAt,
-                  locationX: centerX,
-                  locationY: centerY,
+                  locationRow: centerRow,
+                  locationCol: centerCol,
                   radius: radius,
                   width: width,
                   height: height,
@@ -920,8 +929,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                   id: serverFormatId,
                   status: status,
                   clientAt: clientAt,
-                  centerX: centerX,
-                  centerY: centerY,
+                  centerRow: centerRow,
+                  centerCol: centerCol,
                   radius: radius,
                 }
           ),
@@ -962,8 +971,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         id: id,
         status: 'predator',
         clientAt: new Date().toISOString(),
-        centerX: parseCoordinatesFromId(id).x,
-        centerY: parseCoordinatesFromId(id).y,
+        centerRow: parseCoordinatesFromId(id).row,
+        centerCol: parseCoordinatesFromId(id).col,
         radius: range,
       }),
     });
@@ -1299,13 +1308,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   /**
-   * Gets the current cell status color character
-   */
-  function getCellColorChar(cellElement) {
-    return getCellColorCharFromElement(cellElement);
-  }
-
-  /**
    * Handles color key commands (r, g, b, o, d)
    */
   function handleColorCommand(event) {
@@ -1317,11 +1319,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (currentSelection.length > 0) {
         // Rectangle selection mode
-        const { x: topLeftX, y: topLeftY } = parseCoordinatesFromId(currentSelection[0]);
-        const { x: bottomRightX, y: bottomRightY } = parseCoordinatesFromId(currentSelection[currentSelection.length - 1]);
-        const width = Math.abs(bottomRightX - topLeftX) + 1;
-        const height = Math.abs(bottomRightY - topLeftY) + 1;
-        const id = topLeftY + 'x' + topLeftX;
+        const { col: topLeftCol, row: topLeftRow } = parseCoordinatesFromId(currentSelection[0]);
+        const { col: bottomRightCol, row: bottomRightRow } = parseCoordinatesFromId(currentSelection[currentSelection.length - 1]);
+        const width = Math.abs(bottomRightCol - topLeftCol) + 1;
+        const height = Math.abs(bottomRightRow - topLeftRow) + 1;
+        const id = topLeftRow + 'x' + topLeftCol;
         sendCellUpdate(id, colorChar, commandPath, 0, width, height);
 
         clearSelection();
@@ -1348,9 +1350,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const commandPath = 'clear-cells';
         const id = extractCellId(hoveredCellId);
         const colorChar = getCellColorCharFromElement(cellElement);
-        if (colorChar.length > 0) {
-          sendCellUpdate(id, colorChar, commandPath);
-        }
+        colorChar.length > 0 ? sendCellUpdate(id, colorChar, commandPath) : sendCellUpdate(id, 'c', commandPath);
       }
       return true;
     }
@@ -1369,7 +1369,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (hasElapsedTime) {
         const commandPath = 'erase-cells';
         const id = extractCellId(hoveredCellId);
-        sendCellUpdate(id, '', commandPath);
+        const colorChar = getCellColorCharFromElement(cellElement);
+        colorChar.length > 0 ? sendCellUpdate(id, colorChar, commandPath) : sendCellUpdate(id, 'd', commandPath);
       }
       return true;
     }
