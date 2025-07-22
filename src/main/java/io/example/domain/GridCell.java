@@ -194,19 +194,34 @@ public interface GridCell {
       var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
       var newUpdatedAt = Instant.now();
       var newCreated = isEmpty() ? command.region : created;
+      var newShapes = updateShapes(shapes, command.shape);
 
       if (command.shape().isSingleCell()) {
-        return List.of(new Event.StatusUpdated(
-            command.id,
-            command.status,
-            Color.of(command.status),
-            newCreatedAt,
-            newUpdatedAt,
-            command.clientAt,
-            command.endpointAt,
-            newCreated,
-            command.region,
-            List.of(command.shape)));
+        var statusUpdatedEvent = command.shape.isNewestShape(newShapes)
+            ? new Event.StatusUpdated(
+                command.id,
+                command.status,
+                Color.of(command.status),
+                newCreatedAt,
+                newUpdatedAt,
+                command.clientAt,
+                command.endpointAt,
+                newCreated,
+                command.region,
+                newShapes)
+            : new Event.StatusUpdated(
+                id,
+                status,
+                color,
+                createdAt,
+                newUpdatedAt,
+                clientAt,
+                endpointAt,
+                created,
+                updated,
+                newShapes);
+
+        return List.of(statusUpdatedEvent);
       }
 
       // If first cell is inactive, fill the shape, which fills only empty (no color) cells
@@ -462,33 +477,40 @@ public interface GridCell {
     // Command.SpanStatus
     // ============================================================
     public List<Event> onCommand(Command.SpanCells command) {
-      if (isEmpty() || status.equals(Status.inactive)) {
-        return List.of();
-      }
-      if (status.equals(command.status())) {
-        return List.of();
-      }
       if (!isInsideShape(command.id, command.shape)) {
         return List.of();
       }
-      if (isTooSoonToChange(updatedAt)) {
+      if (shapes.contains(command.shape)) {
         return List.of();
       }
 
       var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
       var newUpdatedAt = Instant.now();
       var newCreated = isEmpty() ? command.region : created;
-      var statusUpdatedEvent = new Event.StatusUpdated(
-          command.id,
-          command.status,
-          Color.of(command.status),
-          newCreatedAt,
-          newUpdatedAt,
-          command.clientAt,
-          command.endpointAt,
-          newCreated,
-          command.region,
-          List.of(command.shape));
+      var newShapes = updateShapes(shapes, command.shape);
+      var statusUpdatedEvent = command.shape.isNewestShape(newShapes) && !isEmpty() && !status.equals(Status.inactive)
+          ? new Event.StatusUpdated(
+              command.id,
+              command.status,
+              Color.of(command.status),
+              newCreatedAt,
+              newUpdatedAt,
+              command.clientAt,
+              command.endpointAt,
+              newCreated,
+              command.region,
+              newShapes)
+          : new Event.StatusUpdated(
+              id,
+              status,
+              color,
+              createdAt,
+              newUpdatedAt,
+              clientAt,
+              endpointAt,
+              created,
+              updated,
+              newShapes);
 
       var neighborSpanStatusUpdatedEvents = neighborIds(command.id).stream()
           .map(id -> new Event.SpanToNeighbor(
@@ -499,6 +521,7 @@ public interface GridCell {
               command.shape,
               newCreated,
               command.region))
+          .filter(e -> isInsideShape(e.id, e.shape))
           .toList();
 
       return Stream.<Event>concat(Stream.of(statusUpdatedEvent), neighborSpanStatusUpdatedEvents.stream()).toList();
@@ -508,33 +531,41 @@ public interface GridCell {
     // Command.FillStatus
     // ============================================================
     public List<Event> onCommand(Command.FillCells command) {
-      if (!isEmpty() && !status.equals(Status.inactive)) {
-        return List.of();
-      }
-      if (status.equals(command.status)) {
-        return List.of();
-      }
       if (!isInsideShape(command.id, command.shape)) {
         return List.of();
       }
-      if (isTooSoonToChange(updatedAt)) {
+      if (shapes.contains(command.shape)) {
         return List.of();
       }
 
       var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
       var newUpdatedAt = Instant.now();
       var newCreated = isEmpty() ? command.region : created;
-      var updateStatusEvent = new Event.StatusUpdated(
-          command.id,
-          command.status,
-          Color.of(command.status),
-          newCreatedAt,
-          newUpdatedAt,
-          command.clientAt,
-          command.endpointAt,
-          newCreated,
-          command.region,
-          List.of(command.shape));
+      var newShapes = updateShapes(shapes, command.shape);
+
+      var updateStatusEvent = command.shape.isNewestShape(newShapes) && isEmpty() && status.equals(Status.inactive)
+          ? new Event.StatusUpdated(
+              command.id,
+              command.status,
+              Color.of(command.status),
+              newCreatedAt,
+              newUpdatedAt,
+              command.clientAt,
+              command.endpointAt,
+              newCreated,
+              command.region,
+              newShapes)
+          : new Event.StatusUpdated(
+              id,
+              status,
+              color,
+              createdAt,
+              newUpdatedAt,
+              clientAt,
+              endpointAt,
+              created,
+              updated,
+              newShapes);
 
       var neighborFillEvents = neighborIds(command.id).stream()
           .map(id -> new Event.FillToNeighbor(
@@ -545,6 +576,7 @@ public interface GridCell {
               command.shape,
               newCreated,
               command.region))
+          .filter(e -> isInsideShape(e.id, e.shape))
           .toList();
 
       return Stream.<Event>concat(Stream.of(updateStatusEvent), neighborFillEvents.stream()).toList();
@@ -564,11 +596,7 @@ public interface GridCell {
       var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
       var newUpdatedAt = Instant.now();
       var newCreated = isEmpty() ? command.region : created;
-      var newShapes = new ArrayList<>(shapes);
-
-      newShapes.add(command.shape);
-      var tenMinutesAgo = Instant.now().minus(10, ChronoUnit.MINUTES);
-      newShapes.removeIf(shape -> shape.createdAt().isBefore(tenMinutesAgo));
+      var newShapes = updateShapes(shapes, command.shape);
 
       var updateStatusEvent = command.shape.isNewestShape(newShapes)
           ? new Event.StatusUpdated(
@@ -592,7 +620,7 @@ public interface GridCell {
               endpointAt,
               created,
               updated,
-              newShapes); // add the lower priority overlapping shape, no changes to other state variables
+              newShapes); // add the lower priority overlapping shape, no changes to other state attributes
 
       var neighborDrawEvents = neighborIds(command.id).stream()
           .map(id -> new Event.DrawToNeighbor(
@@ -623,11 +651,7 @@ public interface GridCell {
       var newCreatedAt = isEmpty() ? Instant.now() : createdAt;
       var newUpdatedAt = Instant.now();
       var newCreated = isEmpty() ? command.region : created;
-      var newShapes = new ArrayList<>(shapes);
-
-      newShapes.add(command.shape);
-      var tenMinutesAgo = Instant.now().minus(10, ChronoUnit.MINUTES);
-      newShapes.removeIf(shape -> shape.createdAt().isBefore(tenMinutesAgo));
+      var newShapes = updateShapes(shapes, command.shape);
 
       var updateStatusEvent = command.shape.isNewestShape(newShapes)
           ? new Event.StatusUpdated(
@@ -651,7 +675,7 @@ public interface GridCell {
               endpointAt,
               created,
               updated,
-              newShapes); // add the lower priority overlapping shape, no changes to other state variables
+              newShapes); // add the lower priority overlapping shape, no changes to other state attributes
 
       var neighborDrawEvents = neighborIds(command.id).stream()
           .map(id -> new Event.DrawToNeighbor(
@@ -772,9 +796,14 @@ public interface GridCell {
       return this;
     }
 
-    static boolean isTooSoonToChange(Instant lastUpdatedAt) {
-      var now = Instant.now();
-      return now.isBefore(lastUpdatedAt.plusSeconds(3));
+    static List<Shape> updateShapes(List<Shape> shapes, Shape newShape) {
+      var newShapes = new ArrayList<>(shapes);
+
+      newShapes.add(newShape);
+      var tenMinutesAgo = Instant.now().minus(10, ChronoUnit.MINUTES);
+      newShapes.removeIf(shape -> shape.createdAt().isBefore(tenMinutesAgo));
+
+      return newShapes;
     }
 
     static boolean isInsideShape(String id, Shape shape) {
