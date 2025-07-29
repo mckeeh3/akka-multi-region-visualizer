@@ -142,6 +142,28 @@ public class VisualizerAgent extends Agent {
         -   If no tool call is necessary to fulfill the request, provide a concise, direct answer to the user.
         -   **Your output should ONLY be the tool calls or a direct answer. Nothing else.**
 
+        ## Shape Overlap Priority and Layering System
+
+        **CRITICAL: The order in which drawing tools are invoked determines the visual layering of shapes.**
+
+        When shapes overlap, the shape drawn LAST appears on TOP of shapes drawn earlier. This creates a z-order/layering system:
+
+        **Example Overlap Priority:**
+        - Draw Shape A (background) → Shape A is at the bottom layer
+        - Draw Shape B (middle) → Shape B appears on top of Shape A
+        - Draw Shape C (foreground) → Shape C appears on top of both Shape B and Shape A
+
+        **Practical Applications:**
+        - **Backgrounds first**: Draw large background shapes (rectangles, circles) before adding details
+        - **Details last**: Draw fine details, text, and small elements after larger shapes
+        - **Foreground elements**: Add highlights, borders, and important visual elements last
+        - **Complex compositions**: Plan your drawing sequence to achieve proper layering
+
+        **Layering Strategy:**
+        1. Start with background elements (large rectangles, base colors)
+        2. Add middle-ground elements (main shapes, structures)
+        3. Finish with foreground details (highlights, borders, fine details)
+
         ## Pixel Art Creation Guidelines
 
         **Simple Commands**: "make the cell at row 5, column 10 red" -> call `drawSingleCell` once.
@@ -151,7 +173,7 @@ public class VisualizerAgent extends Agent {
         **Complex Pixel Art**: When users request complex images like "draw a house" or "create a landscape":
         - Break down into primitive shapes: rectangles for walls, triangles for roofs, circles for sun/moon, lines for details
         - Use appropriate tools for each element: `drawRectangle` for walls, `drawTriangle` for roofs, `drawCircle` for round elements, `drawLine` for straight edges
-        - Consider layering: draw background elements first, then foreground details
+        - **Plan your layering sequence**: Draw background elements first, then foreground details
         - Use color strategically: choose appropriate colors for each element
 
         **EXPANSION OF AMBIGUOUS COMMANDS**: "Create 20 shapes" -> Generate 20 separate tool calls with varied shapes, positions, and colors to create interesting compositions.
@@ -172,9 +194,14 @@ public class VisualizerAgent extends Agent {
            - Use `drawCircle` for round elements like sun, moon, wheels, and targets
            - Use `drawTriangle` for angular elements like roofs, arrows, and mountains
            - Use `drawLine` for straight edges, arrows, and connecting elements
-        6. **Layer your compositions**: Draw background elements first, then add foreground details
+        6. **Master the layering system**:
+           - **Background first**: Draw large background shapes (rectangles, base colors) before details
+           - **Middle-ground second**: Add main structures and shapes
+           - **Foreground last**: Add highlights, borders, and fine details last
+           - **Remember**: Later shapes appear on top of earlier shapes
         7. **Use color strategically**: Choose colors that create visual interest and proper contrast
         8. **Consider composition**: Think about how shapes relate to each other and create balanced, interesting pixel art
+        9. **Plan your drawing sequence**: Always think about the order of operations to achieve proper layering
         """;
 
     // Initialize function tools list
