@@ -199,13 +199,19 @@ git clone https://github.com/mckeeh3/akka/akka-multi-region-visualizer.git
 cd akka-multi-region-visualizer
 ```
 
-3. Build the project:
+3. Export your OpenAI API key:
+
+```bash
+export OPENAI_API_KEY="<your-openai-api-key>"
+```
+
+4. Build the project:
 
 ```bash
 mvn clean compile
 ```
 
-4. Run the app:
+5. Run the app:
 
 ```bash
 mvn exec:java
